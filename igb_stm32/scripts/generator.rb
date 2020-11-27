@@ -17,6 +17,7 @@ class SVDParser
     # ペリフェラルをグループごとにざっくり分割
     @parsed = {}
     @periph_to_group = {}
+    @all_interrupts = {}
   end
 
   attr_reader :parsed, :periph_to_group
@@ -64,8 +65,13 @@ class SVDParser
 
     @parsed[group_name][peripheral_name] = _scan_peripheral(parent_doc) if parent_doc
     @parsed[group_name][peripheral_name].update(_scan_peripheral(peripheral))
+    @all_interrupts.update(@parsed[group_name][peripheral_name][:interrupts] || {})
 
     @periph_to_group[peripheral_name] = group_name
+  end
+
+  def search_interrupts(pattern = /\A.*\Z/)
+    @all_interrupts.select {|k, v| k.to_s =~ pattern }
   end
 
   def _scan_peripheral(peripheral)
@@ -98,6 +104,8 @@ class SVDParser
     case name.to_s
     when 'ADC'
       'ADC1'
+    when 'DAC'
+      'DAC1'
     else
       name
     end
@@ -141,9 +149,10 @@ class DeviceFileParser
     @filename = filename
     @parsed = {}
     @parsed[:gpio_af] ||= {}
+    @af_max_idx = 7
   end
 
-  attr_reader :parsed
+  attr_reader :parsed, :af_max_idx
 
   def parse
     open(@filename) do |file|
@@ -166,12 +175,13 @@ class DeviceFileParser
       parsed_signal = Hash[*(signal.attributes.flat_map {|name, value| [name.to_sym,  value]})]
       parsed_signals << parsed_signal
 
-      if (af = signal.attribute('af').to_s) and (driver = signal.attribute('driver').to_s.upcase.to_sym)
+      if (af = signal.attribute('af').to_s.to_i) and (driver = signal.attribute('driver').to_s.upcase.to_sym)
+        @af_max_idx = af if af > @af_max_idx
         periph_name = "#{driver}#{signal.attribute('instance')}".to_sym
         @parsed[:gpio_af][driver] ||= {}
         @parsed[:gpio_af][driver][periph_name] ||= {}
         @parsed[:gpio_af][driver][periph_name][signal.attribute('name').to_s.to_sym] = {
-          af: af.to_i,
+          af: af,
           port: "GPIO#{port_str.upcase}",
           pin: pin
         }
@@ -243,11 +253,12 @@ class CppSrcGenerator
 
       @svd_parser.parsed[group_name].keys.sort_by {|k|
         if k.to_s =~ /\d+\z/
-          k.to_s.gsub(/\D/, '').to_i
+          sprintf("%04d", k.to_s.gsub(/\D/, '').to_i)
         else
-          k
+          k.to_s
         end
       }.each do |peripheral_name|
+        next if include_black_list?(peripheral_name)
         struct = CppStructSchema.create(group_name)
         struct[:periph] = peripheral_name if struct
         case group_name.to_sym
@@ -255,8 +266,7 @@ class CppSrcGenerator
           struct[:attrs][:p_gpio][:value] = peripheral_name
         when :TIM
           struct[:attrs][:p_tim][:value] = peripheral_name
-          irqn = @svd_parser.parsed[group_name][peripheral_name][:interrupts].keys.first
-          irqn += 'n' if irqn[-1] != 'n'
+          irqn = fetch_tim_irqn_name(peripheral_name)
           struct[:attrs][:irqn][:value] = irqn
           description = @svd_parser.parsed[group_name][peripheral_name][:description]
           if description =~ /\AAdvanced/
@@ -292,6 +302,29 @@ class CppSrcGenerator
     end
   end
 
+  def fetch_tim_irqn_name(peripheral_name)
+    interrupts = @svd_parser.search_interrupts(/(\A|_)#{peripheral_name}(_|\z)/)
+    name = if interrupts.size > 1
+      names = @svd_parser.search_interrupts(/(\A|_)#{peripheral_name}_UP.*\z/).keys
+      if names.empty?
+        interrupts.keys.first.to_s
+      else
+        names.first.to_s
+      end
+    elsif interrupts.size == 0
+      peripheral_name.to_s
+    else
+      interrupts.keys.first.to_s
+    end
+    if name =~ /_IRQ\Z/
+      "#{name}n"
+    elsif name =~ /_IRQn\Z/
+      name
+    else
+      "#{name}_IRQn"
+    end
+  end
+
   def gen_af_info_structs
     @df_parser.parsed[:gpio_af].each do |group_name, group|
       @af_info_structs[group_name] ||= {}
@@ -315,22 +348,68 @@ class CppSrcGenerator
     IOPE: :GPIOE, IOPF: :GPIOF, IOPG: :GPIOG, IOPH: :GPIOH,
     IOPI: :GPIOI, IOPJ: :GPIOJ, IOPK: :GPIOK, IOPL: :GPIOL,
     IOPM: :GPIOM, IOPN: :GPION, IOPO: :GPIOO, IOPP: :GPIOP,
-    ADC:  :ADC1
   }
 
+  def bus_name_to_periph_name
+    @bus_name_to_periph_name ||= {}
+    @bus_name_to_periph_name[mcu] ||= BUSNAME_TO_PERIPHNAME.merge(
+      case mcu.to_sym
+      when :stm32f072xb
+        {ADC:  :ADC1}
+      when :stm32h750xx
+        {
+          DAC12:  [:DAC1, :DAC2], 
+          ADC12:  [:ADC1, :ADC2], 
+          USART7: :UART7,
+          USART8: :UART8,
+        }
+      else
+        {}
+      end
+    )
+    @bus_name_to_periph_name[mcu]
+  end
+
+  def include_black_list?(periph_name)
+    case mcu.to_sym
+    when :stm32f072xb
+      false
+    when :stm32h750xx
+      %W(ADC12_Common ADC3_Common).include?(periph_name.to_s)
+    else
+      false
+    end
+  end
+
   def update_structs_for_bus_clock
-    %i(AHB APB1 APB2 APB3 APB4).each do |bus_name|
+    # AHBxLP系はRSTRレジスタがないなど特殊なのでひとまず対象外
+    %i(
+    AHB
+    APB1
+    AHB1
+    AHB2
+    AHB3
+    AHB4
+    APB1H
+    APB1L
+    APB2
+    APB3
+    APB4
+    ).each do |bus_name|
       if enr = @svd_parser.parsed[:RCC][:RCC][:registers][:"#{bus_name}ENR"]
         @bus_names << bus_name
         enr[:fields].each do |field|
           bus_periph_name = field[:name][0..-3].to_sym
-          if periph_name = BUSNAME_TO_PERIPHNAME[bus_periph_name] || bus_periph_name
-            if group_name = @svd_parser.periph_to_group[periph_name]
-              if periph_struct = @cpp_structs[group_name].find {|elem| elem[:periph].to_sym == periph_name }
-                periph_struct[:bus] = {
-                  name: bus_name,
-                  bit_offset: field[:bitOffset].to_i,
-                }
+          #puts "bus_name = #{bus_name}, bus_periph_name = #{bus_periph_name}"
+          if periph_name = bus_name_to_periph_name[bus_periph_name] || bus_periph_name
+            [*periph_name].each do |pname|
+              if group_name = @svd_parser.periph_to_group[pname]
+                if periph_struct = @cpp_structs[group_name].find {|elem| elem[:periph].to_sym == pname}
+                  periph_struct[:bus] = {
+                    name: bus_name,
+                    bit_offset: field[:bitOffset].to_i,
+                  }
+                end
               end
             end
           end
@@ -367,6 +446,6 @@ if __FILE__ == $0
   #peripheral_names = get_periheral_names
   #puts "[peripheral names] #{peripheral_names}"
 
-  generator = CppSrcGenerator.new(:stm32f072xb)
+  generator = CppSrcGenerator.new(:stm32h750xx)
   generator.process
 end

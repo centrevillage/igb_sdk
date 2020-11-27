@@ -155,13 +155,9 @@ const struct PeriphGpioAfInfo {
 
 enum class GpioAf : uint8_t {
   af0 = 0,
-  af1,
-  af2,
-  af3,
-  af4,
-  af5,
-  af6,
-  af7,
+<% (1 .. @df_parser.af_max_idx).each do |idx| %>
+  af<%= idx %>,
+<% end %>
 };
 
 static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinType gpio_pin) {
