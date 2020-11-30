@@ -12,6 +12,9 @@
 #define STM32_PERIPH_<%= periph_name.upcase %>_EXISTS 1
 <% end %>
 <% end %>
+<% if @svd_parser.parsed[:GPIO].first.last[:registers][:BRR] %>
+#define STM32_PERIPH_GPIO_REG_BRR_EXISTS 1
+<% end %>
 
 namespace igb {
 namespace stm32 {

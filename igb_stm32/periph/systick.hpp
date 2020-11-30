@@ -69,6 +69,17 @@ static IGB_FAST_INLINE uint32_t current_usec() {
   return getCurrentMicros();
 }
 
+#elif USE_DAISY
+
+#include "sys/system.h"
+static IGB_FAST_INLINE uint32_t current_msec() {
+  return dsy_system_getnow();
+}
+
+static IGB_FAST_INLINE uint32_t current_usec() {
+  return dsy_system_getnow() * 1000;
+}
+
 #else
 
 volatile uint32_t _systick = 0;

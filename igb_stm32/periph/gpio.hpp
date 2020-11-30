@@ -8,29 +8,31 @@
 namespace igb {
 namespace stm32 {
 
-// TODO: MCU によって定義される値が違うかも？
 enum class GpioMode : uint32_t {
-  INPUT = 0,
-  OUTPUT = GPIO_MODER_MODER0_0,
-  ALTERNATE = GPIO_MODER_MODER0_1,
-  ANALOG = GPIO_MODER_MODER0
+  INPUT     = 0UL,
+  OUTPUT    = 0x00000001UL,
+  ALTERNATE = 0x00000002UL,
+  ANALOG    = 0x00000003UL
 };
+constexpr uint32_t GPIO_MODE_MASK = 0x00000003UL;
 
 enum class GpioSpeedMode : uint32_t {
-  LOW = 0,
-  MEDIUM = GPIO_OSPEEDR_OSPEEDR0_0,
-  HIGH = GPIO_OSPEEDR_OSPEEDR0
+  LOW    = 0UL,
+  MEDIUM = 0x00000001UL,
+  HIGH   = 0x00000003UL
 };
+constexpr uint32_t GPIO_SPEED_MODE_MASK = 0x00000003UL;
 
 enum class GpioPullMode : uint32_t {
-  NO = 0,
-  UP = GPIO_PUPDR_PUPDR0_0,
-  DOWN = GPIO_PUPDR_PUPDR0_1,
+  NO   = 0UL,
+  UP   = 0x00000001UL,
+  DOWN = 0x00000002UL,
 };
+constexpr uint32_t GPIO_PULL_MODE_MASK = 0x00000003UL;
 
 enum class GpioOutputMode : uint32_t {
-  PUSHPULL = 0,
-  OPENDRAIN = GPIO_OTYPER_OT_0
+  PUSHPULL = 0UL,
+  OPENDRAIN = 0x00000001UL
 };
 
 struct GpioPort {
@@ -38,7 +40,7 @@ struct GpioPort {
   GPIO_TypeDef* const p_gpio = STM32_PERIPH_INFO.gpio[as<uint8_t>(type)].p_gpio;
 
   IGB_FAST_INLINE void setMode(uint32_t pin_bit, GpioMode mode) {
-    MODIFY_REG(p_gpio->MODER, ((pin_bit * pin_bit) * GPIO_MODER_MODER0), ((pin_bit * pin_bit) * static_cast<uint32_t>(mode)));
+    MODIFY_REG(p_gpio->MODER, ((pin_bit * pin_bit) * GPIO_MODE_MASK), ((pin_bit * pin_bit) * static_cast<uint32_t>(mode)));
   }
 
   IGB_FAST_INLINE void setOutputMode(uint32_t pin_bit, GpioOutputMode mode) {
@@ -46,11 +48,11 @@ struct GpioPort {
   }
 
   IGB_FAST_INLINE void setPullMode(uint32_t pin_bit, GpioPullMode mode) {
-    MODIFY_REG(p_gpio->PUPDR, ((pin_bit * pin_bit) * GPIO_PUPDR_PUPDR0), ((pin_bit * pin_bit) * static_cast<uint32_t>(mode)));
+    MODIFY_REG(p_gpio->PUPDR, ((pin_bit * pin_bit) * GPIO_PULL_MODE_MASK), ((pin_bit * pin_bit) * static_cast<uint32_t>(mode)));
   }
 
   IGB_FAST_INLINE void setSpeedMode(uint32_t pin_bit, GpioSpeedMode mode) {
-    MODIFY_REG(p_gpio->OSPEEDR, ((pin_bit * pin_bit) * GPIO_OSPEEDR_OSPEEDR0), ((pin_bit * pin_bit) * static_cast<uint32_t>(mode)));
+    MODIFY_REG(p_gpio->OSPEEDR, ((pin_bit * pin_bit) * GPIO_SPEED_MODE_MASK), ((pin_bit * pin_bit) * static_cast<uint32_t>(mode)));
   }
 
   IGB_FAST_INLINE void setAlternateFunc(uint32_t pin_bit, GpioAf af) {
@@ -80,7 +82,11 @@ struct GpioPort {
   }
 
   IGB_FAST_INLINE void off(uint32_t bits) {
+#ifdef STM32_PERIPH_GPIO_REG_BRR_EXISTS
     p_gpio->BRR = bits;
+#else
+    p_gpio->BSRR = bits << 16U;
+#endif
   }
 
   IGB_FAST_INLINE void low(uint32_t bits) {
@@ -179,11 +185,19 @@ struct GpioPin {
     setSpeedMode(speed);
   }
 
+  IGB_FAST_INLINE void initInputDefault() {
+    initInput(GpioPullMode::NO, GpioSpeedMode::HIGH);
+  }
+
   IGB_FAST_INLINE void initOutput(GpioOutputMode output_mode, GpioSpeedMode speed) {
     setMode(GpioMode::OUTPUT);
     setOutputMode(output_mode);
     setPullMode(GpioPullMode::NO);
     setSpeedMode(speed);
+  }
+
+  IGB_FAST_INLINE void initOutputDefault() {
+    initOutput(GpioOutputMode::PUSHPULL, GpioSpeedMode::HIGH);
   }
 
   static IGB_FAST_INLINE GpioPin newPin(const GpioPinType pin_type) {

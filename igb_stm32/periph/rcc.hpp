@@ -11,7 +11,14 @@ namespace stm32 {
 enum class RccClockSrc {
   internal = RCC_CFGR_SW_HSI,
   external = RCC_CFGR_SW_HSE,
+#if defined(RCC_CFGR_SW_CSI)
+  csi = RCC_CFGR_SW_CSI,
+#endif
+#if defined(RCC_CFGR_SW_PLL)
   pll = RCC_CFGR_SW_PLL,
+#elif defined(RCC_CFGR_SW_PLL1)
+  pll = RCC_CFGR_SW_PLL1,
+#endif
 #if defined(RCC_HSI48_SUPPORT)
   hsi48 = RCC_CFGR_SW_HSI48
 #endif
@@ -20,7 +27,14 @@ enum class RccClockSrc {
 enum class RccClockSrcStatus {
   internal = RCC_CFGR_SWS_HSI,
   external = RCC_CFGR_SWS_HSE,
-  pll = RCC_CFGR_SWS_PLL,
+#if defined(RCC_CFGR_SW_CSI)
+  csi = RCC_CFGR_SW_CSI,
+#endif
+#if defined(RCC_CFGR_SW_PLL)
+  pll = RCC_CFGR_SW_PLL,
+#elif defined(RCC_CFGR_SW_PLL1)
+  pll = RCC_CFGR_SW_PLL1,
+#endif
 #if defined(RCC_HSI48_SUPPORT)
   hsi48 = RCC_CFGR_SWS_HSI48
 #endif
@@ -50,7 +64,7 @@ enum class RccClockPrescalerAPB1 {
 };
 #endif
 
-#if defined(RCC_PLLSRC_PREDIV1_SUPPORT)
+#if defined(STM32F0)
 enum class RccPllClockSrc : uint32_t {
   internal = RCC_CFGR_PLLSRC_HSI_PREDIV,
   external = RCC_CFGR_PLLSRC_HSE_PREDIV,
@@ -77,7 +91,9 @@ enum class RccPllMul : uint32_t {
   mul16 = RCC_CFGR_PLLMUL16,
 };
 
+#if defined(RCC_PLLSRC_PREDIV1_SUPPORT)
 enum class RccPllDiv {
+  internal = RCC_CFGR_PLLSRC_HSI_PREDIV,
   div1 = RCC_CFGR2_PREDIV_DIV1,
   div2 = RCC_CFGR2_PREDIV_DIV2,
   div3 = RCC_CFGR2_PREDIV_DIV3,
@@ -95,7 +111,8 @@ enum class RccPllDiv {
   div15 = RCC_CFGR2_PREDIV_DIV15,
   div16 = RCC_CFGR2_PREDIV_DIV16,
 };
-#endif
+#endif // RCC_PLLSRC_PREDIV1_SUPPORT
+#endif // STM32_SERIES
 
 struct RccCtrl {
   static IGB_FAST_INLINE void enableBusClock(const auto& periph_bus_info) {
@@ -210,6 +227,7 @@ struct RccCtrl {
   }
 #endif
 
+#if defined(STM32F0)
   static IGB_FAST_INLINE void configPllSystemClockDomain(RccPllClockSrc clock_src, RccPllMul mul, RccPllDiv div) {
 #if defined(RCC_PLLSRC_PREDIV1_SUPPORT)
     MODIFY_REG(RCC->CFGR, RCC_CFGR_PLLSRC | RCC_CFGR_PLLMUL, static_cast<uint32_t>(clock_src) | static_cast<uint32_t>(mul));
@@ -217,8 +235,9 @@ struct RccCtrl {
 #else
     MODIFY_REG(RCC->CFGR, RCC_CFGR_PLLSRC | RCC_CFGR_PLLMUL, (static_cast<uint32_t>(clock_src) & RCC_CFGR_PLLSRC) | static_cast<uint32_t>(mul));
     MODIFY_REG(RCC->CFGR2, RCC_CFGR2_PREDIV, (static_cast<uint32_t>(clock_src) & RCC_CFGR2_PREDIV));
-#endif
+#endif // RCC_PLLSRC_PREDIV1_SUPPORT
   }
+#endif // STM32_SERIES
 
   //static IGB_FAST_INLINE void setPllMainSrc(RccPllSrc src) {
   //}

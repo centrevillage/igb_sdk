@@ -41,9 +41,9 @@ struct OledSsd1306 {
     dc_pin.enable();
     reset_pin.enable();
 
-    cs_pin.initOutput(GpioOutputMode::PUSHPULL, GpioSpeedMode::HIGH);
-    dc_pin.initOutput(GpioOutputMode::PUSHPULL, GpioSpeedMode::HIGH);
-    reset_pin.initOutput(GpioOutputMode::PUSHPULL, GpioSpeedMode::HIGH);
+    cs_pin.initOutputDefault();
+    dc_pin.initOutputDefault();
+    reset_pin.initOutputDefault();
   }
 
   void sendInitCommands() {
@@ -119,7 +119,7 @@ struct OledSsd1306 {
       sendCommand(0xB0 + i); // Set the current RAM page address.
       sendCommand(0x00);
       sendCommand(0x10);
-      sendData(&screen_buffer[SCREEN_WIDTH*i], SCREEN_WIDTH);
+      sendData(&screen_buffer[screen_width*i], screen_width);
     }
   }
 
