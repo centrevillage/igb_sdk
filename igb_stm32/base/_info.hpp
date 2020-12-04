@@ -40,7 +40,7 @@ enum class TimCategory {
 struct TimInfo {
   const PeriphType      periph_type;
   const TimCategory     category;
-  const TIM_TypeDef*    p_tim;
+  TIM_TypeDef* const    p_tim;
   const IRQn_Type       irqn;
   const PeriphBusInfo   bus;
 };
