@@ -510,11 +510,31 @@ struct Spi {
 #endif
   }
 
+  IGB_FAST_INLINE uint8_t receiveU8sync() {
+#if defined(STM32H7)
+    while (!isState(SpiState::RX_PACKET_ABAILABLE));
+    return receiveU8();
+#else
+    while (!isState(SpiState::RX_BUF_NOT_EMPTY));
+    return receiveU8();
+#endif
+  }
+
   IGB_FAST_INLINE uint16_t receiveU16() {
 #if defined(STM32H7)
     return (uint16_t)(READ_REG(p_spi->RXDR));
 #else
     return (uint16_t)(p_spi->DR);
+#endif
+  }
+
+  IGB_FAST_INLINE uint8_t receiveU16sync() {
+#if defined(STM32H7)
+    while (!isState(SpiState::RX_PACKET_ABAILABLE));
+    return receiveU16();
+#else
+    while (!isState(SpiState::RX_BUF_NOT_EMPTY));
+    return receiveU16();
 #endif
   }
 
@@ -529,6 +549,17 @@ struct Spi {
     *((__IO uint8_t *)&p_spi->DR) = data;
 #endif /* __GNUC__ */
 #endif
+  }
+
+  IGB_FAST_INLINE void sendU8sync(uint8_t data) {
+#if defined(STM32H7)
+    while (!isState(SpiState::TX_PACKET_ABAILABLE));
+    sendU8(data);
+#else
+    while (isState(SpiState::BUSY));
+    while (!isState(SpiState::TX_BUF_EMPTY));
+    sendU8(data);
+#endif /* __GNUC__ */
   }
 
   IGB_FAST_INLINE void sendU16(uint16_t data) {
@@ -547,6 +578,17 @@ struct Spi {
   p_spi->DR = data;
 #endif /* __GNUC__ */
 #endif /* defined(STM32H7) */
+  }
+
+  IGB_FAST_INLINE void sendU16sync(uint8_t data) {
+#if defined(STM32H7)
+    while (!isState(SpiState::TX_PACKET_ABAILABLE));
+    sendU16(data);
+#else
+    while (isState(SpiState::BUSY));
+    while (!isState(SpiState::TX_BUF_EMPTY));
+    sendU16(data);
+#endif /* __GNUC__ */
   }
 
   IGB_FAST_INLINE uint8_t transferU8sync(uint8_t data) {
@@ -587,6 +629,7 @@ struct Spi {
     pin.setSpeedMode(GpioSpeedMode::HIGH);
     pin.setOutputMode(GpioOutputMode::PUSHPULL);
     pin.setAlternateFunc(result.value());
+    pin.enable();
   }
 
   IGB_FAST_INLINE void initDefault() {
@@ -628,7 +671,22 @@ struct Spi {
     prepareGpio(sck_pin);
 
     setBaudratePrescaler(prescaler);
+#if defined(STM32H7)
+    setTransDir(SpiTransDir::SIMPLEX_TX);
+    setMode(SpiMode::MASTER);
+    setDataWidth(SpiDataWidth::_8BIT);
+    setClockPolarity(SpiClockPolarity::LOW);
+    setClockPhase(SpiClockPhase::ONE_EDGE);
+    setNssMode(SpiNssMode::SOFT);
+    setTransBitOrder(SpiBitOrder::MSB_FIRST);
+    setCrc(false);
+    setCrcPolynomial(7);
+    setStandard(SpiStandard::MOTOROLA);
+    setFifoThreshold(SpiFifoThreshold::_1DATA);
+    setNssPulseMng(true);
+#else
     initDefault();
+#endif
     enable();
   }
 
