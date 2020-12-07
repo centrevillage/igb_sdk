@@ -42,7 +42,7 @@ module NameConfig
     stm32f302xc: :STM32F302,
     stm32f303xc: :STM32F303,
     stm32f358xx: :STM32F3x8,
-    stm32f303x8: :STM32F303,
+    stm32f303x8: :STM32F3x4,
     stm32f334x8: :STM32F3x4,
     stm32f328xx: :STM32F3x8,
     stm32f302xe: :STM32F302,

@@ -54,6 +54,7 @@ class SVDParser
     group_name = peripheral.elements['groupName']&.text || parent_doc&.elements['groupName']&.text || peripheral_name
 
     peripheral_name = fix_ambiguous_peripheral_name(peripheral_name)
+    group_name = fix_ambiguous_group_name(group_name)
 
     #debug "[#{group_name}] #{peripheral_name}"
     
@@ -106,6 +107,15 @@ class SVDParser
       'ADC1'
     when 'DAC'
       'DAC1'
+    else
+      name
+    end
+  end
+
+  def fix_ambiguous_group_name(name)
+    case name.to_s
+    when 'TIMs'
+      'TIM'
     else
       name
     end
@@ -363,6 +373,14 @@ class CppSrcGenerator
           USART7: :UART7,
           USART8: :UART8,
         }
+      when :stm32f303x8
+        {
+          ADC12:  [:ADC1, :ADC2], 
+          ADC34:  [:ADC3, :ADC4], 
+          USART4: :UART4,
+          USART5: :UART5,
+          DAC: :DAC1,
+        }
       else
         {}
       end
@@ -376,6 +394,8 @@ class CppSrcGenerator
       false
     when :stm32h750xx
       %W(ADC12_Common ADC3_Common).include?(periph_name.to_s)
+    when :stm32f303x8
+      %W(I2S2ext I2S3ext SPI2 SPI3 I2C2 I2C3).include?(periph_name.to_s)
     else
       false
     end
@@ -446,6 +466,6 @@ if __FILE__ == $0
   #peripheral_names = get_periheral_names
   #puts "[peripheral names] #{peripheral_names}"
 
-  generator = CppSrcGenerator.new(:stm32h750xx)
+  generator = CppSrcGenerator.new(:stm32f303x8)
   generator.process
 end

@@ -6576,6 +6576,12 @@ xs:noNamespaceSchemaLocation="CMSIS-SVD_Schema_1_1.xsd">
               <bitWidth>1</bitWidth>
             </field>
             <field>
+              <name>USART3EN</name>
+              <description>USART 3 clock enable</description>
+              <bitOffset>18</bitOffset>
+              <bitWidth>1</bitWidth>
+            </field>
+            <field>
               <name>I2C1EN</name>
               <description>I2C 1 clock enable</description>
               <bitOffset>21</bitOffset>
@@ -6597,6 +6603,13 @@ xs:noNamespaceSchemaLocation="CMSIS-SVD_Schema_1_1.xsd">
               <name>CANEN</name>
               <description>CAN clock enable</description>
               <bitOffset>25</bitOffset>
+              <bitWidth>1</bitWidth>
+            </field>
+            <field>
+              <name>DAC2EN</name>
+              <description>DAC2 interface clock
+              enable</description>
+              <bitOffset>26</bitOffset>
               <bitWidth>1</bitWidth>
             </field>
             <field>
