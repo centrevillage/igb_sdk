@@ -6742,7 +6742,7 @@ xs:noNamespaceSchemaLocation="CMSIS-SVD_Schema_1_1.xsd">
               <bitWidth>1</bitWidth>
             </field>
             <field>
-              <name>SPI4ENR</name>
+              <name>SPI4EN</name>
               <description>SPI4 clock enable</description>
               <bitOffset>13</bitOffset>
               <bitWidth>1</bitWidth>

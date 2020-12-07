@@ -121,6 +121,9 @@ enum class SpiDataWidth : uint32_t {
   _30BIT = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_0,
   _31BIT = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_1,
   _32BIT = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_1 | SPI_CFG1_DSIZE_0,
+#elif defined(STM32F4)
+  _8BIT = 0,
+  _16BIT = SPI_CR1_DFF,
 #else
   _4BIT = SPI_CR2_DS_0 | SPI_CR2_DS_1,
   _5BIT = SPI_CR2_DS_2,
@@ -138,8 +141,8 @@ enum class SpiDataWidth : uint32_t {
 #endif
 };
 
-enum class SpiFifoThreshold : uint32_t {
 #if defined(STM32H7)
+enum class SpiFifoThreshold : uint32_t {
   _1DATA = 0,
   _2DATA = SPI_CFG1_FTHLV_0,
   _3DATA = SPI_CFG1_FTHLV_1,
@@ -156,14 +159,16 @@ enum class SpiFifoThreshold : uint32_t {
   _14DATA = SPI_CFG1_FTHLV_3 | SPI_CFG1_FTHLV_2 | SPI_CFG1_FTHLV_0,
   _15DATA = SPI_CFG1_FTHLV_3 | SPI_CFG1_FTHLV_2 | SPI_CFG1_FTHLV_1,
   _16DATA = SPI_CFG1_FTHLV_3 | SPI_CFG1_FTHLV_2 | SPI_CFG1_FTHLV_1 | SPI_CFG1_FTHLV_0,
-#else
+};
+#elif defined(STM32F0) || defined(STM32F3)
+enum class SpiFifoThreshold : uint32_t {
   HALF = 0,
   QUARTER = SPI_CR2_FRXTH,
-#endif
 };
+#endif
 
-enum class SpiCrcWidth : uint32_t {
 #if defined(STM32H7)
+enum class SpiCrcWidth : uint32_t {
   _4BIT = SPI_CFG1_CRCSIZE_0 | SPI_CFG1_CRCSIZE_1,
   _5BIT = SPI_CFG1_CRCSIZE_2,
   _6BIT = SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_0,
@@ -193,11 +198,13 @@ enum class SpiCrcWidth : uint32_t {
   _30BIT = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_0),
   _31BIT = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_1),
   _32BIT = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_1 | SPI_CFG1_CRCSIZE_0),
-#else
+};
+#elif defined(STM32F0) || defined(STM32F3)
+enum class SpiCrcWidth : uint32_t {
   _8BIT = 0,
   _16BIT = SPI_CR1_CRCL,
-#endif
 };
+#endif
 
 enum class SpiNssMode : uint32_t {
 #if defined(STM32H7)
@@ -348,19 +355,25 @@ struct Spi {
 #endif
   }
 
-  IGB_FAST_INLINE void setDataWidth(SpiDataWidth data_width) {
 #if defined(STM32H7)
+  IGB_FAST_INLINE void setDataWidth(SpiDataWidth data_width) {
     MODIFY_REG(p_spi->CFG1, SPI_CFG1_DSIZE, as<uint32_t>(data_width));
-#else
-    MODIFY_REG(p_spi->CR2, SPI_CR2_DS, as<uint32_t>(data_width));
-#endif
   }
+#elif defined(STM32F0) || defined(STM32F3)
+  IGB_FAST_INLINE void setDataWidth(SpiDataWidth data_width) {
+    MODIFY_REG(p_spi->CR2, SPI_CR2_DS, as<uint32_t>(data_width));
+  }
+#elif defined(STM32F4)
+  IGB_FAST_INLINE void setDataWidth(SpiDataWidth data_width) {
+    MODIFY_REG(p_spi->CR1, SPI_CR1_DFF, as<uint32_t>(data_width));
+  }
+#endif
 
 #if defined(STM32H7)
   IGB_FAST_INLINE void setFifoThreshold(SpiFifoThreshold threshold) {
     MODIFY_REG(p_spi->CFG1, SPI_CFG1_FTHLV, as<uint32_t>(threshold));
   }
-#else
+#elif defined(STM32F0) || defined(STM32F3)
   IGB_FAST_INLINE void setRxFifoThreshold(SpiFifoThreshold threshold) {
     MODIFY_REG(p_spi->CR2, SPI_CR2_FRXTH, as<uint32_t>(threshold));
   }
@@ -382,13 +395,15 @@ struct Spi {
 #endif
   }
 
-  IGB_FAST_INLINE void setCrcWidth(SpiCrcWidth width) {
 #if defined(STM32H7)
+  IGB_FAST_INLINE void setCrcWidth(SpiCrcWidth width) {
     MODIFY_REG(p_spi->CFG1, SPI_CFG1_CRCSIZE, as<uint32_t>(width));
-#else
-    MODIFY_REG(p_spi->CR1, SPI_CR1_CRCL, as<uint32_t>(width));
-#endif
   }
+#elif defined(STM32F0) || defined(STM32F3)
+  IGB_FAST_INLINE void setCrcWidth(SpiCrcWidth width) {
+    MODIFY_REG(p_spi->CR1, SPI_CR1_CRCL, as<uint32_t>(width));
+  }
+#endif
 
 #if !defined(STM32H7)
   IGB_FAST_INLINE void setCrcNext() {
@@ -429,21 +444,23 @@ struct Spi {
 #endif
   }
 
-  IGB_FAST_INLINE void setNssPulseMng(bool enable) {
 #if defined(STM32H7)
+  IGB_FAST_INLINE void setNssPulseMng(bool enable) {
     if (enable) {
       SET_BIT(p_spi->CFG2, SPI_CFG2_SSOM);
     } else {
       CLEAR_BIT(p_spi->CFG2, SPI_CFG2_SSOM);
     }
-#else
+  }
+#elif defined(STM32F0) || defined(STM32F3)
+  IGB_FAST_INLINE void setNssPulseMng(bool enable) {
     if (enable) {
       p_spi->CR2 |= SPI_CR2_NSSP;
     } else {
       p_spi->CR2 &= ~SPI_CR2_NSSP;
     }
-#endif
   }
+#endif
 
   IGB_FAST_INLINE bool isState(SpiState state) {
     return !!(p_spi->SR & as<uint32_t>(state));
@@ -485,7 +502,7 @@ struct Spi {
 #endif
   }
 
-#if !defined(STM32H7)
+#if defined(STM32F0) || defined(STM32F3)
   IGB_FAST_INLINE void setDmaParity(SpiDmaParityTarget target, SpiDmaParityType type) {
     switch (target) {
       case SpiDmaParityTarget::TX:
@@ -646,10 +663,11 @@ struct Spi {
 
 #if defined(STM32H7)
     setFifoThreshold(SpiFifoThreshold::_1DATA);
-#else
-    setRxFifoThreshold(SpiFifoThreshold::QUARTER);
-#endif
     setNssPulseMng(true);
+#elif defined(STM32F0) || defined(STM32F3)
+    setRxFifoThreshold(SpiFifoThreshold::QUARTER);
+    setNssPulseMng(true);
+#endif
   }
 
   IGB_FAST_INLINE void prepareSpiMaster(GpioPinType mosi_pin, GpioPinType miso_pin, GpioPinType sck_pin, SpiBaudratePrescaler prescaler) {

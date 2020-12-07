@@ -21,7 +21,7 @@ struct FlashCtrl {
     return static_cast<FlashLatency>(READ_BIT(FLASH->ACR, FLASH_ACR_LATENCY));
   }
 
-#if !defined(STM32H7)
+#if defined(STM32F0) || defined(STM32F3)
   static IGB_FAST_INLINE void enablePrefetch() {
     SET_BIT(FLASH->ACR, FLASH_ACR_PRFTBE);
   }

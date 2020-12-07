@@ -381,6 +381,10 @@ class CppSrcGenerator
           USART5: :UART5,
           DAC: :DAC1,
         }
+      when :stm32f446xx
+        {
+          DAC: :DAC1,
+        }
       else
         {}
       end
@@ -396,6 +400,8 @@ class CppSrcGenerator
       %W(ADC12_Common ADC3_Common).include?(periph_name.to_s)
     when :stm32f303x8
       %W(I2S2ext I2S3ext SPI2 SPI3 I2C2 I2C3).include?(periph_name.to_s)
+    when :stm32f446xx
+      %W(C_ADC).include?(periph_name.to_s)
     else
       false
     end
@@ -466,6 +472,6 @@ if __FILE__ == $0
   #peripheral_names = get_periheral_names
   #puts "[peripheral names] #{peripheral_names}"
 
-  generator = CppSrcGenerator.new(:stm32f303x8)
+  generator = CppSrcGenerator.new(:stm32f446xx)
   generator.process
 end
