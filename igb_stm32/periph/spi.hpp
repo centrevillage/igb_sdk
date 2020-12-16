@@ -218,6 +218,13 @@ enum class SpiNssMode : uint32_t {
 #endif
 };
 
+#if defined(STM32H7)
+enum class SpiNssPolarity : uint32_t {
+  LOW = 0,
+  HIGH = SPI_CFG2_SSIOP,
+};
+#endif
+
 enum class SpiState : uint32_t {
 #if defined(STM32H7)
   RX_WORD_NOT_EMPTY   = SPI_SR_RXWNE,
@@ -462,6 +469,12 @@ struct Spi {
   }
 #endif
 
+#if defined(STM32H7)
+  IGB_FAST_INLINE void setNssPolarity(SpiNssPolarity polarity) {
+    MODIFY_REG(p_spi->CFG2, SPI_CFG2_SSIOP, as<uint32_t>(polarity));
+  }
+#endif
+
   IGB_FAST_INLINE bool isState(SpiState state) {
     return !!(p_spi->SR & as<uint32_t>(state));
   }
@@ -519,6 +532,16 @@ struct Spi {
   }
 #endif
 
+#if defined(STM32H7)
+  IGB_FAST_INLINE void setTransferSize(uint32_t count) {
+    MODIFY_REG(p_spi->CR2, SPI_CR2_TSIZE, count);
+  }
+
+  IGB_FAST_INLINE void startMasterTransfer() {
+    SET_BIT(p_spi->CR1, SPI_CR1_CSTART);
+  }
+#endif
+
   IGB_FAST_INLINE uint8_t receiveU8() {
 #if defined(STM32H7)
     return (*((__IO uint8_t *)&p_spi->RXDR));
@@ -570,8 +593,18 @@ struct Spi {
 
   IGB_FAST_INLINE void sendU8sync(uint8_t data) {
 #if defined(STM32H7)
+    disable();
+    setTransferSize(1);
+    enable();
+    startMasterTransfer();
     while (!isState(SpiState::TX_PACKET_ABAILABLE));
     sendU8(data);
+    while (!isState(SpiState::END_OF_TRANSFER));
+    SET_BIT(p_spi->IFCR, SPI_IFCR_EOTC);
+    SET_BIT(p_spi->IFCR, SPI_IFCR_TXTFC);
+    disable();
+    p_spi->IER &= (~(SPI_IT_EOT | SPI_IT_TXP | SPI_IT_RXP | SPI_IT_DXP | SPI_IT_UDR | SPI_IT_OVR | SPI_IT_FRE | SPI_IT_MODF));
+    CLEAR_BIT(p_spi->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
 #else
     while (isState(SpiState::BUSY));
     while (!isState(SpiState::TX_BUF_EMPTY));
@@ -599,8 +632,18 @@ struct Spi {
 
   IGB_FAST_INLINE void sendU16sync(uint8_t data) {
 #if defined(STM32H7)
+    disable();
+    setTransferSize(1);
+    enable();
+    startMasterTransfer();
     while (!isState(SpiState::TX_PACKET_ABAILABLE));
     sendU16(data);
+    while (!isState(SpiState::END_OF_TRANSFER));
+    SET_BIT(p_spi->IFCR, SPI_IFCR_EOTC);
+    SET_BIT(p_spi->IFCR, SPI_IFCR_TXTFC);
+    disable();
+    p_spi->IER &= (~(SPI_IT_EOT | SPI_IT_TXP | SPI_IT_RXP | SPI_IT_DXP | SPI_IT_UDR | SPI_IT_OVR | SPI_IT_FRE | SPI_IT_MODF));
+    CLEAR_BIT(p_spi->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
 #else
     while (isState(SpiState::BUSY));
     while (!isState(SpiState::TX_BUF_EMPTY));
@@ -610,12 +653,21 @@ struct Spi {
 
   IGB_FAST_INLINE uint8_t transferU8sync(uint8_t data) {
 #if defined(STM32H7)
-    // TODO: 要検証
-    //while (isState(SpiState::TX_TRANSFER_FULL));
+    disable();
+    setTransferSize(1);
+    enable();
+    startMasterTransfer();
     while (!isState(SpiState::TX_PACKET_ABAILABLE));
     sendU8(data);
     while (!isState(SpiState::RX_PACKET_ABAILABLE));
-    return receiveU8();
+    uint8_t result = receiveU8();
+    while (!isState(SpiState::END_OF_TRANSFER));
+    SET_BIT(p_spi->IFCR, SPI_IFCR_EOTC);
+    SET_BIT(p_spi->IFCR, SPI_IFCR_TXTFC);
+    disable();
+    p_spi->IER &= (~(SPI_IT_EOT | SPI_IT_TXP | SPI_IT_RXP | SPI_IT_DXP | SPI_IT_UDR | SPI_IT_OVR | SPI_IT_FRE | SPI_IT_MODF));
+    CLEAR_BIT(p_spi->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
+    return result;
 #else
     while (isState(SpiState::BUSY));
     while (!isState(SpiState::TX_BUF_EMPTY));
@@ -650,6 +702,24 @@ struct Spi {
   }
 
   IGB_FAST_INLINE void initDefault() {
+#if defined(STM32H7)
+    setNssPolarity(SpiNssPolarity::LOW);
+    setStandard(SpiStandard::MOTOROLA);
+    setFifoThreshold(SpiFifoThreshold::_1DATA);
+    setNssPulseMng(false);
+
+    setCrc(false);
+    setDataWidth(SpiDataWidth::_8BIT);
+
+    SET_BIT(p_spi->CR1, SPI_CR1_SSI); // avoid a MODF Error
+
+    setNssMode(SpiNssMode::SOFT);
+    setClockPolarity(SpiClockPolarity::LOW);
+    setClockPhase(SpiClockPhase::ONE_EDGE);
+    setTransBitOrder(SpiBitOrder::MSB_FIRST);
+    setMode(SpiMode::MASTER);
+    setTransDir(SpiTransDir::FULL_DUPLEX);
+#elif defined(STM32F0) || defined(STM32F3)
     setTransDir(SpiTransDir::FULL_DUPLEX);
     setMode(SpiMode::MASTER);
     setDataWidth(SpiDataWidth::_8BIT);
@@ -660,11 +730,6 @@ struct Spi {
     setCrc(false);
     setCrcPolynomial(7);
     setStandard(SpiStandard::MOTOROLA);
-
-#if defined(STM32H7)
-    setFifoThreshold(SpiFifoThreshold::_1DATA);
-    setNssPulseMng(true);
-#elif defined(STM32F0) || defined(STM32F3)
     setRxFifoThreshold(SpiFifoThreshold::QUARTER);
     setNssPulseMng(true);
 #endif
@@ -688,21 +753,74 @@ struct Spi {
     prepareGpio(mosi_pin);
     prepareGpio(sck_pin);
 
-    setBaudratePrescaler(prescaler);
 #if defined(STM32H7)
-    setTransDir(SpiTransDir::SIMPLEX_TX);
-    setMode(SpiMode::MASTER);
+    setNssPolarity(SpiNssPolarity::LOW);
+    setStandard(SpiStandard::MOTOROLA);
+    setFifoThreshold(SpiFifoThreshold::_1DATA);
+    setNssPulseMng(false);
+
+    setBaudratePrescaler(prescaler);
+    setCrc(false);
     setDataWidth(SpiDataWidth::_8BIT);
+
+    SET_BIT(p_spi->CR1, SPI_CR1_SSI); // avoid a MODF Error
+
+    setNssMode(SpiNssMode::SOFT);
     setClockPolarity(SpiClockPolarity::LOW);
     setClockPhase(SpiClockPhase::ONE_EDGE);
-    setNssMode(SpiNssMode::SOFT);
     setTransBitOrder(SpiBitOrder::MSB_FIRST);
-    setCrc(false);
-    setCrcPolynomial(7);
+    setMode(SpiMode::MASTER);
+    setTransDir(SpiTransDir::SIMPLEX_TX);
+#if defined(SPI_I2SCFGR_I2SMOD)
+    CLEAR_BIT(p_spi->I2SCFGR, SPI_I2SCFGR_I2SMOD);
+#endif
+    CLEAR_BIT(p_spi->CR1, SPI_CR1_TCRCINI);
+    CLEAR_BIT(p_spi->CR1, SPI_CR1_RCRCINI);
+    CLEAR_BIT(p_spi->CFG2, SPI_CFG2_AFCNTR);
+    CLEAR_BIT(p_spi->CFG2, SPI_CFG2_IOSWP);
+    MODIFY_REG(p_spi->CFG2, 0xFFUL, 0x00UL);
+#else
+    setBaudratePrescaler(prescaler);
+    initDefault();
+#endif
+    enable();
+  }
+
+  IGB_FAST_INLINE void prepareSpiMasterOutOnlyHardSS(GpioPinType mosi_pin, GpioPinType sck_pin, GpioPinType cs_pin, SpiBaudratePrescaler prescaler) {
+    const auto& spi_info = STM32_PERIPH_INFO.spi[as<uint8_t>(type)];
+    spi_info.bus.enableBusClock();
+    prepareGpio(mosi_pin);
+    prepareGpio(sck_pin);
+    prepareGpio(cs_pin);
+
+#if defined(STM32H7)
+    setNssPolarity(SpiNssPolarity::LOW);
     setStandard(SpiStandard::MOTOROLA);
     setFifoThreshold(SpiFifoThreshold::_1DATA);
     setNssPulseMng(true);
+
+    setBaudratePrescaler(prescaler);
+    setCrc(false);
+    setDataWidth(SpiDataWidth::_8BIT);
+
+    SET_BIT(p_spi->CR1, SPI_CR1_SSI); // avoid a MODF Error
+
+    setNssMode(SpiNssMode::HARD_OUTPUT);
+    setClockPolarity(SpiClockPolarity::LOW);
+    setClockPhase(SpiClockPhase::ONE_EDGE);
+    setTransBitOrder(SpiBitOrder::MSB_FIRST);
+    setMode(SpiMode::MASTER);
+    setTransDir(SpiTransDir::SIMPLEX_TX);
+#if defined(SPI_I2SCFGR_I2SMOD)
+    CLEAR_BIT(p_spi->I2SCFGR, SPI_I2SCFGR_I2SMOD);
+#endif
+    CLEAR_BIT(p_spi->CR1, SPI_CR1_TCRCINI);
+    CLEAR_BIT(p_spi->CR1, SPI_CR1_RCRCINI);
+    CLEAR_BIT(p_spi->CFG2, SPI_CFG2_AFCNTR);
+    CLEAR_BIT(p_spi->CFG2, SPI_CFG2_IOSWP);
+    MODIFY_REG(p_spi->CFG2, 0xFFUL, 0x00UL);
 #else
+    setBaudratePrescaler(prescaler);
     initDefault();
 #endif
     enable();
