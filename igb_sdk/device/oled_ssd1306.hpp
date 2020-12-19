@@ -88,30 +88,15 @@ struct OledSsd1306 {
   void sendCommand(uint8_t byte) {
     cs_pin.low(); // select OLED
     dc_pin.low(); // command
-    spi.transferU8sync(byte);
-    cs_pin.high(); // un-select OLED
-  }
-
-  void sendCommand(uint8_t* buf, size_t buff_size) {
-    cs_pin.low(); // select OLED
-    dc_pin.high(); // data
-    spi.transferU8sync(0);
-    spi.transferU8sync(0);
-    for (size_t i = 0; i < buff_size; ++i) {
-      spi.transferU8sync(buf[i]);
-    }
+    spi.sendU8sync(byte);
     cs_pin.high(); // un-select OLED
   }
 
   void sendData(uint8_t* buf, size_t buff_size) {
-    cs_pin.low(); // select OLED
     dc_pin.high(); // data
-    spi.transferU8sync(0);
-    spi.transferU8sync(0);
-    for (size_t i = 0; i < buff_size; ++i) {
-      spi.transferU8sync(buf[i]);
-    }
-    cs_pin.high(); // un-select OLED
+    cs_pin.low(); spi.sendU8sync(0); cs_pin.high();
+    cs_pin.low(); spi.sendU8sync(0); cs_pin.high();
+    cs_pin.low(); spi.sendBufU8sync(buf, buff_size); cs_pin.high();
   }
 
   void updateScreen() {
