@@ -30,8 +30,8 @@ enum class RccClockSrcStatus {
 #if defined(RCC_CFGR_SW_CSI)
   csi = RCC_CFGR_SW_CSI,
 #endif
-#if defined(RCC_CFGR_SW_PLL)
-  pll = RCC_CFGR_SW_PLL,
+#if defined(RCC_CFGR_SWS_PLL)
+  pll = RCC_CFGR_SWS_PLL,
 #elif defined(RCC_CFGR_SW_PLL1)
   pll = RCC_CFGR_SW_PLL1,
 #endif
