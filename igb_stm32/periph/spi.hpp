@@ -607,9 +607,7 @@ struct Spi {
     p_spi->IER &= (~(SPI_IT_EOT | SPI_IT_TXP | SPI_IT_RXP | SPI_IT_DXP | SPI_IT_UDR | SPI_IT_OVR | SPI_IT_FRE | SPI_IT_MODF));
     CLEAR_BIT(p_spi->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
 #else
-    while (isState(SpiState::BUSY));
-    while (!isState(SpiState::TX_BUF_EMPTY));
-    sendU8(data);
+    __IO uint16_t tmp = transferU8sync(data);
 #endif
   }
 
@@ -631,9 +629,7 @@ struct Spi {
     CLEAR_BIT(p_spi->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
 #else
     for (size_t i = 0; i < size; ++i) {
-      while (isState(SpiState::BUSY));
-      while (!isState(SpiState::TX_BUF_EMPTY));
-      sendU8(buffer[i]);
+      sendU8sync(buffer[i]);
     }
 #endif
   }
@@ -654,52 +650,6 @@ struct Spi {
   p_spi->DR = data;
 #endif /* __GNUC__ */
 #endif /* defined(STM32H7) */
-  }
-
-  IGB_FAST_INLINE void sendU16sync(uint8_t data) {
-#if defined(STM32H7)
-    disable();
-    setTransferSize(1);
-    enable();
-    startMasterTransfer();
-    while (!isState(SpiState::TX_PACKET_ABAILABLE));
-    sendU16(data);
-    while (!isState(SpiState::END_OF_TRANSFER));
-    SET_BIT(p_spi->IFCR, SPI_IFCR_EOTC);
-    SET_BIT(p_spi->IFCR, SPI_IFCR_TXTFC);
-    disable();
-    p_spi->IER &= (~(SPI_IT_EOT | SPI_IT_TXP | SPI_IT_RXP | SPI_IT_DXP | SPI_IT_UDR | SPI_IT_OVR | SPI_IT_FRE | SPI_IT_MODF));
-    CLEAR_BIT(p_spi->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
-#else
-    while (isState(SpiState::BUSY));
-    while (!isState(SpiState::TX_BUF_EMPTY));
-    sendU16(data);
-#endif /* __GNUC__ */
-  }
-
-  IGB_FAST_INLINE void sendBufU16sync(uint16_t* buffer, size_t size) {
-#if defined(STM32H7)
-    disable();
-    setTransferSize(size);
-    enable();
-    startMasterTransfer();
-    for (size_t i = 0; i < size; ++i) {
-      while (!isState(SpiState::TX_PACKET_ABAILABLE));
-      sendU16(buffer[i]);
-    }
-    while (!isState(SpiState::END_OF_TRANSFER));
-    SET_BIT(p_spi->IFCR, SPI_IFCR_EOTC);
-    SET_BIT(p_spi->IFCR, SPI_IFCR_TXTFC);
-    disable();
-    p_spi->IER &= (~(SPI_IT_EOT | SPI_IT_TXP | SPI_IT_RXP | SPI_IT_DXP | SPI_IT_UDR | SPI_IT_OVR | SPI_IT_FRE | SPI_IT_MODF));
-    CLEAR_BIT(p_spi->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
-#else
-    for (size_t i = 0; i < size; ++i) {
-      while (isState(SpiState::BUSY));
-      while (!isState(SpiState::TX_BUF_EMPTY));
-      sendU16(buffer[i]);
-    }
-#endif /* __GNUC__ */
   }
 
   IGB_FAST_INLINE uint8_t transferU8sync(uint8_t data) {
