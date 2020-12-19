@@ -365,7 +365,10 @@ class CppSrcGenerator
     @bus_name_to_periph_name[mcu] ||= BUSNAME_TO_PERIPHNAME.merge(
       case mcu.to_sym
       when :stm32f072xb
-        {ADC:  :ADC1}
+        {
+          DAC: :DAC1,
+          ADC:  :ADC1
+        }
       when :stm32h750xx
         {
           DAC12:  [:DAC1, :DAC2], 
@@ -472,6 +475,6 @@ if __FILE__ == $0
   #peripheral_names = get_periheral_names
   #puts "[peripheral names] #{peripheral_names}"
 
-  generator = CppSrcGenerator.new(:stm32f446xx)
+  generator = CppSrcGenerator.new(:stm32f072xb)
   generator.process
 end

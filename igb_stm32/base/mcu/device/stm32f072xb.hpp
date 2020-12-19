@@ -19,7 +19,7 @@
 #define STM32_PERIPH_SPI1_EXISTS 1
 #define STM32_PERIPH_SPI2_EXISTS 1
 #define STM32_PERIPHGRP_DAC_EXISTS 1
-#define STM32_PERIPH_DAC_EXISTS 1
+#define STM32_PERIPH_DAC1_EXISTS 1
 #define STM32_PERIPHGRP_PWR_EXISTS 1
 #define STM32_PERIPH_PWR_EXISTS 1
 #define STM32_PERIPHGRP_I2C_EXISTS 1
@@ -74,6 +74,7 @@
 #define STM32_PERIPH_CRS_EXISTS 1
 #define STM32_PERIPHGRP_CAN_EXISTS 1
 #define STM32_PERIPH_CAN_EXISTS 1
+#define STM32_PERIPH_GPIO_REG_BRR_EXISTS 1
 
 namespace igb {
 namespace stm32 {
@@ -99,7 +100,7 @@ enum class PeriphType : uint16_t {
   gpiof,
   spi1,
   spi2,
-  dac,
+  dac1,
   i2c1,
   i2c2,
   tim1,
@@ -133,7 +134,7 @@ enum class SpiType : uint8_t {
   spi2,
 };
 enum class DacType : uint8_t {
-  dac = 0,
+  dac1 = 0,
 };
 enum class I2cType : uint8_t {
   i2c1 = 0,
@@ -636,8 +637,8 @@ constexpr struct PeriphInfo {
   };
   const std::array<DacInfo, 1> dac {
     DacInfo {
-      .periph_type = PeriphType::dac,
-      .p_dac = DAC,
+      .periph_type = PeriphType::dac1,
+      .p_dac = DAC1,
       .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 29},
     },
   };
@@ -1650,8 +1651,8 @@ inline std::optional<PeriphType> as_periph_type(SpiType type) {
 template<>
 inline std::optional<PeriphType> as_periph_type(DacType type) {
   switch (type) {
-    case DacType::dac:
-      return PeriphType::dac;
+    case DacType::dac1:
+      return PeriphType::dac1;
   }
 }
 template<>
