@@ -1,6 +1,7 @@
 #ifndef IGB_SDK_DEVICE_OLED_SSD1306_H
 #define IGB_SDK_DEVICE_OLED_SSD1306_H
 
+#include <igb_stm32/periph/systick.hpp>
 #include <igb_sdk/base.hpp>
 #include <igb_sdk/font/bitmap/cvfont_5x8.h>
 #include <igb_sdk/font/bitmap/cvfont_8x16.h>

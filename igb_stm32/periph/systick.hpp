@@ -73,11 +73,11 @@ static IGB_FAST_INLINE uint32_t current_usec() {
 
 #include "sys/system.h"
 static IGB_FAST_INLINE uint32_t current_msec() {
-  return dsy_system_getnow();
+  return daisy::System::GetNow();
 }
 
 static IGB_FAST_INLINE uint32_t current_usec() {
-  return dsy_system_getnow() * 1000;
+  return daisy::System::GetUs();
 }
 
 #else
