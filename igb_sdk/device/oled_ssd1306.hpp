@@ -121,12 +121,52 @@ struct OledSsd1306 {
     }
   }
 
-  void drawPixel(uint8_t x, uint8_t y, uint8_t fg) {
+  void drawPixel(uint8_t x, uint8_t y, bool fg) {
     if (fg) {
       screen_buffer[x + (y / 8) * screen_width] |= 1 << (y % 8);
     } else {
       screen_buffer[x + (y / 8) * screen_width] &= ~(1 << (y % 8));
     }
+  }
+
+  void drawRect(uint8_t x, uint8_t y, uint8_t width, uint8_t height, bool fg) {
+    for (uint16_t i = 0; i < width; ++i) {
+      drawPixel(x+i, y, fg);
+      drawPixel(x+i, y+height, fg);
+    }
+    for (uint16_t i = 1; i < height-1; ++i) {
+      drawPixel(x, y+i, fg);
+      drawPixel(x+width, y+i, fg);
+    }
+  }
+
+  void drawFillRect(uint8_t x, uint8_t y, uint8_t width, uint8_t height, bool fg, bool fill_fg) {
+    drawRect(x, y, width, height, fg);
+    uint8_t fill_bit = fill_fg ? 0xFF : 0;
+    for (uint16_t i = 1; i < height-1;) {
+      if (((y+i) % 8) == 0 && ((i+8) < height)) {
+        // draw by page
+        uint8_t page = y+i / 8;
+        for (uint8_t j = 1; j < width-1; ++j) {
+          setPageBit(page, x+j, fill_bit);
+        }
+        i += 8;
+      } else {
+        // draw by pixel
+        for (uint8_t j = 1; j < width-1; ++j) {
+          drawPixel(x+j, y+i, fill_fg);
+        }
+        ++i;
+      }
+    }
+  }
+
+  void drawPageBit(uint8_t page, uint8_t x, uint8_t bit) {
+    screen_buffer[x + page * screen_width] |= bit;
+  }
+
+  void setPageBit(uint8_t page, uint8_t x, uint8_t bit) {
+    screen_buffer[x + page * screen_width] = bit;
   }
 
   void drawTextMedium(const char* text, uint8_t length, uint16_t page, uint16_t offset) {
@@ -169,6 +209,12 @@ struct OledSsd1306 {
         screen_buffer[((page)*screen_width)+(pos*5)+offset+x] = bits;
       }
       ++pos;
+    }
+  }
+
+  void drawInvert(uint16_t page, uint16_t offset, uint16_t length) {
+    for (uint16_t x = offset; x < offset+length; ++x) {
+      screen_buffer[(page * screen_width) + x] ^= 0xFF;
     }
   }
 };
