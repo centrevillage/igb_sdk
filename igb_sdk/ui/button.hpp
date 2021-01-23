@@ -86,15 +86,15 @@ struct ButtonMatrix {
   }
 
   void process() {
-    auto& prev_out_pin = out_pins[(_out_pin_idx + out_pin_size - 1) % out_pin_size];
     auto& out_pin = out_pins[_out_pin_idx];
-    prev_out_pin.write(is_pull_up);
     out_pin.write(!is_pull_up);
 
     for (uint8_t i = 0; i < in_pin_size; ++i) {
       auto& in_pin = in_pins[i];
       bufs[i][_out_pin_idx].add(!!in_pin.read() == !is_pull_up);
     }
+
+    out_pin.write(is_pull_up);
 
     _out_pin_idx = (_out_pin_idx + 1) % out_pin_size;
   }
