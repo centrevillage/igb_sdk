@@ -62,18 +62,47 @@ enum class RccClockPrescalerAPB1 {
   div8 = RCC_CFGR_PPRE_DIV8,
   div16 = RCC_CFGR_PPRE_DIV16
 };
+#elif defined(RCC_CFGR_PPRE1)
+enum class RccClockPrescalerAPB1 {
+  div1 = RCC_CFGR_PPRE1_DIV1,
+  div2 = RCC_CFGR_PPRE1_DIV2,
+  div4 = RCC_CFGR_PPRE1_DIV4,
+  div8 = RCC_CFGR_PPRE1_DIV8,
+  div16 = RCC_CFGR_PPRE1_DIV16
+};
 #endif
 
-#if defined(STM32F0)
+#if defined(RCC_CFGR_PPRE2)
+enum class RccClockPrescalerAPB2 {
+  div1 = RCC_CFGR_PPRE2_DIV1,
+  div2 = RCC_CFGR_PPRE2_DIV2,
+  div4 = RCC_CFGR_PPRE2_DIV4,
+  div8 = RCC_CFGR_PPRE2_DIV8,
+  div16 = RCC_CFGR_PPRE2_DIV16
+};
+#endif
+
+#if defined(STM32F0) || defined(STM32F3)
+#if defined(RCC_PLLSRC_PREDIV1_SUPPORT)
 enum class RccPllClockSrc : uint32_t {
 #if defined(RCC_CFGR_PLLSRC_HSI_PREDIV)
   internal = RCC_CFGR_PLLSRC_HSI_PREDIV,
 #endif
+#if defined(RCC_CFGR_PLLSRC_HSE_PREDIV)
   external = RCC_CFGR_PLLSRC_HSE_PREDIV,
+#endif
 #if defined(RCC_CFGR_PLLSRC_HSI48_PREDIV)
   hsi48 = RCC_CFGR_PLLSRC_HSI48_PREDIV
 #endif
 };
+#else
+enum class RccPllClockSrc : uint32_t {
+  internal = 0,
+#if defined(RCC_CFGR_PLLSRC_HSE_PREDIV)
+  external = RCC_CFGR_PLLSRC_HSE_PREDIV 
+#endif
+};
+#endif
 
 enum class RccPllMul : uint32_t {
   mul2 = RCC_CFGR_PLLMUL2,
@@ -115,8 +144,34 @@ enum class RccPllDiv {
   div15 = RCC_CFGR2_PREDIV_DIV15,
   div16 = RCC_CFGR2_PREDIV_DIV16,
 };
+#else
+enum class RccPllDiv : uint32_t {
+  div1 = 0,
+  div2,
+  div3,
+  div4,
+  div5,
+  div6,
+  div7,
+  div8,
+  div9,
+  div10,
+  div11,
+  div12,
+  div13,
+  div14,
+  div15,
+  div16,
+};
 #endif // RCC_PLLSRC_PREDIV1_SUPPORT
 #endif // STM32_SERIES
+
+#if defined(RCC_CFGR3_I2C1SW)
+enum class I2cClockSrc : uint32_t {
+  internal = 0,
+  system,
+};
+#endif
 
 struct RccCtrl {
   static IGB_FAST_INLINE void enableBusClock(const auto& periph_bus_info) {
@@ -215,6 +270,71 @@ struct RccCtrl {
   static IGB_FAST_INLINE void setPrescalerAPB1(RccClockPrescalerAPB1 prescaler) {
     MODIFY_REG(RCC->CFGR, RCC_CFGR_PPRE, static_cast<uint32_t>(prescaler));
   }
+#elif defined(RCC_CFGR_PPRE1)
+  static IGB_FAST_INLINE void setPrescalerAPB1(RccClockPrescalerAPB1 prescaler) {
+    MODIFY_REG(RCC->CFGR, RCC_CFGR_PPRE1, static_cast<uint32_t>(prescaler));
+  }
+#endif
+#if defined(RCC_CFGR_PPRE2)
+  static IGB_FAST_INLINE void setPrescalerAPB2(RccClockPrescalerAPB2 prescaler) {
+    MODIFY_REG(RCC->CFGR, RCC_CFGR_PPRE2, static_cast<uint32_t>(prescaler));
+  }
+#endif
+
+#if defined(RCC_CFGR3_I2C1SW) && STM32_PERIPH_I2C1_EXISTS
+  static IGB_FAST_INLINE void setI2cClockSrc(I2cType type, I2cClockSrc src) {
+    uint32_t i2c_src = 0;
+    uint32_t clock_src = 0;
+    switch(type) {
+      case I2cType::i2c1:
+        i2c_src = RCC_CFGR3_I2C1SW;
+        switch(src) {
+          case I2cClockSrc::internal:
+            clock_src = RCC_CFGR3_I2C1SW_HSI;
+            break;
+          case I2cClockSrc::system:
+            clock_src = RCC_CFGR3_I2C1SW_SYSCLK;
+            break;
+          default:
+            break;
+        }
+        break;
+#if defined(RCC_CFGR3_I2C2SW) && STM32_PERIPH_I2C2_EXISTS
+      case I2cType::i2c2:
+        i2c_src = RCC_CFGR3_I2C2SW;
+        switch(src) {
+          case I2cClockSrc::internal:
+            clock_src = RCC_CFGR3_I2C2SW_HSI;
+            break;
+          case I2cClockSrc::system:
+            clock_src = RCC_CFGR3_I2C2SW_SYSCLK;
+            break;
+          default:
+            break;
+        }
+        break;
+#endif
+#if defined(RCC_CFGR3_I2C3SW) && STM32_PERIPH_I2C3_EXISTS
+      case I2cType::i2c3:
+        i2c_src = RCC_CFGR3_I2C3SW;
+        switch(src) {
+          case I2cClockSrc::internal:
+            clock_src = RCC_CFGR3_I2C3SW_HSI;
+            break;
+          case I2cClockSrc::system:
+            clock_src = RCC_CFGR3_I2C3SW_SYSCLK;
+            break;
+          default:
+            break;
+        }
+        break;
+#endif
+      default:
+        break;
+    }
+
+    MODIFY_REG(RCC->CFGR3, i2c_src, clock_src);
+  }
 #endif
 
 #if defined(RCC_CR_PLLON)
@@ -231,16 +351,20 @@ struct RccCtrl {
   }
 #endif
 
-#if defined(STM32F0)
+#if defined(STM32F0) || defined(STM32F3)
 #if defined(RCC_PLLSRC_PREDIV1_SUPPORT)
   static IGB_FAST_INLINE void configPllSystemClockDomain(RccPllClockSrc clock_src, RccPllMul mul, RccPllDiv div) {
     MODIFY_REG(RCC->CFGR, RCC_CFGR_PLLSRC | RCC_CFGR_PLLMUL, static_cast<uint32_t>(clock_src) | static_cast<uint32_t>(mul));
     MODIFY_REG(RCC->CFGR2, RCC_CFGR2_PREDIV, static_cast<uint32_t>(div));
   }
 #else
-  static IGB_FAST_INLINE void configPllSystemClockDomain(RccPllClockSrc clock_src, RccPllMul mul) {
+  static IGB_FAST_INLINE void configPllSystemClockDomain(RccPllClockSrc clock_src, RccPllMul mul, RccPllDiv div) {
     MODIFY_REG(RCC->CFGR, RCC_CFGR_PLLSRC | RCC_CFGR_PLLMUL, (static_cast<uint32_t>(clock_src) & RCC_CFGR_PLLSRC) | static_cast<uint32_t>(mul));
-    MODIFY_REG(RCC->CFGR2, RCC_CFGR2_PREDIV, (static_cast<uint32_t>(clock_src) & RCC_CFGR2_PREDIV));
+    if (clock_src == RccPllClockSrc::internal) {
+      MODIFY_REG(RCC->CFGR2, RCC_CFGR2_PREDIV, 0);
+    } else {
+      MODIFY_REG(RCC->CFGR2, RCC_CFGR2_PREDIV, (static_cast<uint32_t>(div) & RCC_CFGR2_PREDIV));
+    }
   }
 #endif // RCC_PLLSRC_PREDIV1_SUPPORT
 #endif // STM32_SERIES

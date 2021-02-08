@@ -1108,21 +1108,25 @@ constexpr struct PeriphInfo {
     I2cInfo {
       .periph_type = PeriphType::i2c1,
       .p_i2c = I2C1,
+      .addr = I2C1_BASE,
       .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 21},
     },
     I2cInfo {
       .periph_type = PeriphType::i2c2,
       .p_i2c = I2C2,
+      .addr = I2C2_BASE,
       .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 22},
     },
     I2cInfo {
       .periph_type = PeriphType::i2c3,
       .p_i2c = I2C3,
+      .addr = I2C3_BASE,
       .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 23},
     },
     I2cInfo {
       .periph_type = PeriphType::i2c4,
       .p_i2c = I2C4,
+      .addr = I2C4_BASE,
       .bus = PeriphBusInfo { BusType::apb4, (uint32_t)1 << 7},
     },
   };
