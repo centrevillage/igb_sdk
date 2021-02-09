@@ -1,6 +1,8 @@
 #ifndef IGB_STM32_PERIPH_I2C_H
 #define IGB_STM32_PERIPH_I2C_H
 
+#include <stddef.h>
+
 #include <igb_stm32/base.hpp>
 #include <igb_util/cast.hpp>
 #include <igb_stm32/periph/gpio.hpp>
@@ -11,42 +13,42 @@
 namespace igb {
 namespace stm32 {
 
-template<volatile I2C_TypeDef* const p_i2c>
+#define IGB_I2C ((I2C_TypeDef*)addr)
+#define IGB_I2C_REG_ADDR(member) (addr + offsetof(I2C_TypeDef, member))
+#define IGB_I2C_REG(member) ((I2C_TypeDef*)IGB_I2C_REG_ADDR(member))
+
+template<I2cType type>
 struct I2c {
-  IGB_FAST_INLINE void enable() {
-    p_i2c->CR1 |= I2C_CR1_PE;
-  }
+  constexpr static auto addr = STM32_PERIPH_INFO.i2c[static_cast<size_t>(type)].addr;
 
-  IGB_FAST_INLINE void disable() {
-    p_i2c->CR1 &= ~I2C_CR1_PE;
-  }
-
-  RegFlagAccessor<&(p_i2c->CR1), I2C_CR1_ANFOFF, true>          analogFilter;
-  RegValueAccessor<&(p_i2c->CR1), I2C_CR1_DNF, I2C_CR1_DNF_Pos> digitalFilter;
-  RegFlagAccessor<&(p_i2c->CR1), I2C_CR1_TXDMAEN>               dmaTx;
-  RegFlagAccessor<&(p_i2c->CR1), I2C_CR1_RXDMAEN>               dmaRx;
-  RegAccessor<&(p_i2c->TXDR)>                                   txData;
-  RegFlagAccessor<&(p_i2c->CR1), I2C_CR1_NOSTRETCH, true>       clockStretch;
-  RegFlagAccessor<&(p_i2c->CR1), I2C_CR1_SBC>                   slaveByteControl;
-  RegFlagAccessor<&(p_i2c->CR1), I2C_CR1_WUPEN>                 wakeup;
-  RegFlagAccessor<&(p_i2c->CR1), I2C_CR1_GCEN>                  generalCall;
+  IGB_FAST_INLINE void enable() { IGB_I2C->CR1 |= I2C_CR1_PE; }
+  IGB_FAST_INLINE void disable() { IGB_I2C->CR1 &= ~I2C_CR1_PE; }
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR1), I2C_CR1_ANFOFF, true>          analogFilter;
+  RegValueAccessor<IGB_I2C_REG_ADDR(CR1), I2C_CR1_DNF, I2C_CR1_DNF_Pos> digitalFilter;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR1), I2C_CR1_TXDMAEN>               dmaTx;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR1), I2C_CR1_RXDMAEN>               dmaRx;
+  RegAccessor<IGB_I2C_REG_ADDR(TXDR)>                                   txData;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR1), I2C_CR1_NOSTRETCH, true>       clockStretch;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR1), I2C_CR1_SBC>                   slaveByteControl;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR1), I2C_CR1_WUPEN>                 wakeup;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR1), I2C_CR1_GCEN>                  generalCall;
 
   enum class AddressingMode : uint32_t {
     _7bit = 0,
     _10_bit = I2C_CR2_ADD10
   };
-  RegEnumAccessor<&(p_i2c->CR2), I2C_CR2_ADD10, AddressingMode> masterAddressing;
+  RegEnumAccessor<IGB_I2C_REG_ADDR(CR2), I2C_CR2_ADD10, AddressingMode> masterAddressing;
 
-  RegFlagAccessor<&(p_i2c->OAR1), I2C_OAR1_OA1EN>   ownAddress1;
-  RegValueAccessor<&(p_i2c->OAR1), I2C_OAR1_OA1, 0> ownAddress1Value;
-  enum class OwnAddress1Size: uint32_t {
+  RegFlagAccessor<IGB_I2C_REG_ADDR(OAR1), I2C_OAR1_OA1EN>   ownAddress1;
+  RegValueAccessor<IGB_I2C_REG_ADDR(OAR1), I2C_OAR1_OA1, 0> ownAddress1Value;
+  enum class OwnAddress1Size : uint32_t {
     _7bit = 0,
     _10_bit = I2C_OAR1_OA1MODE
   };
-  RegEnumAccessor<&(p_i2c->OAR1), I2C_OAR1_OA1MODE, OwnAddress1Size> ownAddress1Size;
+  RegEnumAccessor<IGB_I2C_REG_ADDR(OAR1), I2C_OAR1_OA1MODE, OwnAddress1Size> ownAddress1Size;
 
-  RegFlagAccessor<&(p_i2c->OAR2), I2C_OAR2_OA2EN>   ownAddress2;
-  RegValueAccessor<&(p_i2c->OAR2), I2C_OAR2_OA2, 0> ownAddress2Value;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(OAR2), I2C_OAR2_OA2EN>   ownAddress2;
+  RegValueAccessor<IGB_I2C_REG_ADDR(OAR2), I2C_OAR2_OA2, 0> ownAddress2Value;
   enum class OwnAddress2Mask: uint32_t {
     nomask = I2C_OAR2_OA2NOMASK,
     mask01 = I2C_OAR2_OA2MASK01,
@@ -57,32 +59,32 @@ struct I2c {
     mask06 = I2C_OAR2_OA2MASK06,
     mask07 = I2C_OAR2_OA2MASK07
   };
-  RegEnumAccessor<&(p_i2c->OAR2), I2C_OAR2_OA2MSK, OwnAddress2Mask> ownAddress2Mask;
+  RegEnumAccessor<IGB_I2C_REG_ADDR(OAR2), I2C_OAR2_OA2MSK, OwnAddress2Mask> ownAddress2Mask;
 
-  RegAccessor<&(p_i2c->TIMINGR)> timing;
+  RegAccessor<IGB_I2C_REG_ADDR(TIMINGR)> timing;
 
-  RegFlagAccessor<&(p_i2c->CR1), I2C_CR1_SMBHEN> smBusHost;
-  RegFlagAccessor<&(p_i2c->CR1), I2C_CR1_SMBDEN> smBusDevice;
-  RegFlagAccessor<&(p_i2c->CR1), I2C_CR1_ALERTEN> smBusAlert;
-  RegFlagAccessor<&(p_i2c->CR1), I2C_CR1_PECEN> smBusPacketErrCalc;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR1), I2C_CR1_SMBHEN> smBusHost;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR1), I2C_CR1_SMBDEN> smBusDevice;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR1), I2C_CR1_ALERTEN> smBusAlert;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR1), I2C_CR1_PECEN> smBusPacketErrCalc;
 
-  RegFlagAccessor<&(p_i2c->TIMEOUTR), I2C_TIMEOUTR_TIMOUTEN> smBusTimeoutA;
-  RegFlagAccessor<&(p_i2c->TIMEOUTR), I2C_TIMEOUTR_TEXTEN>   smBusTimeoutB;
-  RegValueAccessor<&(p_i2c->TIMEOUTR), I2C_TIMEOUTR_TIMEOUTA, 0> smBusTimeoutAValue;
-  RegValueAccessor<&(p_i2c->TIMEOUTR), I2C_TIMEOUTR_TIMEOUTB, I2C_TIMEOUTR_TIMEOUTB_Pos> smBusTimeoutBValue;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(TIMEOUTR), I2C_TIMEOUTR_TIMOUTEN> smBusTimeoutA;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(TIMEOUTR), I2C_TIMEOUTR_TEXTEN>   smBusTimeoutB;
+  RegValueAccessor<IGB_I2C_REG_ADDR(TIMEOUTR), I2C_TIMEOUTR_TIMEOUTA, 0> smBusTimeoutAValue;
+  RegValueAccessor<IGB_I2C_REG_ADDR(TIMEOUTR), I2C_TIMEOUTR_TIMEOUTB, I2C_TIMEOUTR_TIMEOUTB_Pos> smBusTimeoutBValue;
   enum class SmbusTimeoutAMode : uint32_t {
     scl_low = 0,
     sda_scl_high = I2C_TIMEOUTR_TIDLE
   };
-  RegEnumAccessor<&(p_i2c->TIMEOUTR), I2C_TIMEOUTR_TIDLE, SmbusTimeoutAMode> smBusTimeoutAMode;
+  RegEnumAccessor<IGB_I2C_REG_ADDR(TIMEOUTR), I2C_TIMEOUTR_TIDLE, SmbusTimeoutAMode> smBusTimeoutAMode;
 
-  RegFlagAccessor<&(p_i2c->CR1), I2C_CR1_TXIE> interruptTx;
-  RegFlagAccessor<&(p_i2c->CR1), I2C_CR1_RXIE> interruptRx;
-  RegFlagAccessor<&(p_i2c->CR1), I2C_CR1_ADDRIE> interruptAddr;
-  RegFlagAccessor<&(p_i2c->CR1), I2C_CR1_NACKIE> interruptNack;
-  RegFlagAccessor<&(p_i2c->CR1), I2C_CR1_STOPIE> interruptStop;
-  RegFlagAccessor<&(p_i2c->CR1), I2C_CR1_TCIE> interruptTransferComplete;
-  RegFlagAccessor<&(p_i2c->CR1), I2C_CR1_ERRIE> interruptError;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR1), I2C_CR1_TXIE> interruptTx;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR1), I2C_CR1_RXIE> interruptRx;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR1), I2C_CR1_ADDRIE> interruptAddr;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR1), I2C_CR1_NACKIE> interruptNack;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR1), I2C_CR1_STOPIE> interruptStop;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR1), I2C_CR1_TCIE> interruptTransferComplete;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR1), I2C_CR1_ERRIE> interruptError;
 
   enum class Status {
     txDataEmpty = I2C_ISR_TXE,
@@ -102,11 +104,11 @@ struct I2c {
   };
 
   IGB_FAST_INLINE bool is(Status status) {
-    return p_i2c->ISR & static_cast<uint32_t>(status);
+    return IGB_I2C->ISR & static_cast<uint32_t>(status);
   }
 
   IGB_FAST_INLINE void clearStatus() {
-    p_i2c->ISR = I2C_ISR_TXE;
+    IGB_I2C->ISR = I2C_ISR_TXE;
   }
 
   enum class IntteruptType {
@@ -122,52 +124,97 @@ struct I2c {
   };
 
   IGB_FAST_INLINE void clearInterrupt(IntteruptType interrupt) {
-    p_i2c->ICR |= static_cast<uint32_t>(interrupt);
+    IGB_I2C->ICR |= static_cast<uint32_t>(interrupt);
   }
 
-  RegFlagAccessor<&(p_i2c->CR2), I2C_CR2_AUTOEND> autoEndMode;
-  RegFlagAccessor<&(p_i2c->CR2), I2C_CR2_RELOAD>  reloadMode;
-  RegValueAccessor<&(p_i2c->CR2), I2C_CR2_NBYTES, I2C_CR2_NBYTES_Pos>  transferSize;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR2), I2C_CR2_AUTOEND> autoEndMode;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR2), I2C_CR2_RELOAD>  reloadMode;
+  RegValueAccessor<IGB_I2C_REG_ADDR(CR2), I2C_CR2_NBYTES, I2C_CR2_NBYTES_Pos>  transferSize;
   enum class AckType {
     ack = 0,
     nack = I2C_CR2_NACK
   };
-  RegEnumAccessor<&(p_i2c->CR2), I2C_CR2_NACK, AckType> ackNextData;
-  RegFlagAccessor<&(p_i2c->CR2), I2C_CR2_START> startCondition;
-  RegFlagAccessor<&(p_i2c->CR2), I2C_CR2_STOP> stopCondition;
-  RegFlagAccessor<&(p_i2c->CR2), I2C_CR2_HEAD10R> auto10bitRead;
+  RegEnumAccessor<IGB_I2C_REG_ADDR(CR2), I2C_CR2_NACK, AckType> ackNextData;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR2), I2C_CR2_START> startCondition;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR2), I2C_CR2_STOP> stopCondition;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR2), I2C_CR2_HEAD10R> auto10bitRead;
   enum class TransferRequestType {
     write = 0,
     read = I2C_CR2_RD_WRN
   };
-  RegEnumAccessor<&(p_i2c->CR2), I2C_CR2_RD_WRN, TransferRequestType> transferRequest;
-  RegValueAccessor<&(p_i2c->CR2), I2C_CR2_SADD, 0> slaveAddr;
+  RegEnumAccessor<IGB_I2C_REG_ADDR(CR2), I2C_CR2_RD_WRN, TransferRequestType> transferRequest;
+  RegValueAccessor<IGB_I2C_REG_ADDR(CR2), I2C_CR2_SADD, 0> slaveAddr;
 
   IGB_FAST_INLINE bool IsTransferDirectionWrite() {
-    return !(p_i2c->ISR & I2C_ISR_DIR); 
+    return !(IGB_I2C->ISR & I2C_ISR_DIR); 
   }
   IGB_FAST_INLINE bool IsTransferDirectionRead() {
-    return (p_i2c->ISR & I2C_ISR_DIR); 
+    return (IGB_I2C->ISR & I2C_ISR_DIR); 
   }
 
   IGB_FAST_INLINE uint32_t addressMatchCode() {
-    return (p_i2c->ISR & I2C_ISR_ADDCODE) >> I2C_ISR_ADDCODE_Pos << 1;
+    return (IGB_I2C->ISR & I2C_ISR_ADDCODE) >> I2C_ISR_ADDCODE_Pos << 1;
   }
 
-  RegFlagAccessor<&(p_i2c->CR2), I2C_CR2_PECBYTE> smBusPacketErrCalcCompare;
+  RegFlagAccessor<IGB_I2C_REG_ADDR(CR2), I2C_CR2_PECBYTE> smBusPacketErrCalcCompare;
 
   IGB_FAST_INLINE uint32_t smBusPacketErrorCalcValue() {
-    return p_i2c->PECR & I2C_PECR_PEC;
+    return IGB_I2C->PECR & I2C_PECR_PEC;
   }
 
   IGB_FAST_INLINE uint8_t receiveU8() {
-    return p_i2c->RXDR & I2C_RXDR_RXDATA;
+    return IGB_I2C->RXDR & I2C_RXDR_RXDATA;
   }
 
   IGB_FAST_INLINE void transferU8(uint8_t value) {
-    p_i2c->TXDR = value;
+    IGB_I2C->TXDR = value;
+  }
+
+  IGB_FAST_INLINE void prepareGpio(GpioPinType pin_type) {
+    auto periph_type = as_periph_type(type);
+    if (!periph_type) { return; }
+
+    auto result = get_af_idx(periph_type.value(), pin_type);
+    if (!result) { return; }
+
+    GpioType gpio_type = extract_gpio_type(pin_type);
+    GpioPin pin = GpioPin::newPin(pin_type);
+    pin.setMode(GpioMode::ALTERNATE);
+    pin.setPullMode(GpioPullMode::UP);
+    pin.setSpeedMode(GpioSpeedMode::HIGH);
+    pin.setOutputMode(GpioOutputMode::OPENDRAIN);
+    pin.setAlternateFunc(result.value());
+    pin.enable();
+  }
+
+  IGB_FAST_INLINE void prepareI2c(GpioPinType scl_pin, GpioPinType sda_pin) {
+    const auto& i2c_info = STM32_PERIPH_INFO.i2c[static_cast<size_t>(type)];
+    i2c_info.bus.enableBusClock();
+    prepareGpio(scl_pin);
+    prepareGpio(sda_pin);
+
+    autoEndMode.enable();
+    ownAddress2.disable();
+    generalCall.disable();
+    clockStretch.enable();
+
+    disable();
+    analogFilter.enable();
+    digitalFilter(0);
+    timing(0x2000090E); // TODO: calculate timing from params
+    enable();
+    ownAddress1.disable();
+    ownAddress1Value(0);
+    ownAddress1Size(OwnAddress1Size::_7bit);
+    smBusHost.disable(); smBusDevice.disable(); // i2c mode
+    ackNextData(AckType::ack);
+    ownAddress2Mask(OwnAddress2Mask::nomask);
   }
 };
+
+#undef IGB_I2C_REG
+#undef IGB_I2C_REG_ADDR
+#undef IGB_I2C
 
 } /* stm32 */
 } /* igb */

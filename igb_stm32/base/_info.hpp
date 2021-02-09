@@ -58,6 +58,7 @@ struct SpiInfo {
 struct I2cInfo {
   const PeriphType   periph_type;
   I2C_TypeDef* const p_i2c;
+  const uint32_t addr;
   const PeriphBusInfo bus;
 };
 #endif

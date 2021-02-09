@@ -659,10 +659,11 @@ constexpr struct PeriphInfo {
       .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 12},
     },
   };
-  const std::array<I2cInfo, 1> i2c {
+  constexpr static std::array<I2cInfo, 1> i2c {
     I2cInfo {
       .periph_type = PeriphType::i2c1,
       .p_i2c = I2C1,
+      .addr = I2C1_BASE,
       .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 21},
     },
   };
