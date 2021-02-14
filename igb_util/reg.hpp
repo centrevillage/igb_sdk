@@ -1,5 +1,5 @@
-#ifndef IGB_UTIL_ACCESSOR_ACCESSOR_H
-#define IGB_UTIL_ACCESSOR_ACCESSOR_H
+#ifndef IGB_UTIL_REG_H
+#define IGB_UTIL_REG_H
 
 #include <igb_util/macro.hpp>
 
@@ -8,7 +8,7 @@ namespace igb {
 #define IGB_ACC_REG_PTR ((volatile uint32_t *)(reg_addr))
 
 template<uint32_t reg_addr>
-struct RegAccessor {
+struct Reg {
   // getter
   IGB_FAST_INLINE uint32_t operator()() {
     return (*IGB_ACC_REG_PTR);
@@ -21,7 +21,7 @@ struct RegAccessor {
 };
 
 template<uint32_t reg_addr, const uint32_t bit_mask>
-struct RegBitAccessor {
+struct RegBit {
   // getter
   IGB_FAST_INLINE uint32_t operator()() {
     return (*IGB_ACC_REG_PTR) & (bit_mask);
@@ -34,7 +34,7 @@ struct RegBitAccessor {
 };
 
 template<uint32_t reg_addr, const uint32_t bit_mask, bool invert_logic = false>
-struct RegFlagAccessor {
+struct RegFlag {
   // getter
   IGB_FAST_INLINE bool operator()() {
     if (invert_logic) {
@@ -70,7 +70,7 @@ struct RegFlagAccessor {
 };
 
 template<uint32_t reg_addr, const uint32_t bit_mask, const uint32_t bit_pos>
-struct RegValueAccessor {
+struct RegValue {
   IGB_FAST_INLINE uint32_t operator()() {
     return ((*IGB_ACC_REG_PTR) & (bit_mask)) >> bit_pos;
   }
@@ -82,7 +82,7 @@ struct RegValueAccessor {
 };
 
 template<uint32_t reg_addr, const uint32_t bit_mask, typename ENUM_TYPE>
-struct RegEnumAccessor {
+struct RegEnum {
   // getter
   IGB_FAST_INLINE ENUM_TYPE operator()() {
     return static_cast<ENUM_TYPE>((*IGB_ACC_REG_PTR) & (bit_mask));
@@ -98,4 +98,4 @@ struct RegEnumAccessor {
 
 }
 
-#endif /* IGB_UTIL_ACCESSOR_ACCESSOR_H */
+#endif /* IGB_UTIL_REG_H */
