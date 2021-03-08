@@ -69,7 +69,9 @@ enum class RccPllClockSrc : uint32_t {
 #if defined(RCC_CFGR_PLLSRC_HSI_PREDIV)
   internal = RCC_CFGR_PLLSRC_HSI_PREDIV,
 #endif
+#if defined(RCC_CFGR_PLLSRC_HSE_PREDIV)
   external = RCC_CFGR_PLLSRC_HSE_PREDIV,
+#endif
 #if defined(RCC_CFGR_PLLSRC_HSI48_PREDIV)
   hsi48 = RCC_CFGR_PLLSRC_HSI48_PREDIV
 #endif

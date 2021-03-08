@@ -2,6 +2,7 @@
 #define IGB_STM32_PERIPH_I2C_H
 
 #include <stddef.h>
+#include <optional>
 
 #include <igb_stm32/base.hpp>
 #include <igb_util/cast.hpp>
@@ -17,7 +18,8 @@ namespace stm32 {
 #define IGB_I2C_REG_ADDR(member) (addr + offsetof(I2C_TypeDef, member))
 #define IGB_I2C_REG(member) ((I2C_TypeDef*)IGB_I2C_REG_ADDR(member))
 
-template<I2cType type>
+// TODO: base_clockをRCCの設定から自動計算
+template<I2cType type, GpioPinType scl_pin, GpioPinType sda_pin>
 struct I2c {
   constexpr static auto addr = STM32_PERIPH_INFO.i2c[static_cast<size_t>(type)].addr;
 
@@ -62,6 +64,11 @@ struct I2c {
   RegEnum<IGB_I2C_REG_ADDR(OAR2), I2C_OAR2_OA2MSK, OwnAddress2Mask> ownAddress2Mask;
 
   Reg<IGB_I2C_REG_ADDR(TIMINGR)> timing;
+  RegValue<IGB_I2C_REG_ADDR(TIMINGR), I2C_TIMINGR_SCLL, I2C_TIMINGR_SCLL_Pos> timingScll;
+  RegValue<IGB_I2C_REG_ADDR(TIMINGR), I2C_TIMINGR_SCLH, I2C_TIMINGR_SCLH_Pos> timingSclh;
+  RegValue<IGB_I2C_REG_ADDR(TIMINGR), I2C_TIMINGR_SDADEL, I2C_TIMINGR_SDADEL_Pos> timingSdadel;
+  RegValue<IGB_I2C_REG_ADDR(TIMINGR), I2C_TIMINGR_SCLDEL, I2C_TIMINGR_SCLDEL_Pos> timingScldel;
+  RegValue<IGB_I2C_REG_ADDR(TIMINGR), I2C_TIMINGR_PRESC, I2C_TIMINGR_PRESC_Pos> timingPrescale;
 
   RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_SMBHEN> smBusHost;
   RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_SMBDEN> smBusDevice;
@@ -86,12 +93,13 @@ struct I2c {
   RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_TCIE> interruptTransferComplete;
   RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_ERRIE> interruptError;
 
-  enum class Status {
+  enum class Status : uint32_t {
     txDataEmpty = I2C_ISR_TXE,
     txInterrupt = I2C_ISR_TXIS,
     rxNotEmpty = I2C_ISR_RXNE,
     addressMatched = I2C_ISR_ADDR,
     nack = I2C_ISR_NACKF,
+    stop = I2C_ISR_STOPF,
     txComplete = I2C_ISR_TC,
     txCompleteReload = I2C_ISR_TCR,
     busError = I2C_ISR_BERR,
@@ -107,8 +115,12 @@ struct I2c {
     return IGB_I2C->ISR & static_cast<uint32_t>(status);
   }
 
-  IGB_FAST_INLINE void clearStatus() {
-    IGB_I2C->ISR = I2C_ISR_TXE;
+  IGB_FAST_INLINE void clearStatus(Status status) {
+    if (status == Status::txDataEmpty) {
+      IGB_I2C->ISR |= I2C_ISR_TXE;
+    } else {
+      IGB_I2C->ICR = static_cast<uint32_t>(status);
+    }
   }
 
   enum class IntteruptType {
@@ -127,8 +139,12 @@ struct I2c {
     IGB_I2C->ICR |= static_cast<uint32_t>(interrupt);
   }
 
-  RegFlag<IGB_I2C_REG_ADDR(CR2), I2C_CR2_AUTOEND> autoEndMode;
-  RegFlag<IGB_I2C_REG_ADDR(CR2), I2C_CR2_RELOAD>  reloadMode;
+  enum class ReloadEndType {
+    soft_end = 0,
+    reload = I2C_CR2_RELOAD,
+    auto_end = I2C_CR2_AUTOEND
+  };
+  RegEnum<IGB_I2C_REG_ADDR(CR2), I2C_CR2_RELOAD | I2C_CR2_AUTOEND, ReloadEndType>  reloadEndMode;
   RegValue<IGB_I2C_REG_ADDR(CR2), I2C_CR2_NBYTES, I2C_CR2_NBYTES_Pos>  transferSize;
   enum class AckType {
     ack = 0,
@@ -137,12 +153,12 @@ struct I2c {
   RegEnum<IGB_I2C_REG_ADDR(CR2), I2C_CR2_NACK, AckType> ackNextData;
   RegFlag<IGB_I2C_REG_ADDR(CR2), I2C_CR2_START> startCondition;
   RegFlag<IGB_I2C_REG_ADDR(CR2), I2C_CR2_STOP> stopCondition;
-  RegFlag<IGB_I2C_REG_ADDR(CR2), I2C_CR2_HEAD10R> auto10bitRead;
   enum class TransferRequestType {
     write = 0,
     read = I2C_CR2_RD_WRN
   };
   RegEnum<IGB_I2C_REG_ADDR(CR2), I2C_CR2_RD_WRN, TransferRequestType> transferRequest;
+  RegFlag<IGB_I2C_REG_ADDR(CR2), I2C_CR2_HEAD10R> auto10bitRead;
   RegValue<IGB_I2C_REG_ADDR(CR2), I2C_CR2_SADD, 0> slaveAddr;
 
   IGB_FAST_INLINE bool IsTransferDirectionWrite() {
@@ -166,8 +182,29 @@ struct I2c {
     return IGB_I2C->RXDR & I2C_RXDR_RXDATA;
   }
 
-  IGB_FAST_INLINE void transferU8(uint8_t value) {
+  IGB_FAST_INLINE std::optional<uint8_t> receiveU8sync(uint32_t timeout_msec = 1000) {
+    uint32_t msec = current_msec();
+    while(!is(Status::txInterrupt)) {
+      if (current_msec() - msec > timeout_msec) {
+        return std::nullopt;
+      }
+    }
+    return receiveU8();
+  }
+
+  IGB_FAST_INLINE void sendU8(uint8_t value) {
     IGB_I2C->TXDR = value;
+  }
+
+  IGB_FAST_INLINE bool sendU8sync(uint8_t value, uint32_t timeout_msec = 1000) {
+    uint32_t msec = current_msec();
+    while(!is(Status::txInterrupt)) {
+      if (current_msec() - msec > timeout_msec) {
+        return false;
+      }
+    }
+    sendU8(value);
+    return true;
   }
 
   IGB_FAST_INLINE void prepareGpio(GpioPinType pin_type) {
@@ -187,13 +224,16 @@ struct I2c {
     pin.enable();
   }
 
-  IGB_FAST_INLINE void prepareI2c(GpioPinType scl_pin, GpioPinType sda_pin) {
+  IGB_FAST_INLINE void initDefault() {
     const auto& i2c_info = STM32_PERIPH_INFO.i2c[static_cast<size_t>(type)];
     i2c_info.bus.enableBusClock();
+    i2c_info.bus.forceResetBusClock();
+    i2c_info.bus.releaseResetBusClock();
+
     prepareGpio(scl_pin);
     prepareGpio(sda_pin);
 
-    autoEndMode.enable();
+    reloadEndMode(ReloadEndType::auto_end);
     ownAddress2.disable();
     generalCall.disable();
     clockStretch.enable();
@@ -201,14 +241,107 @@ struct I2c {
     disable();
     analogFilter.enable();
     digitalFilter(0);
-    timing(0x2000090E); // TODO: calculate timing from params
+
+    timing(0x00200208); // 400kHz (clock src = HSI 8MHz), TODO: calculate timing from params
     enable();
     ownAddress1.disable();
-    ownAddress1Value(0);
+    auto ownAddress1Reg = ownAddress1.val(true) | ownAddress1Value.val(1 << 1);
+    ownAddress1Reg.update();
     ownAddress1Size(OwnAddress1Size::_7bit);
     smBusHost.disable(); smBusDevice.disable(); // i2c mode
     ackNextData(AckType::ack);
     ownAddress2Mask(OwnAddress2Mask::nomask);
+    auto10bitRead.val(false);
+  }
+
+  IGB_FAST_INLINE void init() {
+    initDefault();
+  }
+
+  IGB_FAST_INLINE void beginTransfer(uint8_t address, uint8_t transfer_size, TransferRequestType request_type, ReloadEndType reload_end = ReloadEndType::auto_end) {
+    auto reg =
+      slaveAddr.val((uint32_t)address)
+      | ackNextData.val(AckType::ack)
+      | transferSize.val(transfer_size)
+      | reloadEndMode.val(reload_end)
+      | transferRequest.val(request_type)
+      | stopCondition.val(false)
+      | startCondition.val(true)
+    ;
+    reg.update();
+  }
+
+  // TODO: auto_end でない時も正常に停止できる様に
+  IGB_FAST_INLINE bool endTransfer(uint32_t timeout_msec = 1000) {
+    // wait for auto end
+    uint32_t msec = current_msec();
+    while(!is(Status::stop)) {
+      if (current_msec() - msec > timeout_msec) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // common api ==
+
+  IGB_FAST_INLINE void beginSending(uint8_t address, uint8_t transfer_size) {
+    beginTransfer(address << 1, transfer_size, TransferRequestType::write, ReloadEndType::auto_end);
+  }
+
+  IGB_FAST_INLINE bool endSending() {
+    return endTransfer();
+  }
+
+  IGB_FAST_INLINE void beginReading(uint8_t address, uint8_t transfer_size) {
+    beginTransfer((address << 1) | 1, transfer_size, TransferRequestType::read, ReloadEndType::auto_end);
+  }
+
+  IGB_FAST_INLINE bool endReading() {
+    return endTransfer();
+  }
+
+  IGB_FAST_INLINE bool checkSlave(uint8_t address, uint32_t timeout_msec = 1000) {
+    auto reg =
+      slaveAddr.val((uint32_t)address << 1)
+      | ackNextData.val(AckType::ack)
+      | transferSize.val(0)
+      | reloadEndMode.val(ReloadEndType::auto_end)
+      | transferRequest.val(TransferRequestType::write)
+      | stopCondition.val(false)
+      | startCondition.val(true)
+    ;
+    reg.update();
+
+    uint32_t msec = current_msec();
+
+    while (!is(Status::stop) && !is(Status::nack)) {
+      if (current_msec() - msec > timeout_msec) {
+        return false;
+      }
+    }
+
+    if (is(Status::nack)) {
+
+      while (!is(Status::stop)) {
+        if (current_msec() - msec > timeout_msec) {
+          return false;
+        }
+      }
+
+      clearStatus(Status::nack);
+      clearStatus(Status::stop);
+    } else {
+      while (!is(Status::stop)) {
+        if (current_msec() - msec > timeout_msec) {
+          return false;
+        }
+      }
+
+      clearStatus(Status::stop);
+    }
+
+    return true;
   }
 };
 

@@ -5,6 +5,17 @@
 #include <igb_util/cast.hpp>
 #include <igb_util/macro.hpp>
 
+extern "C" {
+struct SystickState {
+  volatile uint32_t tick = 0;
+  volatile uint32_t interval = 0;
+  volatile uint32_t _msec_scaling = 1;
+  volatile uint32_t _usec_scaling = 1000;
+};
+
+SystickState _systick_state;
+}
+
 namespace igb {
 namespace stm32 {
 
@@ -16,20 +27,11 @@ enum class SystickTimerInterval : uint32_t {
 };
 
 struct SystickCtrl {
-  struct State {
-    uint32_t tick = 0;
-    uint32_t interval = 0;
-    uint32_t _msec_scaling = 1;
-    uint32_t _usec_scaling = 1000;
-  };
-
-  static State state;
-
   static IGB_FAST_INLINE void setTimerInterval(uint32_t interval_) {
-    state.interval = interval_;
-    state._msec_scaling = (uint32_t)(((float)(SystemCoreClock) / 1000.0f) / (float)state.interval);
-    state._usec_scaling = (uint32_t)(((float)(SystemCoreClock) / 1000000.0f) / (float)state.interval);
-    if (SysTick_Config(state.interval)) {
+    _systick_state.interval = interval_;
+    _systick_state._msec_scaling = (uint32_t)(((float)(SystemCoreClock) / 1000.0f) / (float)_systick_state.interval);
+    _systick_state._usec_scaling = (uint32_t)(((float)(SystemCoreClock) / 1000000.0f) / (float)_systick_state.interval);
+    if (SysTick_Config(_systick_state.interval)) {
       /* Capture error */ 
       while (1);
     }
@@ -38,15 +40,19 @@ struct SystickCtrl {
     setTimerInterval(SystemCoreClock / static_cast<uint32_t>(interval_));
   }
   static IGB_FAST_INLINE uint32_t getCurrentTick() {
-    return state.tick;
+    return _systick_state.tick;
   }
   static IGB_FAST_INLINE uint32_t getCurrentMilliSec() {
-    return state.tick * state._msec_scaling;
+    return _systick_state.tick * _systick_state._msec_scaling;
   }
   static IGB_FAST_INLINE uint32_t getCurrentMicroSec() {
-    return state.tick * state._usec_scaling;
+    return _systick_state.tick * _systick_state._usec_scaling;
+  }
+  static IGB_FAST_INLINE uint32_t receiveTick() {
+    _systick_state.tick++;
   }
 };
+//volatile SystickCtrl::State SystickCtrl::state;
 
 }
 }
@@ -82,18 +88,21 @@ static IGB_FAST_INLINE uint32_t current_usec() {
 
 #else
 
-volatile uint32_t _systick = 0;
 void SysTick_Handler(void) {
-  _systick++;
+  // C++の関数をここで参照するとコンパイル結果がおかしくなる
+  //igb::stm32::SystickCtrl::receiveTick();
+  _systick_state.tick++;
   USER_SYSTICK_HANDLER_CALLBACK;
 }
 
 static IGB_FAST_INLINE uint32_t current_msec() {
-  return igb::stm32::SystickCtrl::getCurrentMilliSec();
+  //return igb::stm32::SystickCtrl::getCurrentMilliSec();
+  return _systick_state.tick * _systick_state._msec_scaling;
 }
 
 static IGB_FAST_INLINE uint32_t current_usec() {
-  return igb::stm32::SystickCtrl::getCurrentMicroSec();
+  //return igb::stm32::SystickCtrl::getCurrentMicroSec();
+  return _systick_state.tick * _systick_state._usec_scaling;
 }
 
 #endif /* USE_ARDUINO */
