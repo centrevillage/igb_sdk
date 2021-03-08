@@ -66,7 +66,9 @@ enum class RccClockPrescalerAPB1 {
 
 #if defined(STM32F0)
 enum class RccPllClockSrc : uint32_t {
+#if defined(RCC_CFGR_PLLSRC_HSI_PREDIV)
   internal = RCC_CFGR_PLLSRC_HSI_PREDIV,
+#endif
   external = RCC_CFGR_PLLSRC_HSE_PREDIV,
 #if defined(RCC_CFGR_PLLSRC_HSI48_PREDIV)
   hsi48 = RCC_CFGR_PLLSRC_HSI48_PREDIV
@@ -93,7 +95,9 @@ enum class RccPllMul : uint32_t {
 
 #if defined(RCC_PLLSRC_PREDIV1_SUPPORT)
 enum class RccPllDiv {
+#if defined(RCC_CFGR_PLLSRC_HSI_PREDIV)
   internal = RCC_CFGR_PLLSRC_HSI_PREDIV,
+#endif
   div1 = RCC_CFGR2_PREDIV_DIV1,
   div2 = RCC_CFGR2_PREDIV_DIV2,
   div3 = RCC_CFGR2_PREDIV_DIV3,
@@ -228,15 +232,17 @@ struct RccCtrl {
 #endif
 
 #if defined(STM32F0)
-  static IGB_FAST_INLINE void configPllSystemClockDomain(RccPllClockSrc clock_src, RccPllMul mul, RccPllDiv div) {
 #if defined(RCC_PLLSRC_PREDIV1_SUPPORT)
+  static IGB_FAST_INLINE void configPllSystemClockDomain(RccPllClockSrc clock_src, RccPllMul mul, RccPllDiv div) {
     MODIFY_REG(RCC->CFGR, RCC_CFGR_PLLSRC | RCC_CFGR_PLLMUL, static_cast<uint32_t>(clock_src) | static_cast<uint32_t>(mul));
     MODIFY_REG(RCC->CFGR2, RCC_CFGR2_PREDIV, static_cast<uint32_t>(div));
+  }
 #else
+  static IGB_FAST_INLINE void configPllSystemClockDomain(RccPllClockSrc clock_src, RccPllMul mul) {
     MODIFY_REG(RCC->CFGR, RCC_CFGR_PLLSRC | RCC_CFGR_PLLMUL, (static_cast<uint32_t>(clock_src) & RCC_CFGR_PLLSRC) | static_cast<uint32_t>(mul));
     MODIFY_REG(RCC->CFGR2, RCC_CFGR2_PREDIV, (static_cast<uint32_t>(clock_src) & RCC_CFGR2_PREDIV));
-#endif // RCC_PLLSRC_PREDIV1_SUPPORT
   }
+#endif // RCC_PLLSRC_PREDIV1_SUPPORT
 #endif // STM32_SERIES
 
   //static IGB_FAST_INLINE void setPllMainSrc(RccPllSrc src) {

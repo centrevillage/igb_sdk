@@ -364,7 +364,7 @@ class CppSrcGenerator
     @bus_name_to_periph_name ||= {}
     @bus_name_to_periph_name[mcu] ||= BUSNAME_TO_PERIPHNAME.merge(
       case mcu.to_sym
-      when :stm32f072xb
+      when :stm32f072xb, :stm32f030x6
         {
           DAC: :DAC1,
           ADC:  :ADC1
@@ -397,6 +397,8 @@ class CppSrcGenerator
 
   def include_black_list?(periph_name)
     case mcu.to_sym
+    when :stm32f030x6
+      %W(SPI2 I2C2 TIM6 TIM15 USART2).include?(periph_name.to_s)
     when :stm32f072xb
       false
     when :stm32h750xx
@@ -475,6 +477,6 @@ if __FILE__ == $0
   #peripheral_names = get_periheral_names
   #puts "[peripheral names] #{peripheral_names}"
 
-  generator = CppSrcGenerator.new(:stm32f072xb)
+  generator = CppSrcGenerator.new(:stm32f030x6)
   generator.process
 end
