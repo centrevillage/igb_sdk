@@ -32,7 +32,9 @@ struct I2c {
   Reg<IGB_I2C_REG_ADDR(TXDR)>                                   txData;
   RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_NOSTRETCH, true>       clockStretch;
   RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_SBC>                   slaveByteControl;
+#ifdef I2C_CR1_WUPEN
   RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_WUPEN>                 wakeup;
+#endif
   RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_GCEN>                  generalCall;
 
   enum class AddressingMode : uint32_t {
