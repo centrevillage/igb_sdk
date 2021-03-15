@@ -11,286 +11,286 @@ namespace igb {
 namespace stm32 {
 
 enum class SpiMode : uint32_t {
-  SLAVE  = 0,
+  slave  = 0,
 #if defined(STM32H7)
-  MASTER = SPI_CFG2_MASTER,
+  master = SPI_CFG2_MASTER,
 #else
-  MASTER = (SPI_CR1_MSTR | SPI_CR1_SSI),
+  master = (SPI_CR1_MSTR | SPI_CR1_SSI),
 #endif
 };
 
 enum class SpiStandard : uint32_t {
-  MOTOROLA = 0,
+  motorola = 0,
 #if defined(STM32H7)
-  TI = SPI_CFG2_SP_0,
+  ti = SPI_CFG2_SP_0,
 #else
-  TI = SPI_CR2_FRF,
+  ti = SPI_CR2_FRF,
 #endif
 };
 
 enum class SpiClockPhase : uint32_t {
-  ONE_EDGE = 0,
+  oneEdge = 0,
 #if defined(STM32H7)
-  TWO_EDGE = SPI_CFG2_CPHA,
+  twoEdge = SPI_CFG2_CPHA,
 #else
-  TWO_EDGE = SPI_CR1_CPHA,
+  twoEdge = SPI_CR1_CPHA,
 #endif
 };
 
 enum class SpiClockPolarity : uint32_t {
-  LOW = 0,
+  low = 0,
 #if defined(STM32H7)
-  HIGH = SPI_CFG2_CPOL,
+  high = SPI_CFG2_CPOL,
 #else
-  HIGH = SPI_CR1_CPOL,
+  high = SPI_CR1_CPOL,
 #endif
 };
 
 enum class SpiBaudratePrescaler : uint32_t {
-  DIV2 = 0,
+  div2 = 0,
 #if defined(STM32H7)
-  DIV4 = SPI_CFG1_MBR_0,
-  DIV8 = SPI_CFG1_MBR_1,
-  DIV16 = SPI_CFG1_MBR_1 | SPI_CFG1_MBR_0,
-  DIV32 = SPI_CFG1_MBR_2,
-  DIV64 = SPI_CFG1_MBR_2 | SPI_CFG1_MBR_0,
-  DIV128 = SPI_CFG1_MBR_2 | SPI_CFG1_MBR_1,
-  DIV256 = SPI_CFG1_MBR_2 | SPI_CFG1_MBR_1 | SPI_CFG1_MBR_0,
+  div4 = SPI_CFG1_MBR_0,
+  div8 = SPI_CFG1_MBR_1,
+  div16 = SPI_CFG1_MBR_1 | SPI_CFG1_MBR_0,
+  div32 = SPI_CFG1_MBR_2,
+  div64 = SPI_CFG1_MBR_2 | SPI_CFG1_MBR_0,
+  div128 = SPI_CFG1_MBR_2 | SPI_CFG1_MBR_1,
+  div256 = SPI_CFG1_MBR_2 | SPI_CFG1_MBR_1 | SPI_CFG1_MBR_0,
 #else
-  DIV4 = SPI_CR1_BR_0,
-  DIV8 = SPI_CR1_BR_1,
-  DIV16 = SPI_CR1_BR_1 | SPI_CR1_BR_0,
-  DIV32 = SPI_CR1_BR_2,
-  DIV64 = SPI_CR1_BR_2 | SPI_CR1_BR_0,
-  DIV128 = SPI_CR1_BR_2 | SPI_CR1_BR_1,
-  DIV256 = SPI_CR1_BR_2 | SPI_CR1_BR_1 | SPI_CR1_BR_0,
+  div4 = SPI_CR1_BR_0,
+  div8 = SPI_CR1_BR_1,
+  div16 = SPI_CR1_BR_1 | SPI_CR1_BR_0,
+  div32 = SPI_CR1_BR_2,
+  div64 = SPI_CR1_BR_2 | SPI_CR1_BR_0,
+  div128 = SPI_CR1_BR_2 | SPI_CR1_BR_1,
+  div256 = SPI_CR1_BR_2 | SPI_CR1_BR_1 | SPI_CR1_BR_0,
 #endif
 };
 
 enum class SpiBitOrder : uint32_t {
-  MSB_FIRST = 0,
+  msbFirst = 0,
 #if defined(STM32H7)
-  LSB_FIRST = SPI_CFG2_LSBFRST,
+  lsbFirst = SPI_CFG2_LSBFRST,
 #else
-  LSB_FIRST = SPI_CR1_LSBFIRST,
+  lsbFirst = SPI_CR1_LSBFIRST,
 #endif
 };
 
 enum class SpiTransDir : uint32_t {
-  FULL_DUPLEX = 0,
+  fullDuplex = 0,
 #if defined(STM32H7)
-  SIMPLEX_TX = SPI_CFG2_COMM_0,
-  SIMPLEX_RX = SPI_CFG2_COMM_1,
-  HALF_DUPLEX_RX = SPI_CFG2_COMM_0 | SPI_CFG2_COMM_1,
-  HALF_DUPLEX_TX = SPI_CFG2_COMM_0 | SPI_CFG2_COMM_1 | SPI_CR1_HDDIR,
+  simplexTx = SPI_CFG2_COMM_0,
+  simplexRx = SPI_CFG2_COMM_1,
+  halfDuplexRx = SPI_CFG2_COMM_0 | SPI_CFG2_COMM_1,
+  halfDuplexTx = SPI_CFG2_COMM_0 | SPI_CFG2_COMM_1 | SPI_CR1_HDDIR,
 #else
-  SIMPLEX_RX  = SPI_CR1_RXONLY,
-  HALF_DUPLEX_RX = SPI_CR1_BIDIMODE,
-  HALF_DUPLEX_TX = SPI_CR1_BIDIMODE | SPI_CR1_BIDIOE,
+  simplexRx  = SPI_CR1_RXONLY,
+  halfDuplexRx = SPI_CR1_BIDIMODE,
+  halfDuplexTx = SPI_CR1_BIDIMODE | SPI_CR1_BIDIOE,
 #endif
 };
 
 enum class SpiDataWidth : uint32_t {
 #if defined(STM32H7)
-  _4BIT = SPI_CFG1_DSIZE_0 | SPI_CFG1_DSIZE_1,
-  _5BIT = SPI_CFG1_DSIZE_2,
-  _6BIT = SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_0,
-  _7BIT = SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_1,
-  _8BIT = SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_1 | SPI_CFG1_DSIZE_0,
-  _9BIT = SPI_CFG1_DSIZE_3,
-  _10BIT = SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_0,
-  _11BIT = SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_1,
-  _12BIT = SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_1 | SPI_CFG1_DSIZE_0,
-  _13BIT = SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_2,
-  _14BIT = SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_0,
-  _15BIT = SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_1,
-  _16BIT = SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_1 | SPI_CFG1_DSIZE_0,
-  _17BIT = SPI_CFG1_DSIZE_4,
-  _18BIT = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_0,
-  _19BIT = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_1,
-  _20BIT = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_0 | SPI_CFG1_DSIZE_1,
-  _21BIT = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_2,
-  _22BIT = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_0,
-  _23BIT = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_1,
-  _24BIT = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_1 | SPI_CFG1_DSIZE_0,
-  _25BIT = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_3,
-  _26BIT = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_0,
-  _27BIT = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_1,
-  _28BIT = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_1 | SPI_CFG1_DSIZE_0,
-  _29BIT = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_2,
-  _30BIT = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_0,
-  _31BIT = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_1,
-  _32BIT = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_1 | SPI_CFG1_DSIZE_0,
+  _4bit = SPI_CFG1_DSIZE_0 | SPI_CFG1_DSIZE_1,
+  _5bit = SPI_CFG1_DSIZE_2,
+  _6bit = SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_0,
+  _7bit = SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_1,
+  _8bit = SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_1 | SPI_CFG1_DSIZE_0,
+  _9bit = SPI_CFG1_DSIZE_3,
+  _10bit = SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_0,
+  _11bit = SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_1,
+  _12bit = SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_1 | SPI_CFG1_DSIZE_0,
+  _13bit = SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_2,
+  _14bit = SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_0,
+  _15bit = SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_1,
+  _16bit = SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_1 | SPI_CFG1_DSIZE_0,
+  _17bit = SPI_CFG1_DSIZE_4,
+  _18bit = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_0,
+  _19bit = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_1,
+  _20bit = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_0 | SPI_CFG1_DSIZE_1,
+  _21bit = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_2,
+  _22bit = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_0,
+  _23bit = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_1,
+  _24bit = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_1 | SPI_CFG1_DSIZE_0,
+  _25bit = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_3,
+  _26bit = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_0,
+  _27bit = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_1,
+  _28bit = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_1 | SPI_CFG1_DSIZE_0,
+  _29bit = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_2,
+  _30bit = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_0,
+  _31bit = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_1,
+  _32bit = SPI_CFG1_DSIZE_4 | SPI_CFG1_DSIZE_3 | SPI_CFG1_DSIZE_2 | SPI_CFG1_DSIZE_1 | SPI_CFG1_DSIZE_0,
 #elif defined(STM32F4)
-  _8BIT = 0,
-  _16BIT = SPI_CR1_DFF,
+  _8bit = 0,
+  _16bit = SPI_CR1_DFF,
 #else
-  _4BIT = SPI_CR2_DS_0 | SPI_CR2_DS_1,
-  _5BIT = SPI_CR2_DS_2,
-  _6BIT = SPI_CR2_DS_2 | SPI_CR2_DS_0,
-  _7BIT = SPI_CR2_DS_2 | SPI_CR2_DS_1,
-  _8BIT = SPI_CR2_DS_2 | SPI_CR2_DS_1 | SPI_CR2_DS_0,
-  _9BIT = SPI_CR2_DS_3,
-  _10BIT = SPI_CR2_DS_3 | SPI_CR2_DS_0,
-  _11BIT = SPI_CR2_DS_3 | SPI_CR2_DS_1,
-  _12BIT = SPI_CR2_DS_3 | SPI_CR2_DS_1 | SPI_CR2_DS_0,
-  _13BIT = SPI_CR2_DS_3 | SPI_CR2_DS_2,
-  _14BIT = SPI_CR2_DS_3 | SPI_CR2_DS_2 | SPI_CR2_DS_0,
-  _15BIT = SPI_CR2_DS_3 | SPI_CR2_DS_2 | SPI_CR2_DS_1,
-  _16BIT = SPI_CR2_DS_3 | SPI_CR2_DS_2 | SPI_CR2_DS_1 | SPI_CR2_DS_0,
+  _4bit = SPI_CR2_DS_0 | SPI_CR2_DS_1,
+  _5bit = SPI_CR2_DS_2,
+  _6bit = SPI_CR2_DS_2 | SPI_CR2_DS_0,
+  _7bit = SPI_CR2_DS_2 | SPI_CR2_DS_1,
+  _8bit = SPI_CR2_DS_2 | SPI_CR2_DS_1 | SPI_CR2_DS_0,
+  _9bit = SPI_CR2_DS_3,
+  _10bit = SPI_CR2_DS_3 | SPI_CR2_DS_0,
+  _11bit = SPI_CR2_DS_3 | SPI_CR2_DS_1,
+  _12bit = SPI_CR2_DS_3 | SPI_CR2_DS_1 | SPI_CR2_DS_0,
+  _13bit = SPI_CR2_DS_3 | SPI_CR2_DS_2,
+  _14bit = SPI_CR2_DS_3 | SPI_CR2_DS_2 | SPI_CR2_DS_0,
+  _15bit = SPI_CR2_DS_3 | SPI_CR2_DS_2 | SPI_CR2_DS_1,
+  _16bit = SPI_CR2_DS_3 | SPI_CR2_DS_2 | SPI_CR2_DS_1 | SPI_CR2_DS_0,
 #endif
 };
 
 #if defined(STM32H7)
 enum class SpiFifoThreshold : uint32_t {
-  _1DATA = 0,
-  _2DATA = SPI_CFG1_FTHLV_0,
-  _3DATA = SPI_CFG1_FTHLV_1,
-  _4DATA = SPI_CFG1_FTHLV_0 | SPI_CFG1_FTHLV_1,
-  _5DATA = SPI_CFG1_FTHLV_2,
-  _6DATA = SPI_CFG1_FTHLV_2 | SPI_CFG1_FTHLV_0,
-  _7DATA = SPI_CFG1_FTHLV_2 | SPI_CFG1_FTHLV_1,
-  _8DATA = SPI_CFG1_FTHLV_2 | SPI_CFG1_FTHLV_1 | SPI_CFG1_FTHLV_0,
-  _9DATA = SPI_CFG1_FTHLV_3,
-  _10DATA = SPI_CFG1_FTHLV_3 | SPI_CFG1_FTHLV_0,
-  _11DATA = SPI_CFG1_FTHLV_3 | SPI_CFG1_FTHLV_1,
-  _12DATA = SPI_CFG1_FTHLV_3 | SPI_CFG1_FTHLV_1 | SPI_CFG1_FTHLV_0,
-  _13DATA = SPI_CFG1_FTHLV_3 | SPI_CFG1_FTHLV_2,
-  _14DATA = SPI_CFG1_FTHLV_3 | SPI_CFG1_FTHLV_2 | SPI_CFG1_FTHLV_0,
-  _15DATA = SPI_CFG1_FTHLV_3 | SPI_CFG1_FTHLV_2 | SPI_CFG1_FTHLV_1,
-  _16DATA = SPI_CFG1_FTHLV_3 | SPI_CFG1_FTHLV_2 | SPI_CFG1_FTHLV_1 | SPI_CFG1_FTHLV_0,
+  _1data = 0,
+  _2data = SPI_CFG1_FTHLV_0,
+  _3data = SPI_CFG1_FTHLV_1,
+  _4data = SPI_CFG1_FTHLV_0 | SPI_CFG1_FTHLV_1,
+  _5data = SPI_CFG1_FTHLV_2,
+  _6data = SPI_CFG1_FTHLV_2 | SPI_CFG1_FTHLV_0,
+  _7data = SPI_CFG1_FTHLV_2 | SPI_CFG1_FTHLV_1,
+  _8data = SPI_CFG1_FTHLV_2 | SPI_CFG1_FTHLV_1 | SPI_CFG1_FTHLV_0,
+  _9data = SPI_CFG1_FTHLV_3,
+  _10data = SPI_CFG1_FTHLV_3 | SPI_CFG1_FTHLV_0,
+  _11data = SPI_CFG1_FTHLV_3 | SPI_CFG1_FTHLV_1,
+  _12data = SPI_CFG1_FTHLV_3 | SPI_CFG1_FTHLV_1 | SPI_CFG1_FTHLV_0,
+  _13data = SPI_CFG1_FTHLV_3 | SPI_CFG1_FTHLV_2,
+  _14data = SPI_CFG1_FTHLV_3 | SPI_CFG1_FTHLV_2 | SPI_CFG1_FTHLV_0,
+  _15data = SPI_CFG1_FTHLV_3 | SPI_CFG1_FTHLV_2 | SPI_CFG1_FTHLV_1,
+  _16data = SPI_CFG1_FTHLV_3 | SPI_CFG1_FTHLV_2 | SPI_CFG1_FTHLV_1 | SPI_CFG1_FTHLV_0,
 };
 #elif defined(STM32F0) || defined(STM32F3)
 enum class SpiFifoThreshold : uint32_t {
-  HALF = 0,
-  QUARTER = SPI_CR2_FRXTH,
+  half = 0,
+  quarter = SPI_CR2_FRXTH,
 };
 #endif
 
 #if defined(STM32H7)
 enum class SpiCrcWidth : uint32_t {
-  _4BIT = SPI_CFG1_CRCSIZE_0 | SPI_CFG1_CRCSIZE_1,
-  _5BIT = SPI_CFG1_CRCSIZE_2,
-  _6BIT = SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_0,
-  _7BIT = SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_1,
-  _8BIT = SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_1 | SPI_CFG1_CRCSIZE_0,
-  _9BIT = SPI_CFG1_CRCSIZE_3,
-  _10BIT = SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_0,
-  _11BIT = SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_1,
-  _12BIT = SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_1 | SPI_CFG1_CRCSIZE_0,
-  _13BIT = SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2,
-  _14BIT = SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_0,
-  _15BIT = SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_1,
-  _16BIT = SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_1 | SPI_CFG1_CRCSIZE_0,
-  _17BIT = (SPI_CFG1_CRCSIZE_4),
-  _18BIT = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_0),
-  _19BIT = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_1),
-  _20BIT = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_0 | SPI_CFG1_CRCSIZE_1),
-  _21BIT = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_2),
-  _22BIT = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_0),
-  _23BIT = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_1),
-  _24BIT = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_1 | SPI_CFG1_CRCSIZE_0),
-  _25BIT = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3),
-  _26BIT = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_0),
-  _27BIT = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_1),
-  _28BIT = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_1 | SPI_CFG1_CRCSIZE_0),
-  _29BIT = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2),
-  _30BIT = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_0),
-  _31BIT = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_1),
-  _32BIT = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_1 | SPI_CFG1_CRCSIZE_0),
+  _4bit = SPI_CFG1_CRCSIZE_0 | SPI_CFG1_CRCSIZE_1,
+  _5bit = SPI_CFG1_CRCSIZE_2,
+  _6bit = SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_0,
+  _7bit = SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_1,
+  _8bit = SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_1 | SPI_CFG1_CRCSIZE_0,
+  _9bit = SPI_CFG1_CRCSIZE_3,
+  _10bit = SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_0,
+  _11bit = SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_1,
+  _12bit = SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_1 | SPI_CFG1_CRCSIZE_0,
+  _13bit = SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2,
+  _14bit = SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_0,
+  _15bit = SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_1,
+  _16bit = SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_1 | SPI_CFG1_CRCSIZE_0,
+  _17bit = (SPI_CFG1_CRCSIZE_4),
+  _18bit = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_0),
+  _19bit = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_1),
+  _20bit = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_0 | SPI_CFG1_CRCSIZE_1),
+  _21bit = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_2),
+  _22bit = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_0),
+  _23bit = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_1),
+  _24bit = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_1 | SPI_CFG1_CRCSIZE_0),
+  _25bit = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3),
+  _26bit = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_0),
+  _27bit = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_1),
+  _28bit = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_1 | SPI_CFG1_CRCSIZE_0),
+  _29bit = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2),
+  _30bit = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_0),
+  _31bit = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_1),
+  _32bit = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_1 | SPI_CFG1_CRCSIZE_0),
 };
 #elif defined(STM32F0) || defined(STM32F3)
 enum class SpiCrcWidth : uint32_t {
-  _8BIT = 0,
-  _16BIT = SPI_CR1_CRCL,
+  _8bit = 0,
+  _16bit = SPI_CR1_CRCL,
 };
 #endif
 
 enum class SpiNssMode : uint32_t {
 #if defined(STM32H7)
-  HARD_INPUT  = 0,
-  HARD_OUTPUT = SPI_CFG2_SSOE,
-  SOFT        = SPI_CFG2_SSM,
+  hardInput  = 0,
+  hardOutput = SPI_CFG2_SSOE,
+  soft       = SPI_CFG2_SSM,
 #else
-  HARD_INPUT  = 0,
-  HARD_OUTPUT = SPI_CR1_SSM,
-  SOFT        = SPI_CR1_SSM,
+  hardInput  = 0,
+  hardOutput = SPI_CR1_SSM,
+  soft       = SPI_CR1_SSM,
 #endif
 };
 
 #if defined(STM32H7)
 enum class SpiNssPolarity : uint32_t {
-  LOW = 0,
-  HIGH = SPI_CFG2_SSIOP,
+  low = 0,
+  high = SPI_CFG2_SSIOP,
 };
 #endif
 
 enum class SpiState : uint32_t {
 #if defined(STM32H7)
-  RX_WORD_NOT_EMPTY   = SPI_SR_RXWNE,
-  RX_PACKET_ABAILABLE = SPI_SR_RXP,
-  TX_PACKET_ABAILABLE = SPI_SR_TXP,
-  DX_PACKET_ABAILABLE = SPI_SR_DXP,
-  END_OF_TRANSFER     = SPI_SR_EOT,
-  TX_TRANSFER_FULL    = SPI_SR_TXTF,
-  UNDERRUN            = SPI_SR_UDR,
-  CRC_ERROR           = SPI_SR_CRCE,
-  MODE_FAULT          = SPI_SR_MODF,
-  OVERRUN             = SPI_SR_OVR,
-  FRAME_FORMAT_ERROR  = SPI_SR_TIFRE,
-  DATA_RELOADED       = SPI_SR_TSERF,
-  SUSPEND_DONE        = SPI_SR_SUSP,
-  TX_COMPLETE         = SPI_SR_TXC,
+  rxWordNotEmpty    = SPI_SR_RXWNE,
+  rxPacketAbailable = SPI_SR_RXP,
+  txPacketAbailable = SPI_SR_TXP,
+  dxPacketAbailable = SPI_SR_DXP,
+  endOfTransfer     = SPI_SR_EOT,
+  txTransferFull    = SPI_SR_TXTF,
+  underrun          = SPI_SR_UDR,
+  crcError          = SPI_SR_CRCE,
+  modeFault         = SPI_SR_MODF,
+  overrun           = SPI_SR_OVR,
+  frameFormatError  = SPI_SR_TIFRE,
+  dataReloaded      = SPI_SR_TSERF,
+  suspendDone       = SPI_SR_SUSP,
+  txComplete        = SPI_SR_TXC,
 #else
-  RX_BUF_NOT_EMPTY   = SPI_SR_RXNE,
-  TX_BUF_EMPTY       = SPI_SR_TXE,
-  BUSY               = SPI_SR_BSY,
-  CRC_ERROR          = SPI_SR_CRCERR,
-  MODE_FAULT         = SPI_SR_MODF,
-  OVERRUN            = SPI_SR_OVR,
-  FRAME_FORMAT_ERROR = SPI_SR_FRE,
+  rxBufNotEmpty    = SPI_SR_RXNE,
+  txBufEmpty       = SPI_SR_TXE,
+  busy             = SPI_SR_BSY,
+  crcError         = SPI_SR_CRCERR,
+  modeFault        = SPI_SR_MODF,
+  overrun          = SPI_SR_OVR,
+  frameFormatError = SPI_SR_FRE,
 #endif
 };
 
 enum class SpiInterruptType : uint32_t {
 #if defined(STM32H7)
-  RX_PACKET_ABAILABLE = SPI_IER_RXPIE,
-  TX_PACKET_ABAILABLE = SPI_IER_TXPIE,
-  DX_PACKET_ABAILABLE = SPI_IER_DXPIE,
-  END_OF_TRANSFER     = SPI_IER_EOTIE,
-  TX_TRANSFER_FULL    = SPI_IER_TXTFIE,
-  UNDERRUN            = SPI_IER_UDRIE,
-  OVERRUN             = SPI_IER_OVRIE,
-  CRC_ERROR           = SPI_IER_CRCEIE,
-  FRAME_FORMAT_ERROR  = SPI_IER_TIFREIE,
-  MODE_FAULT          = SPI_IER_MODFIE,
-  DATA_RELOADED       = SPI_IER_TSERFIE,
+  rxPacketAbailable = SPI_IER_RXPIE,
+  txPacketAbailable = SPI_IER_TXPIE,
+  dxPacketAbailable = SPI_IER_DXPIE,
+  endOfTransfer     = SPI_IER_EOTIE,
+  txTransferFull    = SPI_IER_TXTFIE,
+  underrun          = SPI_IER_UDRIE,
+  overrun           = SPI_IER_OVRIE,
+  crcError          = SPI_IER_CRCEIE,
+  frameFormatError  = SPI_IER_TIFREIE,
+  modeFault         = SPI_IER_MODFIE,
+  dataReloaded      = SPI_IER_TSERFIE,
 #else
-  RX_BUF_NOT_EMPTY = SPI_CR2_RXNEIE,
-  TX_BUF_EMPTY     = SPI_CR2_TXEIE,
-  ERROR            = SPI_CR2_ERRIE,
+  rxBufNotEmpty     = SPI_CR2_RXNEIE,
+  txBufEmpty        = SPI_CR2_TXEIE,
+  error             = SPI_CR2_ERRIE,
 #endif
 };
 
 enum class SpiDmaReqTarget : uint32_t {
 #if defined(STM32H7)
-  RX = SPI_CFG1_RXDMAEN,
-  TX = SPI_CFG1_TXDMAEN,
+  rx = SPI_CFG1_RXDMAEN,
+  tx = SPI_CFG1_TXDMAEN,
 #else
-  RX = SPI_CR2_RXDMAEN,
-  TX = SPI_CR2_TXDMAEN,
+  rx = SPI_CR2_RXDMAEN,
+  tx = SPI_CR2_TXDMAEN,
 #endif
 };
 
 #if !defined(STM32H7)
 enum class SpiDmaParityTarget : uint32_t {
-  RX = SPI_CR2_RXDMAEN,
-  TX = SPI_CR2_TXDMAEN,
+  rx = SPI_CR2_RXDMAEN,
+  tx = SPI_CR2_TXDMAEN,
 };
 
 enum class SpiDmaParityType : uint32_t {
-  EVEN = 0,
-  ODD  = 1,
+  even = 0,
+  odd  = 1,
 };
 #endif
 
@@ -519,10 +519,10 @@ struct Spi {
 #if defined(STM32F0) || defined(STM32F3)
   IGB_FAST_INLINE void setDmaParity(SpiDmaParityTarget target, SpiDmaParityType type) {
     switch (target) {
-      case SpiDmaParityTarget::TX:
+      case SpiDmaParityTarget::tx:
         MODIFY_REG(p_spi->CR2, SPI_CR2_LDMATX, (as<uint32_t>(type) << SPI_CR2_LDMATX_Pos));
         break;
-      case SpiDmaParityTarget::RX:
+      case SpiDmaParityTarget::rx:
         MODIFY_REG(p_spi->CR2, SPI_CR2_LDMARX, (as<uint32_t>(type) << SPI_CR2_LDMARX_Pos));
         break;
     }
@@ -553,10 +553,10 @@ struct Spi {
 
   IGB_FAST_INLINE uint8_t receiveU8sync() {
 #if defined(STM32H7)
-    while (!isState(SpiState::RX_PACKET_ABAILABLE));
+    while (!isState(SpiState::rxPacketAbailable));
     return receiveU8();
 #else
-    while (!isState(SpiState::RX_BUF_NOT_EMPTY));
+    while (!isState(SpiState::rxBufNotEmpty));
     return receiveU8();
 #endif
   }
@@ -571,10 +571,10 @@ struct Spi {
 
   IGB_FAST_INLINE uint8_t receiveU16sync() {
 #if defined(STM32H7)
-    while (!isState(SpiState::RX_PACKET_ABAILABLE));
+    while (!isState(SpiState::rxPacketAbailable));
     return receiveU16();
 #else
-    while (!isState(SpiState::RX_BUF_NOT_EMPTY));
+    while (!isState(SpiState::rxBufNotEmpty));
     return receiveU16();
 #endif
   }
@@ -598,9 +598,9 @@ struct Spi {
     setTransferSize(1);
     enable();
     startMasterTransfer();
-    while (!isState(SpiState::TX_PACKET_ABAILABLE));
+    while (!isState(SpiState::txPacketAbailable));
     sendU8(data);
-    while (!isState(SpiState::END_OF_TRANSFER));
+    while (!isState(SpiState::endOfTransfer));
     SET_BIT(p_spi->IFCR, SPI_IFCR_EOTC);
     SET_BIT(p_spi->IFCR, SPI_IFCR_TXTFC);
     disable();
@@ -618,10 +618,10 @@ struct Spi {
     enable();
     startMasterTransfer();
     for (size_t i = 0; i < size; ++i) {
-      while (!isState(SpiState::TX_PACKET_ABAILABLE));
+      while (!isState(SpiState::txPacketAbailable));
       sendU8(buffer[i]);
     }
-    while (!isState(SpiState::END_OF_TRANSFER));
+    while (!isState(SpiState::endOfTransfer));
     SET_BIT(p_spi->IFCR, SPI_IFCR_EOTC);
     SET_BIT(p_spi->IFCR, SPI_IFCR_TXTFC);
     disable();
@@ -658,11 +658,11 @@ struct Spi {
     setTransferSize(1);
     enable();
     startMasterTransfer();
-    while (!isState(SpiState::TX_PACKET_ABAILABLE));
+    while (!isState(SpiState::txPacketAbailable));
     sendU8(data);
-    while (!isState(SpiState::RX_PACKET_ABAILABLE));
+    while (!isState(SpiState::rxPacketAbailable));
     uint8_t result = receiveU8();
-    while (!isState(SpiState::END_OF_TRANSFER));
+    while (!isState(SpiState::endOfTransfer));
     SET_BIT(p_spi->IFCR, SPI_IFCR_EOTC);
     SET_BIT(p_spi->IFCR, SPI_IFCR_TXTFC);
     disable();
@@ -670,11 +670,11 @@ struct Spi {
     CLEAR_BIT(p_spi->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
     return result;
 #else
-    while (isState(SpiState::BUSY));
-    while (!isState(SpiState::TX_BUF_EMPTY));
+    while (isState(SpiState::busy));
+    while (!isState(SpiState::txBufEmpty));
     sendU8(data);
-    while (!isState(SpiState::RX_BUF_NOT_EMPTY));
-    return receiveU8();
+    while (!isState(SpiState::rxBufNotEmpty));
+     return receiveU8();
 #endif
   }
 
@@ -694,44 +694,44 @@ struct Spi {
 
     GpioType gpio_type = extract_gpio_type(pin_type);
     GpioPin pin = GpioPin::newPin(pin_type);
-    pin.setMode(GpioMode::ALTERNATE);
-    pin.setPullMode(GpioPullMode::NO);
-    pin.setSpeedMode(GpioSpeedMode::HIGH);
-    pin.setOutputMode(GpioOutputMode::PUSHPULL);
+    pin.setMode(GpioMode::alternate);
+    pin.setPullMode(GpioPullMode::no);
+    pin.setSpeedMode(GpioSpeedMode::high);
+    pin.setOutputMode(GpioOutputMode::pushpull);
     pin.setAlternateFunc(result.value());
     pin.enable();
   }
 
   IGB_FAST_INLINE void initDefault() {
 #if defined(STM32H7)
-    setNssPolarity(SpiNssPolarity::LOW);
-    setStandard(SpiStandard::MOTOROLA);
-    setFifoThreshold(SpiFifoThreshold::_1DATA);
+    setNssPolarity(SpiNssPolarity::low);
+    setStandard(SpiStandard::motorola);
+    setFifoThreshold(SpiFifoThreshold::_1data);
     setNssPulseMng(false);
 
     setCrc(false);
-    setDataWidth(SpiDataWidth::_8BIT);
+    setDataWidth(SpiDataWidth::_8bit);
 
     SET_BIT(p_spi->CR1, SPI_CR1_SSI); // avoid a MODF Error
 
-    setNssMode(SpiNssMode::SOFT);
-    setClockPolarity(SpiClockPolarity::LOW);
-    setClockPhase(SpiClockPhase::ONE_EDGE);
-    setTransBitOrder(SpiBitOrder::MSB_FIRST);
-    setMode(SpiMode::MASTER);
-    setTransDir(SpiTransDir::FULL_DUPLEX);
+    setNssMode(SpiNssMode::soft);
+    setClockPolarity(SpiClockPolarity::low);
+    setClockPhase(SpiClockPhase::oneEdge);
+    setTransBitOrder(SpiBitOrder::msbFirst);
+    setMode(SpiMode::master);
+    setTransDir(SpiTransDir::fullDuplex);
 #elif defined(STM32F0) || defined(STM32F3)
-    setTransDir(SpiTransDir::FULL_DUPLEX);
-    setMode(SpiMode::MASTER);
-    setDataWidth(SpiDataWidth::_8BIT);
-    setClockPolarity(SpiClockPolarity::LOW);
-    setClockPhase(SpiClockPhase::ONE_EDGE);
-    setNssMode(SpiNssMode::SOFT);
-    setTransBitOrder(SpiBitOrder::MSB_FIRST);
+    setTransDir(SpiTransDir::fullDuplex);
+    setMode(SpiMode::master);
+    setDataWidth(SpiDataWidth::_8bit);
+    setClockPolarity(SpiClockPolarity::low);
+    setClockPhase(SpiClockPhase::oneEdge);
+    setNssMode(SpiNssMode::soft);
+    setTransBitOrder(SpiBitOrder::msbFirst);
     setCrc(false);
     setCrcPolynomial(7);
-    setStandard(SpiStandard::MOTOROLA);
-    setRxFifoThreshold(SpiFifoThreshold::QUARTER);
+    setStandard(SpiStandard::motorola);
+    setRxFifoThreshold(SpiFifoThreshold::quarter);
     setNssPulseMng(true);
 #endif
   }
@@ -755,23 +755,23 @@ struct Spi {
     prepareGpio(sck_pin);
 
 #if defined(STM32H7)
-    setNssPolarity(SpiNssPolarity::LOW);
-    setStandard(SpiStandard::MOTOROLA);
-    setFifoThreshold(SpiFifoThreshold::_1DATA);
+    setNssPolarity(SpiNssPolarity::low);
+    setStandard(SpiStandard::motorola);
+    setFifoThreshold(SpiFifoThreshold::_1data);
     setNssPulseMng(false);
 
     setBaudratePrescaler(prescaler);
     setCrc(false);
-    setDataWidth(SpiDataWidth::_8BIT);
+    setDataWidth(SpiDataWidth::_8bit);
 
     SET_BIT(p_spi->CR1, SPI_CR1_SSI); // avoid a MODF Error
 
-    setNssMode(SpiNssMode::SOFT);
-    setClockPolarity(SpiClockPolarity::LOW);
-    setClockPhase(SpiClockPhase::ONE_EDGE);
-    setTransBitOrder(SpiBitOrder::MSB_FIRST);
-    setMode(SpiMode::MASTER);
-    setTransDir(SpiTransDir::SIMPLEX_TX);
+    setNssMode(SpiNssMode::soft);
+    setClockPolarity(SpiClockPolarity::low);
+    setClockPhase(SpiClockPhase::oneEdge);
+    setTransBitOrder(SpiBitOrder::msbFirst);
+    setMode(SpiMode::master);
+    setTransDir(SpiTransDir::simplexTx);
 #if defined(SPI_I2SCFGR_I2SMOD)
     CLEAR_BIT(p_spi->I2SCFGR, SPI_I2SCFGR_I2SMOD);
 #endif
@@ -795,23 +795,23 @@ struct Spi {
     prepareGpio(cs_pin);
 
 #if defined(STM32H7)
-    setNssPolarity(SpiNssPolarity::LOW);
-    setStandard(SpiStandard::MOTOROLA);
-    setFifoThreshold(SpiFifoThreshold::_1DATA);
+    setNssPolarity(SpiNssPolarity::low);
+    setStandard(SpiStandard::motorola);
+    setFifoThreshold(SpiFifoThreshold::_1data);
     setNssPulseMng(true);
 
     setBaudratePrescaler(prescaler);
     setCrc(false);
-    setDataWidth(SpiDataWidth::_8BIT);
+    setDataWidth(SpiDataWidth::_8bit);
 
     SET_BIT(p_spi->CR1, SPI_CR1_SSI); // avoid a MODF Error
 
-    setNssMode(SpiNssMode::HARD_OUTPUT);
-    setClockPolarity(SpiClockPolarity::LOW);
-    setClockPhase(SpiClockPhase::ONE_EDGE);
-    setTransBitOrder(SpiBitOrder::MSB_FIRST);
-    setMode(SpiMode::MASTER);
-    setTransDir(SpiTransDir::SIMPLEX_TX);
+    setNssMode(SpiNssMode::hardOutput);
+    setClockPolarity(SpiClockPolarity::low);
+    setClockPhase(SpiClockPhase::oneEdge);
+    setTransBitOrder(SpiBitOrder::msbFirst);
+    setMode(SpiMode::master);
+    setTransDir(SpiTransDir::simplexTx);
 #if defined(SPI_I2SCFGR_I2SMOD)
     CLEAR_BIT(p_spi->I2SCFGR, SPI_I2SCFGR_I2SMOD);
 #endif

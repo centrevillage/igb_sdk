@@ -356,13 +356,13 @@ struct Tsc {
     if (io_type == TscIoType::none) { return; }
 
     GpioPin pin = GpioPin::newPin(pin_type);
-    pin.setMode(GpioMode::ALTERNATE);
-    pin.setPullMode(GpioPullMode::NO);
-    pin.setSpeedMode(GpioSpeedMode::MEDIUM);
+    pin.setMode(GpioMode::alternate);
+    pin.setPullMode(GpioPullMode::no);
+    pin.setSpeedMode(GpioSpeedMode::medium);
     if (io_type == TscIoType::input) {
-      pin.setOutputMode(GpioOutputMode::PUSHPULL);
+      pin.setOutputMode(GpioOutputMode::pushpull);
     } else { // sampling cap
-      pin.setOutputMode(GpioOutputMode::OPENDRAIN);
+      pin.setOutputMode(GpioOutputMode::opendrain);
     }
     pin.setAlternateFunc(result.value());
   }

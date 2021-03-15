@@ -9,30 +9,30 @@ namespace igb {
 namespace stm32 {
 
 enum class GpioMode : uint32_t {
-  INPUT     = 0UL,
-  OUTPUT    = 0x00000001UL,
-  ALTERNATE = 0x00000002UL,
-  ANALOG    = 0x00000003UL
+  input     = 0UL,
+  output    = 0x00000001UL,
+  alternate = 0x00000002UL,
+  analog    = 0x00000003UL
 };
 constexpr uint32_t GPIO_MODE_MASK = 0x00000003UL;
 
 enum class GpioSpeedMode : uint32_t {
-  LOW    = 0UL,
-  MEDIUM = 0x00000001UL,
-  HIGH   = 0x00000003UL
+  low    = 0UL,
+  medium = 0x00000001UL,
+  high   = 0x00000003UL
 };
 constexpr uint32_t GPIO_SPEED_MODE_MASK = 0x00000003UL;
 
 enum class GpioPullMode : uint32_t {
-  NO   = 0UL,
-  UP   = 0x00000001UL,
-  DOWN = 0x00000002UL,
+  no   = 0UL,
+  up   = 0x00000001UL,
+  down = 0x00000002UL,
 };
 constexpr uint32_t GPIO_PULL_MODE_MASK = 0x00000003UL;
 
 enum class GpioOutputMode : uint32_t {
-  PUSHPULL = 0UL,
-  OPENDRAIN = 0x00000001UL
+  pushpull = 0UL,
+  opendrain = 0x00000001UL
 };
 
 struct GpioPort {
@@ -191,24 +191,24 @@ struct GpioPin {
   }
 
   IGB_FAST_INLINE void initInput(GpioPullMode pull, GpioSpeedMode speed) {
-    setMode(GpioMode::INPUT);
+    setMode(GpioMode::input);
     setPullMode(pull);
     setSpeedMode(speed);
   }
 
   IGB_FAST_INLINE void initInputDefault() {
-    initInput(GpioPullMode::NO, GpioSpeedMode::HIGH);
+    initInput(GpioPullMode::no, GpioSpeedMode::high);
   }
 
   IGB_FAST_INLINE void initOutput(GpioOutputMode output_mode, GpioSpeedMode speed) {
-    setMode(GpioMode::OUTPUT);
+    setMode(GpioMode::output);
     setOutputMode(output_mode);
-    setPullMode(GpioPullMode::NO);
+    setPullMode(GpioPullMode::no);
     setSpeedMode(speed);
   }
 
   IGB_FAST_INLINE void initOutputDefault() {
-    initOutput(GpioOutputMode::PUSHPULL, GpioSpeedMode::HIGH);
+    initOutput(GpioOutputMode::pushpull, GpioSpeedMode::high);
   }
 
   static IGB_FAST_INLINE GpioPin newPin(const GpioPinType pin_type) {

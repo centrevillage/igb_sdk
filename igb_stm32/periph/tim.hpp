@@ -10,162 +10,162 @@ namespace igb {
 namespace stm32 {
 
 enum class TimState : uint32_t {
-  UPDATE    = TIM_SR_UIF,
-  CC1       = TIM_SR_CC1IF,
-  CC2       = TIM_SR_CC2IF,
-  CC3       = TIM_SR_CC3IF,
-  CC4       = TIM_SR_CC4IF,
-  COM       = TIM_SR_COMIF,
-  TRIG      = TIM_SR_TIF,
-  BREAK     = TIM_SR_BIF,
-  CC1_OVER  = TIM_SR_CC1OF,
-  CC2_OVER  = TIM_SR_CC2OF,
-  CC3_OVER  = TIM_SR_CC3OF,
-  CC4_OVER  = TIM_SR_CC4OF,
+  update  = TIM_SR_UIF,
+  cc1     = TIM_SR_CC1IF,
+  cc2     = TIM_SR_CC2IF,
+  cc3     = TIM_SR_CC3IF,
+  cc4     = TIM_SR_CC4IF,
+  com     = TIM_SR_COMIF,
+  trigger = TIM_SR_TIF,
+  _break  = TIM_SR_BIF,
+  cc1over = TIM_SR_CC1OF,
+  cc2over = TIM_SR_CC2OF,
+  cc3over = TIM_SR_CC3OF,
+  cc4over = TIM_SR_CC4OF,
 };
 
 enum class TimCcCh : uint32_t {
-  CC1 = 0,
-  CC2,
-  CC3,
-  CC4,
+  cc1 = 0,
+  cc2,
+  cc3,
+  cc4,
 };
 
 enum class TimCounterMode : uint32_t {
-  UP             = 0,
-  DOWN           = TIM_CR1_DIR,
-  CENTER_UP      = TIM_CR1_CMS_0,
-  CENTER_DOWN    = TIM_CR1_CMS_1,
-  CENTER_UP_DOWN = TIM_CR1_CMS,
+  up           = 0,
+  down         = TIM_CR1_DIR,
+  centerUp     = TIM_CR1_CMS_0,
+  centerDown   = TIM_CR1_CMS_1,
+  centerUpDown = TIM_CR1_CMS,
 };
 
 // 列挙値をbitでなく、indexで持った方が共通化しやすいか？
 enum class TimInterruptType : uint32_t {
-  UPDATE  = TIM_DIER_UIE,
-  CC1     = TIM_DIER_CC1IE,
-  CC2     = TIM_DIER_CC2IE,
-  CC3     = TIM_DIER_CC3IE,
-  CC4     = TIM_DIER_CC4IE,
-  COM     = TIM_DIER_COMIE,
-  TRIGGER = TIM_DIER_TIE,
-  BREAK   = TIM_DIER_BIE,
+  update  = TIM_DIER_UIE,
+  cc1     = TIM_DIER_CC1IE,
+  cc2     = TIM_DIER_CC2IE,
+  cc3     = TIM_DIER_CC3IE,
+  cc4     = TIM_DIER_CC4IE,
+  com     = TIM_DIER_COMIE,
+  trigger = TIM_DIER_TIE,
+  _break  = TIM_DIER_BIE,
 };
 
 enum class TimEventGen : uint32_t {
-  UPDATE  = TIM_EGR_UG,
-  CC1     = TIM_EGR_CC1G,
-  CC2     = TIM_EGR_CC2G,
-  CC3     = TIM_EGR_CC3G,
-  CC4     = TIM_EGR_CC4G,
-  COM     = TIM_EGR_COMG,
-  TRIGGER = TIM_EGR_TG,
-  BREAK   = TIM_EGR_BG,
+  update  = TIM_EGR_UG,
+  cc1     = TIM_EGR_CC1G,
+  cc2     = TIM_EGR_CC2G,
+  cc3     = TIM_EGR_CC3G,
+  cc4     = TIM_EGR_CC4G,
+  com     = TIM_EGR_COMG,
+  trigger = TIM_EGR_TG,
+  _break  = TIM_EGR_BG,
 };
 
 enum class TimClockDiv : uint32_t {
-  DIV1 = 0,
-  DIV2 = TIM_CR1_CKD_0,
-  DIV4 = TIM_CR1_CKD_1,
+  div1 = 0,
+  div2 = TIM_CR1_CKD_0,
+  div4 = TIM_CR1_CKD_1,
 };
 
 enum class TimCounterDir : uint32_t {
-  UP   = 0,
-  DOWN = TIM_CR1_DIR,
+  up   = 0,
+  down = TIM_CR1_DIR,
 };
 
 enum class TimClockSrc : uint32_t {
-  INTERNAL  = 0,
-  EXT_MODE1 = (TIM_SMCR_SMS_2 | TIM_SMCR_SMS_1 | TIM_SMCR_SMS_0),
-  EXT_MODE2 = TIM_SMCR_ECE,
+  internal  = 0,
+  extMode1 = (TIM_SMCR_SMS_2 | TIM_SMCR_SMS_1 | TIM_SMCR_SMS_0),
+  extMode2 = TIM_SMCR_ECE,
 };
 
 enum class TimTriggerOut : uint32_t {
-  RESET  = 0,
-  ENABLE = TIM_CR2_MMS_0,
-  UPDATE = TIM_CR2_MMS_1,
-  CC1IF  = (TIM_CR2_MMS_1 | TIM_CR2_MMS_0),
-  OC1REF = TIM_CR2_MMS_2,
-  OC2REF = (TIM_CR2_MMS_2 | TIM_CR2_MMS_0),
-  OC3REF = (TIM_CR2_MMS_2 | TIM_CR2_MMS_1),
-  OC4REF = (TIM_CR2_MMS_2 | TIM_CR2_MMS_1 | TIM_CR2_MMS_0),
+  reset  = 0,
+  enable = TIM_CR2_MMS_0,
+  update = TIM_CR2_MMS_1,
+  cc1if  = (TIM_CR2_MMS_1 | TIM_CR2_MMS_0),
+  oc1ref = TIM_CR2_MMS_2,
+  oc2ref = (TIM_CR2_MMS_2 | TIM_CR2_MMS_0),
+  oc3ref = (TIM_CR2_MMS_2 | TIM_CR2_MMS_1),
+  oc4ref = (TIM_CR2_MMS_2 | TIM_CR2_MMS_1 | TIM_CR2_MMS_0),
 };
 
 enum class TimEtrConfPolarity : uint32_t {
-  NONINVERTED = 0,
-  INVERTED = TIM_SMCR_ETP,
+  noninverted = 0,
+  inverted = TIM_SMCR_ETP,
 };
 
 enum class TimEtrConfPrescaler : uint32_t {
-  DIV1 = 0,
-  DIV2 = TIM_SMCR_ETPS_0,
-  DIV4 = TIM_SMCR_ETPS_1,
-  DIV8 = TIM_SMCR_ETPS,
+  div1 = 0,
+  div2 = TIM_SMCR_ETPS_0,
+  div4 = TIM_SMCR_ETPS_1,
+  div8 = TIM_SMCR_ETPS,
 };
 
 enum class TimEtrConfFilter : uint32_t {
-  FDIV1     = 0,
-  FDIV1_N2  = TIM_SMCR_ETF_0,
-  FDIV1_N4  = TIM_SMCR_ETF_1,
-  FDIV1_N8  = (TIM_SMCR_ETF_1 | TIM_SMCR_ETF_0),
-  FDIV2_N6  = TIM_SMCR_ETF_2,
-  FDIV2_N8  = (TIM_SMCR_ETF_2 | TIM_SMCR_ETF_0),
-  FDIV4_N6  = (TIM_SMCR_ETF_2 | TIM_SMCR_ETF_1),
-  FDIV4_N8  = (TIM_SMCR_ETF_2 | TIM_SMCR_ETF_1 | TIM_SMCR_ETF_0),
-  FDIV8_N6  = TIM_SMCR_ETF_3,
-  FDIV8_N8  = (TIM_SMCR_ETF_3 | TIM_SMCR_ETF_0),
-  FDIV16_N5 = (TIM_SMCR_ETF_3 | TIM_SMCR_ETF_1),
-  FDIV16_N6 = (TIM_SMCR_ETF_3 | TIM_SMCR_ETF_1 | TIM_SMCR_ETF_0),
-  FDIV16_N8 = (TIM_SMCR_ETF_3 | TIM_SMCR_ETF_2),
-  FDIV32_N5 = (TIM_SMCR_ETF_3 | TIM_SMCR_ETF_2 | TIM_SMCR_ETF_0),
-  FDIV32_N6 = (TIM_SMCR_ETF_3 | TIM_SMCR_ETF_2 | TIM_SMCR_ETF_1),
-  FDIV32_N8 = TIM_SMCR_ETF,
+  fdiv1     = 0,
+  fdiv1N2  = TIM_SMCR_ETF_0,
+  fdiv1N4  = TIM_SMCR_ETF_1,
+  fdiv1N8  = (TIM_SMCR_ETF_1 | TIM_SMCR_ETF_0),
+  fdiv2N6  = TIM_SMCR_ETF_2,
+  fdiv2N8  = (TIM_SMCR_ETF_2 | TIM_SMCR_ETF_0),
+  fdiv4N6  = (TIM_SMCR_ETF_2 | TIM_SMCR_ETF_1),
+  fdiv4N8  = (TIM_SMCR_ETF_2 | TIM_SMCR_ETF_1 | TIM_SMCR_ETF_0),
+  fdiv8N6  = TIM_SMCR_ETF_3,
+  fdiv8N8  = (TIM_SMCR_ETF_3 | TIM_SMCR_ETF_0),
+  fdiv16N5 = (TIM_SMCR_ETF_3 | TIM_SMCR_ETF_1),
+  fdiv16N6 = (TIM_SMCR_ETF_3 | TIM_SMCR_ETF_1 | TIM_SMCR_ETF_0),
+  fdiv16N8 = (TIM_SMCR_ETF_3 | TIM_SMCR_ETF_2),
+  fdiv32N5 = (TIM_SMCR_ETF_3 | TIM_SMCR_ETF_2 | TIM_SMCR_ETF_0),
+  fdiv32N6 = (TIM_SMCR_ETF_3 | TIM_SMCR_ETF_2 | TIM_SMCR_ETF_1),
+  fdiv32N8 = TIM_SMCR_ETF,
 };
 
 enum class TimBreakPolarity : uint32_t {
-  LOW = 0,
-  HIGH = TIM_BDTR_BKP,
+  low = 0,
+  high = TIM_BDTR_BKP,
 };
 
 enum class TimDmaBurstBaseAddr : uint32_t {
-  CR1   = 0,
-  CR2   = TIM_DCR_DBA_0,
-  SMCR  = TIM_DCR_DBA_1,
-  DIER  = (TIM_DCR_DBA_1 |  TIM_DCR_DBA_0),
-  SR    = TIM_DCR_DBA_2,
-  EGR   = (TIM_DCR_DBA_2 | TIM_DCR_DBA_0),
-  CCMR1 = (TIM_DCR_DBA_2 | TIM_DCR_DBA_1),
-  CCMR2 = (TIM_DCR_DBA_2 | TIM_DCR_DBA_1 | TIM_DCR_DBA_0),
-  CCER  = TIM_DCR_DBA_3,
-  CNT   = (TIM_DCR_DBA_3 | TIM_DCR_DBA_0),
-  PSC   = (TIM_DCR_DBA_3 | TIM_DCR_DBA_1),
-  ARR   = (TIM_DCR_DBA_3 | TIM_DCR_DBA_1 | TIM_DCR_DBA_0),
-  RCR   = (TIM_DCR_DBA_3 | TIM_DCR_DBA_2),
-  CCR1  = (TIM_DCR_DBA_3 | TIM_DCR_DBA_2 | TIM_DCR_DBA_0),
-  CCR2  = (TIM_DCR_DBA_3 | TIM_DCR_DBA_2 | TIM_DCR_DBA_1),
-  CCR3  = (TIM_DCR_DBA_3 | TIM_DCR_DBA_2 | TIM_DCR_DBA_1 | TIM_DCR_DBA_0),
-  CCR4  = TIM_DCR_DBA_4,
-  BDTR  = (TIM_DCR_DBA_4 | TIM_DCR_DBA_0),
+  cr1   = 0,
+  cr2   = TIM_DCR_DBA_0,
+  smcr  = TIM_DCR_DBA_1,
+  dier  = (TIM_DCR_DBA_1 |  TIM_DCR_DBA_0),
+  sr    = TIM_DCR_DBA_2,
+  egr   = (TIM_DCR_DBA_2 | TIM_DCR_DBA_0),
+  ccmr1 = (TIM_DCR_DBA_2 | TIM_DCR_DBA_1),
+  ccmr2 = (TIM_DCR_DBA_2 | TIM_DCR_DBA_1 | TIM_DCR_DBA_0),
+  ccer  = TIM_DCR_DBA_3,
+  cnt   = (TIM_DCR_DBA_3 | TIM_DCR_DBA_0),
+  psc   = (TIM_DCR_DBA_3 | TIM_DCR_DBA_1),
+  arr   = (TIM_DCR_DBA_3 | TIM_DCR_DBA_1 | TIM_DCR_DBA_0),
+  rcr   = (TIM_DCR_DBA_3 | TIM_DCR_DBA_2),
+  ccr1  = (TIM_DCR_DBA_3 | TIM_DCR_DBA_2 | TIM_DCR_DBA_0),
+  ccr2  = (TIM_DCR_DBA_3 | TIM_DCR_DBA_2 | TIM_DCR_DBA_1),
+  ccr3  = (TIM_DCR_DBA_3 | TIM_DCR_DBA_2 | TIM_DCR_DBA_1 | TIM_DCR_DBA_0),
+  ccr4  = TIM_DCR_DBA_4,
+  bdtr  = (TIM_DCR_DBA_4 | TIM_DCR_DBA_0),
 };
 
 enum class TimDmaBurstLen : uint32_t {
-  L1 = 0,
-  L2  = TIM_DCR_DBL_0,
-  L3  = TIM_DCR_DBL_1,
-  L4  = (TIM_DCR_DBL_1 |  TIM_DCR_DBL_0),
-  L5  = TIM_DCR_DBL_2,
-  L6  = (TIM_DCR_DBL_2 | TIM_DCR_DBL_0),
-  L7  = (TIM_DCR_DBL_2 | TIM_DCR_DBL_1),
-  L8  = (TIM_DCR_DBL_2 | TIM_DCR_DBL_1 | TIM_DCR_DBL_0),
-  L9  = TIM_DCR_DBL_3,
-  L10 = (TIM_DCR_DBL_3 | TIM_DCR_DBL_0),
-  L11 = (TIM_DCR_DBL_3 | TIM_DCR_DBL_1),
-  L12 = (TIM_DCR_DBL_3 | TIM_DCR_DBL_1 | TIM_DCR_DBL_0),
-  L13 = (TIM_DCR_DBL_3 | TIM_DCR_DBL_2),
-  L14 = (TIM_DCR_DBL_3 | TIM_DCR_DBL_2 | TIM_DCR_DBL_0),
-  L15 = (TIM_DCR_DBL_3 | TIM_DCR_DBL_2 | TIM_DCR_DBL_1),
-  L16 = (TIM_DCR_DBL_3 | TIM_DCR_DBL_2 | TIM_DCR_DBL_1 | TIM_DCR_DBL_0),
-  L17 = TIM_DCR_DBL_4,
-  L18 = (TIM_DCR_DBL_4 |  TIM_DCR_DBL_0),
+  l1 = 0,
+  l2  = TIM_DCR_DBL_0,
+  l3  = TIM_DCR_DBL_1,
+  l4  = (TIM_DCR_DBL_1 |  TIM_DCR_DBL_0),
+  l5  = TIM_DCR_DBL_2,
+  l6  = (TIM_DCR_DBL_2 | TIM_DCR_DBL_0),
+  l7  = (TIM_DCR_DBL_2 | TIM_DCR_DBL_1),
+  l8  = (TIM_DCR_DBL_2 | TIM_DCR_DBL_1 | TIM_DCR_DBL_0),
+  l9  = TIM_DCR_DBL_3,
+  l10 = (TIM_DCR_DBL_3 | TIM_DCR_DBL_0),
+  l11 = (TIM_DCR_DBL_3 | TIM_DCR_DBL_1),
+  l12 = (TIM_DCR_DBL_3 | TIM_DCR_DBL_1 | TIM_DCR_DBL_0),
+  l13 = (TIM_DCR_DBL_3 | TIM_DCR_DBL_2),
+  l14 = (TIM_DCR_DBL_3 | TIM_DCR_DBL_2 | TIM_DCR_DBL_0),
+  l15 = (TIM_DCR_DBL_3 | TIM_DCR_DBL_2 | TIM_DCR_DBL_1),
+  l16 = (TIM_DCR_DBL_3 | TIM_DCR_DBL_2 | TIM_DCR_DBL_1 | TIM_DCR_DBL_0),
+  l17 = TIM_DCR_DBL_4,
+  l18 = (TIM_DCR_DBL_4 |  TIM_DCR_DBL_0),
 };
 
 // TODO: デバイス依存の記述になっているので一旦機能削除
@@ -328,15 +328,15 @@ struct Tim {
     NvicCtrl::enable(info.irqn);
 
     auto timer = Tim { info.p_tim };
-    timer.enableInterrupt(TimInterruptType::UPDATE);
+    timer.enableInterrupt(TimInterruptType::update);
     timer.setPrescaler(prescale);
-    timer.setCounterMode(TimCounterMode::UP);
+    timer.setCounterMode(TimCounterMode::up);
     timer.setAutoreload((period == 0 ? 0 : (period - 1)));
-    timer.setClockDiv(TimClockDiv::DIV1);
+    timer.setClockDiv(TimClockDiv::div1);
     timer.setRepetitionCounter(0);
     timer.disableArrPreload();
-    timer.setClockSrc(TimClockSrc::INTERNAL);
-    timer.setTriggerOutput(TimTriggerOut::RESET);
+    timer.setClockSrc(TimClockSrc::internal);
+    timer.setTriggerOutput(TimTriggerOut::reset);
     timer.setMasterSlaveMode(false);
 
     return timer;
