@@ -19,8 +19,11 @@ namespace stm32 {
 #define IGB_I2C_REG(member) ((I2C_TypeDef*)IGB_I2C_REG_ADDR(member))
 
 // TODO: base_clockをRCCの設定から自動計算
-template<I2cType type, GpioPinType scl_pin, GpioPinType sda_pin>
+template<I2cType I2C_TYPE, GpioPinType SCL_PIN, GpioPinType SDA_PIN>
 struct I2c {
+  constexpr static auto type = I2C_TYPE;
+  constexpr static auto scl_pin = SCL_PIN;
+  constexpr static auto sda_pin = SDA_PIN;
   constexpr static auto addr = STM32_PERIPH_INFO.i2c[static_cast<size_t>(type)].addr;
 
   IGB_FAST_INLINE void enable() { IGB_I2C->CR1 |= I2C_CR1_PE; }
@@ -39,7 +42,7 @@ struct I2c {
 
   enum class AddressingMode : uint32_t {
     _7bit = 0,
-    _10_bit = I2C_CR2_ADD10
+    _10bit = I2C_CR2_ADD10
   };
   RegEnum<IGB_I2C_REG_ADDR(CR2), I2C_CR2_ADD10, AddressingMode> masterAddressing;
 
@@ -47,7 +50,7 @@ struct I2c {
   RegValue<IGB_I2C_REG_ADDR(OAR1), I2C_OAR1_OA1, 0> ownAddress1Value;
   enum class OwnAddress1Size : uint32_t {
     _7bit = 0,
-    _10_bit = I2C_OAR1_OA1MODE
+    _10bit = I2C_OAR1_OA1MODE
   };
   RegEnum<IGB_I2C_REG_ADDR(OAR1), I2C_OAR1_OA1MODE, OwnAddress1Size> ownAddress1Size;
 
@@ -82,8 +85,8 @@ struct I2c {
   RegValue<IGB_I2C_REG_ADDR(TIMEOUTR), I2C_TIMEOUTR_TIMEOUTA, 0> smBusTimeoutAValue;
   RegValue<IGB_I2C_REG_ADDR(TIMEOUTR), I2C_TIMEOUTR_TIMEOUTB, I2C_TIMEOUTR_TIMEOUTB_Pos> smBusTimeoutBValue;
   enum class SmbusTimeoutAMode : uint32_t {
-    scl_low = 0,
-    sda_scl_high = I2C_TIMEOUTR_TIDLE
+    sclLow = 0,
+    sdaSclHigh = I2C_TIMEOUTR_TIDLE
   };
   RegEnum<IGB_I2C_REG_ADDR(TIMEOUTR), I2C_TIMEOUTR_TIDLE, SmbusTimeoutAMode> smBusTimeoutAMode;
 
@@ -125,7 +128,7 @@ struct I2c {
     }
   }
 
-  enum class IntteruptType {
+  enum class InterruptType {
     addressMatched = I2C_ICR_ADDRCF,
     nack = I2C_ICR_NACKCF,
     stop = I2C_ICR_STOPCF,
@@ -137,14 +140,14 @@ struct I2c {
     smbusAlert = I2C_ICR_ALERTCF
   };
 
-  IGB_FAST_INLINE void clearInterrupt(IntteruptType interrupt) {
+  IGB_FAST_INLINE void clearInterrupt(InterruptType interrupt) {
     IGB_I2C->ICR |= static_cast<uint32_t>(interrupt);
   }
 
   enum class ReloadEndType {
-    soft_end = 0,
+    softEnd = 0,
     reload = I2C_CR2_RELOAD,
-    auto_end = I2C_CR2_AUTOEND
+    autoEnd = I2C_CR2_AUTOEND
   };
   RegEnum<IGB_I2C_REG_ADDR(CR2), I2C_CR2_RELOAD | I2C_CR2_AUTOEND, ReloadEndType>  reloadEndMode;
   RegValue<IGB_I2C_REG_ADDR(CR2), I2C_CR2_NBYTES, I2C_CR2_NBYTES_Pos>  transferSize;
@@ -218,15 +221,15 @@ struct I2c {
 
     GpioType gpio_type = extract_gpio_type(pin_type);
     GpioPin pin = GpioPin::newPin(pin_type);
-    pin.setMode(GpioMode::ALTERNATE);
-    pin.setPullMode(GpioPullMode::UP);
-    pin.setSpeedMode(GpioSpeedMode::HIGH);
-    pin.setOutputMode(GpioOutputMode::OPENDRAIN);
+    pin.setMode(GpioMode::alternate);
+    pin.setPullMode(GpioPullMode::up);
+    pin.setSpeedMode(GpioSpeedMode::high);
+    pin.setOutputMode(GpioOutputMode::opendrain);
     pin.setAlternateFunc(result.value());
     pin.enable();
   }
 
-  IGB_FAST_INLINE void initDefault() {
+  IGB_FAST_INLINE void initDefault(uint8_t address = 1) {
     const auto& i2c_info = STM32_PERIPH_INFO.i2c[static_cast<size_t>(type)];
     i2c_info.bus.enableBusClock();
     i2c_info.bus.forceResetBusClock();
@@ -235,7 +238,7 @@ struct I2c {
     prepareGpio(scl_pin);
     prepareGpio(sda_pin);
 
-    reloadEndMode(ReloadEndType::auto_end);
+    reloadEndMode(ReloadEndType::autoEnd);
     ownAddress2.disable();
     generalCall.disable();
     clockStretch.enable();
@@ -244,10 +247,10 @@ struct I2c {
     analogFilter.enable();
     digitalFilter(0);
 
-    timing(0x00200208); // 400kHz (clock src = HSI 8MHz), TODO: calculate timing from params
+    timing(0x00702025); // 100kHz (clock src = HSI 8MHz), TODO: calculate timing from params
     enable();
     ownAddress1.disable();
-    auto ownAddress1Reg = ownAddress1.val(true) | ownAddress1Value.val(1 << 1);
+    auto ownAddress1Reg = ownAddress1.val(true) | ownAddress1Value.val(address << 1);
     ownAddress1Reg.update();
     ownAddress1Size(OwnAddress1Size::_7bit);
     smBusHost.disable(); smBusDevice.disable(); // i2c mode
@@ -256,11 +259,11 @@ struct I2c {
     auto10bitRead.val(false);
   }
 
-  IGB_FAST_INLINE void init() {
-    initDefault();
+  IGB_FAST_INLINE void init(uint8_t address = 1) {
+    initDefault(address);
   }
 
-  IGB_FAST_INLINE void beginTransfer(uint8_t address, uint8_t transfer_size, TransferRequestType request_type, ReloadEndType reload_end = ReloadEndType::auto_end) {
+  IGB_FAST_INLINE void beginTransfer(uint8_t address, uint8_t transfer_size, TransferRequestType request_type, ReloadEndType reload_end = ReloadEndType::autoEnd) {
     auto reg =
       slaveAddr.val((uint32_t)address)
       | ackNextData.val(AckType::ack)
@@ -273,7 +276,7 @@ struct I2c {
     reg.update();
   }
 
-  // TODO: auto_end でない時も正常に停止できる様に
+  // TODO: autoEnd でない時も正常に停止できる様に
   IGB_FAST_INLINE bool endTransfer(uint32_t timeout_msec = 1000) {
     // wait for auto end
     uint32_t msec = current_msec();
@@ -288,7 +291,7 @@ struct I2c {
   // common api ==
 
   IGB_FAST_INLINE void beginSending(uint8_t address, uint8_t transfer_size) {
-    beginTransfer(address << 1, transfer_size, TransferRequestType::write, ReloadEndType::auto_end);
+    beginTransfer(address << 1, transfer_size, TransferRequestType::write, ReloadEndType::autoEnd);
   }
 
   IGB_FAST_INLINE bool endSending() {
@@ -296,7 +299,7 @@ struct I2c {
   }
 
   IGB_FAST_INLINE void beginReading(uint8_t address, uint8_t transfer_size) {
-    beginTransfer((address << 1) | 1, transfer_size, TransferRequestType::read, ReloadEndType::auto_end);
+    beginTransfer((address << 1) | 1, transfer_size, TransferRequestType::read, ReloadEndType::autoEnd);
   }
 
   IGB_FAST_INLINE bool endReading() {
@@ -308,7 +311,7 @@ struct I2c {
       slaveAddr.val((uint32_t)address << 1)
       | ackNextData.val(AckType::ack)
       | transferSize.val(0)
-      | reloadEndMode.val(ReloadEndType::auto_end)
+      | reloadEndMode.val(ReloadEndType::autoEnd)
       | transferRequest.val(TransferRequestType::write)
       | stopCondition.val(false)
       | startCondition.val(true)
