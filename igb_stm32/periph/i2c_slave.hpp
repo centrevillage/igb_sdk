@@ -1,5 +1,5 @@
-#ifndef PERIPH_I2C_SLAVE_H
-#define PERIPH_I2C_SLAVE_H
+#ifndef IGB_STM32_PERIPH_I2C_SLAVE_H
+#define IGB_STM32_PERIPH_I2C_SLAVE_H
 
 #include <igb_stm32/periph/i2c.hpp>
 #include <igb_stm32/hal.hpp> // TODO: remove hal dependency
@@ -137,4 +137,4 @@ struct I2cSlave {
     HAL_I2C_EnableListen_IT(hi2c);\
   }
 
-#endif /* PERIPH_I2C_SLAVE_H */
+#endif /* IGB_STM32_PERIPH_I2C_SLAVE_H */
