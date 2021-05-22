@@ -49,7 +49,7 @@ struct SystickCtrl {
     return _systick_state.tick * _systick_state._usec_scaling;
   }
   static IGB_FAST_INLINE uint32_t receiveTick() {
-    _systick_state.tick++;
+    return _systick_state.tick++;
   }
 };
 //volatile SystickCtrl::State SystickCtrl::state;
@@ -89,20 +89,16 @@ static IGB_FAST_INLINE uint32_t current_usec() {
 #else
 
 void SysTick_Handler(void) {
-  // C++の関数をここで参照するとコンパイル結果がおかしくなる
-  //igb::stm32::SystickCtrl::receiveTick();
-  _systick_state.tick++;
+  igb::stm32::SystickCtrl::receiveTick();
   USER_SYSTICK_HANDLER_CALLBACK;
 }
 
 static IGB_FAST_INLINE uint32_t current_msec() {
-  //return igb::stm32::SystickCtrl::getCurrentMilliSec();
-  return _systick_state.tick * _systick_state._msec_scaling;
+  return igb::stm32::SystickCtrl::getCurrentMilliSec();
 }
 
 static IGB_FAST_INLINE uint32_t current_usec() {
-  //return igb::stm32::SystickCtrl::getCurrentMicroSec();
-  return _systick_state.tick * _systick_state._usec_scaling;
+  return igb::stm32::SystickCtrl::getCurrentMicroSec();
 }
 
 #endif /* USE_ARDUINO */
