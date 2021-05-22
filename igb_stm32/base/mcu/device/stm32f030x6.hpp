@@ -290,7 +290,10 @@ static inline GpioType extract_gpio_type(GpioPinType pin_type) {
     case GpioPinType::pf15:
       return GpioType::gpiof;
       [[fallthrough]];
+    default:
+      break;
   }
+  return static_cast<GpioType>(0); // never reach
 }
 
 static inline uint8_t extract_pin_idx(GpioPinType pin_type) {
@@ -455,7 +458,10 @@ static inline uint8_t extract_pin_idx(GpioPinType pin_type) {
       return 14;
     case GpioPinType::pf15:
       return 15;
+    default:
+      break;
   }
+  return 0; // never reach
 }
 
 enum class BusType : uint8_t {

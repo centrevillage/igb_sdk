@@ -65,7 +65,10 @@ static inline GpioType extract_gpio_type(GpioPinType pin_type) {
       return GpioType::<%= struct[:periph].downcase %>;
       [[fallthrough]];
 <% end %>
+    default:
+      break;
   }
+  return static_cast<GpioType>(0); // never reach
 }
 
 static inline uint8_t extract_pin_idx(GpioPinType pin_type) {
@@ -76,7 +79,10 @@ static inline uint8_t extract_pin_idx(GpioPinType pin_type) {
       return <%= id %>;
 <%  end %>
 <% end %>
+    default:
+      break;
   }
+  return 0; // never reach
 }
 
 enum class BusType : uint8_t {
