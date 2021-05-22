@@ -204,6 +204,7 @@ inline std::optional<PeriphType> as_periph_type(<%= group_name.capitalize %>Type
       return PeriphType::<%= struct[:periph].downcase %>;
 <%  end %>
   }
+  return std::nullopt;
 }
 <% end %>
 

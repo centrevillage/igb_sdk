@@ -1048,6 +1048,7 @@ inline std::optional<PeriphType> as_periph_type(GpioType type) {
     case GpioType::gpiof:
       return PeriphType::gpiof;
   }
+  return std::nullopt;
 }
 template<>
 inline std::optional<PeriphType> as_periph_type(SpiType type) {
@@ -1055,6 +1056,7 @@ inline std::optional<PeriphType> as_periph_type(SpiType type) {
     case SpiType::spi1:
       return PeriphType::spi1;
   }
+  return std::nullopt;
 }
 template<>
 inline std::optional<PeriphType> as_periph_type(I2cType type) {
@@ -1062,6 +1064,7 @@ inline std::optional<PeriphType> as_periph_type(I2cType type) {
     case I2cType::i2c1:
       return PeriphType::i2c1;
   }
+  return std::nullopt;
 }
 template<>
 inline std::optional<PeriphType> as_periph_type(TimType type) {
@@ -1077,6 +1080,7 @@ inline std::optional<PeriphType> as_periph_type(TimType type) {
     case TimType::tim17:
       return PeriphType::tim17;
   }
+  return std::nullopt;
 }
 template<>
 inline std::optional<PeriphType> as_periph_type(AdcType type) {
@@ -1084,6 +1088,7 @@ inline std::optional<PeriphType> as_periph_type(AdcType type) {
     case AdcType::adc1:
       return PeriphType::adc1;
   }
+  return std::nullopt;
 }
 template<>
 inline std::optional<PeriphType> as_periph_type(UsartType type) {
@@ -1091,6 +1096,7 @@ inline std::optional<PeriphType> as_periph_type(UsartType type) {
     case UsartType::usart1:
       return PeriphType::usart1;
   }
+  return std::nullopt;
 }
 
 }
