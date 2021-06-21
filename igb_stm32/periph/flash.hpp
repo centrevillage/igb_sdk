@@ -9,7 +9,17 @@ namespace stm32 {
 
 enum class FlashLatency {
   zero = 0,
+#ifdef FLASH_ACR_LATENCY_0
+  one = FLASH_ACR_LATENCY_0,
+#else
   one = FLASH_ACR_LATENCY,
+#endif
+#ifdef FLASH_ACR_LATENCY_1
+  two = FLASH_ACR_LATENCY_1,
+#endif
+#ifdef FLASH_ACR_LATENCY_2
+  three = FLASH_ACR_LATENCY_2,
+#endif
 };
 
 struct FlashCtrl {
