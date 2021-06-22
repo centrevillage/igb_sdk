@@ -166,6 +166,13 @@ enum class RccPllDiv : uint32_t {
 #endif // RCC_PLLSRC_PREDIV1_SUPPORT
 #endif // STM32_SERIES
 
+#if defined(RCC_CFGR3_I2C1SW)
+enum class I2cClockSrc : uint32_t {
+  internal = 0,
+  system,
+};
+#endif
+
 struct RccCtrl {
   static IGB_FAST_INLINE void enableBusClock(const auto& periph_bus_info) {
     periph_bus_info.enableBusClock();
@@ -271,6 +278,62 @@ struct RccCtrl {
 #if defined(RCC_CFGR_PPRE2)
   static IGB_FAST_INLINE void setPrescalerAPB2(RccClockPrescalerAPB2 prescaler) {
     MODIFY_REG(RCC->CFGR, RCC_CFGR_PPRE2, static_cast<uint32_t>(prescaler));
+  }
+#endif
+
+#if defined(RCC_CFGR3_I2C1SW) && STM32_PERIPH_I2C1_EXISTS
+  static IGB_FAST_INLINE void setI2cClockSrc(I2cType type, I2cClockSrc src) {
+    uint32_t i2c_src = 0;
+    uint32_t clock_src = 0;
+    switch(type) {
+      case I2cType::i2c1:
+        i2c_src = RCC_CFGR3_I2C1SW;
+        switch(src) {
+          case I2cClockSrc::internal:
+            clock_src = RCC_CFGR3_I2C1SW_HSI;
+            break;
+          case I2cClockSrc::system:
+            clock_src = RCC_CFGR3_I2C1SW_SYSCLK;
+            break;
+          default:
+            break;
+        }
+        break;
+#if defined(RCC_CFGR3_I2C2SW) && STM32_PERIPH_I2C2_EXISTS
+      case I2cType::i2c2:
+        i2c_src = RCC_CFGR3_I2C2SW;
+        switch(src) {
+          case I2cClockSrc::internal:
+            clock_src = RCC_CFGR3_I2C2SW_HSI;
+            break;
+          case I2cClockSrc::system:
+            clock_src = RCC_CFGR3_I2C2SW_SYSCLK;
+            break;
+          default:
+            break;
+        }
+        break;
+#endif
+#if defined(RCC_CFGR3_I2C3SW) && STM32_PERIPH_I2C3_EXISTS
+      case I2cType::i2c3:
+        i2c_src = RCC_CFGR3_I2C3SW;
+        switch(src) {
+          case I2cClockSrc::internal:
+            clock_src = RCC_CFGR3_I2C3SW_HSI;
+            break;
+          case I2cClockSrc::system:
+            clock_src = RCC_CFGR3_I2C3SW_SYSCLK;
+            break;
+          default:
+            break;
+        }
+        break;
+#endif
+      default:
+        break;
+    }
+
+    MODIFY_REG(RCC->CFGR3, i2c_src, clock_src);
   }
 #endif
 
