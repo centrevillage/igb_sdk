@@ -99,7 +99,7 @@ struct RegValue {
 
   // setter
   IGB_FAST_INLINE void operator()(uint32_t v) {
-    (*IGB_ACC_REG_PTR) = (*IGB_ACC_REG_PTR) & (~bit_mask) | ((v << bit_pos) & bit_mask);
+    (*IGB_ACC_REG_PTR) = ((*IGB_ACC_REG_PTR) & (~bit_mask)) | ((v << bit_pos) & bit_mask);
   }
 
   IGB_FAST_INLINE RegFragment<reg_addr> val(uint32_t v) {
@@ -116,7 +116,7 @@ struct RegEnum {
 
   // setter
   IGB_FAST_INLINE void operator()(ENUM_TYPE v) {
-    (*IGB_ACC_REG_PTR) = (*IGB_ACC_REG_PTR) & (~bit_mask) | (static_cast<uint32_t>(v) & bit_mask);
+    (*IGB_ACC_REG_PTR) = ((*IGB_ACC_REG_PTR) & (~bit_mask)) | (static_cast<uint32_t>(v) & bit_mask);
   }
 
   IGB_FAST_INLINE RegFragment<reg_addr> val(ENUM_TYPE v) {
