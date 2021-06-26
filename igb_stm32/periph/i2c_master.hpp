@@ -5,6 +5,10 @@
 #include <igb_stm32/periph/systick.hpp>
 #include <igb_stm32/hal.hpp> // TODO: remove hal dependency
 
+#if defined(I2C1_IRQn) && !defined(I2C1_EV_IRQn)
+#define I2C1_EV_IRQn I2C1_IRQn
+#endif
+
 namespace igb {
 namespace stm32 {
 
@@ -32,19 +36,52 @@ struct I2cMaster {
     initConfigI2c();
   }
 
-  bool writeData(uint8_t slave_addr, uint8_t* data_array, size_t data_array_size, bool is_send_stop = true) {
-    if (is_send_stop) {
-      _handle.XferOptions = I2C_OTHER_AND_LAST_FRAME;
-    } else {
-      _handle.XferOptions = I2C_OTHER_FRAME;
-    }
+  //bool writeData(uint8_t slave_addr, uint8_t* data_array, size_t data_array_size, bool is_send_stop = true) {
+  //  if (is_send_stop) {
+  //    _handle.XferOptions = I2C_OTHER_AND_LAST_FRAME;
+  //  } else {
+  //    _handle.XferOptions = I2C_OTHER_FRAME;
+  //  }
+  //  uint32_t tickstart = HAL_GetTick();
+  //  uint32_t delta = 0;
+  //  uint32_t err = 0;
+  //  uint32_t XferOptions = _handle.XferOptions; // save XferOptions value, because handle can be modified by HAL, which cause issue in case of NACK from slave
+  //  if (HAL_I2C_Master_Seq_Transmit_IT(&_handle, slave_addr, data_array, data_array_size, XferOptions) != HAL_OK) {
+  //    return false;
+  //  }
+  //  // wait for transfer completion
+  //  while ((HAL_I2C_GetState(&_handle) != HAL_I2C_STATE_READY) && (delta < timeout_tick)) {
+  //    delta = (HAL_GetTick() - tickstart);
+  //    if (HAL_I2C_GetError(&_handle) != HAL_I2C_ERROR_NONE) {
+  //      break;
+  //    }
+  //  }
+
+  //  err = HAL_I2C_GetError(&_handle);
+
+  //  if ((delta >= timeout_tick) || ((err & HAL_I2C_ERROR_TIMEOUT) == HAL_I2C_ERROR_TIMEOUT)) {
+  //    // timeout
+  //    return false;
+  //  }
+  //  if ((err & HAL_I2C_ERROR_AF) == HAL_I2C_ERROR_AF) {
+  //    //ret = I2C_NACK_DATA;
+  //    return false;
+  //  }
+  //  if (err != HAL_I2C_ERROR_NONE) {
+  //    //ret = I2C_ERROR;
+  //    return false;
+  //  }
+  //  return true;
+  //}
+
+  bool writeData(uint8_t slave_addr, uint8_t* data_array, size_t data_array_size) {
     uint32_t tickstart = HAL_GetTick();
     uint32_t delta = 0;
     uint32_t err = 0;
-    uint32_t XferOptions = _handle.XferOptions; // save XferOptions value, because handle can be modified by HAL, which cause issue in case of NACK from slave
-    if (HAL_I2C_Master_Seq_Transmit_IT(&_handle, slave_addr, data_array, data_array_size, XferOptions) != HAL_OK) {
+    if (HAL_I2C_Master_Transmit_IT(&_handle, slave_addr << 1, data_array, data_array_size) != HAL_OK) {
       return false;
     }
+
     // wait for transfer completion
     while ((HAL_I2C_GetState(&_handle) != HAL_I2C_STATE_READY) && (delta < timeout_tick)) {
       delta = (HAL_GetTick() - tickstart);
@@ -121,8 +158,8 @@ struct I2cMaster {
     _handle.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
     _handle.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
     _handle.State = HAL_I2C_STATE_RESET;
-    HAL_NVIC_SetPriority(I2C1_IRQn, 2, 0);
-    HAL_NVIC_EnableIRQ(I2C1_IRQn);
+    HAL_NVIC_SetPriority(I2C1_EV_IRQn, 2, 0);
+    HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);
 
     if (HAL_I2C_Init(&_handle) != HAL_OK) {
       return false;
