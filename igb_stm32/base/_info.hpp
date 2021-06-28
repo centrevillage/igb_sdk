@@ -62,6 +62,7 @@ struct TimInfo {
 struct SpiInfo {
   const PeriphType   periph_type;
   SPI_TypeDef* const p_spi;
+  const uint32_t addr;
   const PeriphBusInfo bus;
 };
 #endif

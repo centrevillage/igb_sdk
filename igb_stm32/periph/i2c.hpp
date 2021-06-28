@@ -120,7 +120,7 @@ struct I2c {
     return IGB_I2C->ISR & static_cast<uint32_t>(status);
   }
 
-  IGB_FAST_INLINE void clearStatus(Status status) {
+  IGB_FAST_INLINE void clear(Status status) {
     if (status == Status::txDataEmpty) {
       IGB_I2C->ISR |= I2C_ISR_TXE;
     } else {
@@ -140,7 +140,7 @@ struct I2c {
     smbusAlert = I2C_ICR_ALERTCF
   };
 
-  IGB_FAST_INLINE void clearInterrupt(InterruptType interrupt) {
+  IGB_FAST_INLINE void clear(InterruptType interrupt) {
     IGB_I2C->ICR |= static_cast<uint32_t>(interrupt);
   }
 
@@ -334,8 +334,8 @@ struct I2c {
         }
       }
 
-      clearStatus(Status::nack);
-      clearStatus(Status::stop);
+      clear(Status::nack);
+      clear(Status::stop);
     } else {
       while (!is(Status::stop)) {
         if (current_msec() - msec > timeout_msec) {
@@ -343,7 +343,7 @@ struct I2c {
         }
       }
 
-      clearStatus(Status::stop);
+      clear(Status::stop);
     }
 
     return true;

@@ -853,21 +853,25 @@ constexpr struct PeriphInfo {
     SpiInfo {
       .periph_type = PeriphType::spi1,
       .p_spi = SPI1,
+      .addr = SPI1_BASE,
       .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 12},
     },
     SpiInfo {
       .periph_type = PeriphType::spi2,
       .p_spi = SPI2,
+      .addr = SPI2_BASE,
       .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 14},
     },
     SpiInfo {
       .periph_type = PeriphType::spi3,
       .p_spi = SPI3,
+      .addr = SPI3_BASE,
       .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 15},
     },
     SpiInfo {
       .periph_type = PeriphType::spi4,
       .p_spi = SPI4,
+      .addr = SPI4_BASE,
       .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 13},
     },
   };

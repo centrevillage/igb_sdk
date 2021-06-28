@@ -516,6 +516,7 @@ constexpr struct PeriphInfo {
     SpiInfo {
       .periph_type = PeriphType::spi1,
       .p_spi = SPI1,
+      .addr = SPI1_BASE,
       .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 12},
     },
   };
