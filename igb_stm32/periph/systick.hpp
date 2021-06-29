@@ -13,7 +13,7 @@ struct SystickState {
   volatile uint32_t _usec_scaling = 1000;
 };
 
-SystickState _systick_state;
+extern SystickState _systick_state;
 }
 
 namespace igb {

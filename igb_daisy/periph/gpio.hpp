@@ -41,7 +41,7 @@ enum class DaisyGpioPinType : uint8_t {
   p31 = static_cast<uint8_t>(stm32::GpioPinType::pb15),
 };
 
-IGB_FAST_INLINE stm32::GpioPinType daisy_pin_to_stm32_pin(DaisyGpioPinType pin_type) {
+constexpr IGB_FAST_INLINE stm32::GpioPinType daisy_pin_to_stm32_pin(DaisyGpioPinType pin_type) {
   return static_cast<stm32::GpioPinType>(static_cast<uint8_t>(pin_type));
 }
 
