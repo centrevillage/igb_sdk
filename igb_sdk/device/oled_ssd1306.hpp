@@ -11,7 +11,7 @@ namespace sdk {
 
 template<typename SPI_TYPE, typename GPIO_PIN_TYPE, size_t screen_width = 128, size_t screen_height = 64>
 struct OledSsd1306 {
-  SPI_TYPE& spi;
+  SPI_TYPE spi;
   GPIO_PIN_TYPE cs_pin;
   GPIO_PIN_TYPE dc_pin;
   GPIO_PIN_TYPE reset_pin;
