@@ -88,11 +88,6 @@ static IGB_FAST_INLINE uint32_t current_usec() {
 
 #else
 
-void SysTick_Handler(void) {
-  igb::stm32::SystickCtrl::receiveTick();
-  USER_SYSTICK_HANDLER_CALLBACK;
-}
-
 static IGB_FAST_INLINE uint32_t current_msec() {
   return igb::stm32::SystickCtrl::getCurrentMilliSec();
 }
