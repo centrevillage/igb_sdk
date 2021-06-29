@@ -9,12 +9,12 @@
 namespace igb {
 namespace sdk {
 
-template<typename GPIO_PIN_TYPE, typename SPI_TYPE, size_t screen_width = 128, size_t screen_height = 64>
+template<typename SPI_TYPE, typename GPIO_PIN_TYPE, size_t screen_width = 128, size_t screen_height = 64>
 struct OledSsd1306 {
+  SPI_TYPE& spi;
   GPIO_PIN_TYPE cs_pin;
   GPIO_PIN_TYPE dc_pin;
   GPIO_PIN_TYPE reset_pin;
-  SPI_TYPE spi;
 
   uint8_t screen_buffer[screen_width * screen_height / 8];
 

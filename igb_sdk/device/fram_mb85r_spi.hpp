@@ -7,10 +7,10 @@
 namespace igb {
 namespace sdk {
 
-template<typename GPIO_PIN_TYPE, typename SPI_TYPE>
+template<typename SPI_TYPE, typename GPIO_PIN_TYPE>
 struct FramMb85rSPI {
-  GPIO_PIN_TYPE cs_pin;
   SPI_TYPE spi;
+  GPIO_PIN_TYPE cs_pin;
 
   const size_t block_size = 32;
 
@@ -43,6 +43,12 @@ struct FramMb85rSPI {
   constexpr static uint8_t FRAM_CMD_READ = 0x03;
   //0000 0010 Write Memory Data
   constexpr static uint8_t FRAM_CMD_WRITE = 0x02;
+
+  inline void init() {
+    cs_pin.enable();
+    cs_pin.initOutputDefault();
+    cs_pin.high();
+  }
 
   inline void requestRead(uint8_t* buf, uint32_t buf_size, uint32_t read_address, void (*callback)(void)) {
   //void requestRead(uint8_t* buf, uint32_t buf_size, uint32_t read_address, std::function<void(void)> callback) {

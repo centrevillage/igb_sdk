@@ -8,6 +8,8 @@ namespace sdk {
 
 template<typename I2C_TYPE>
 struct Is31Fl3731I2c {
+  I2C_TYPE i2c;
+
   constexpr static size_t i2c_address_base      = 0x74;
   constexpr static uint8_t page_function_reg    = 0x0B;
   constexpr static uint8_t reg_config           = 0x00;
@@ -22,9 +24,6 @@ struct Is31Fl3731I2c {
   constexpr static uint8_t reg_audiosync        = 0x06;
   constexpr static uint8_t command_register     = 0xFD;
 
-
-  I2C_TYPE i2c;
-
   uint8_t _address_byte = i2c_address_base;
   uint8_t _frame = 0;
 
@@ -36,7 +35,7 @@ struct Is31Fl3731I2c {
   };
 
   bool init(Address address = Address::first) {
-    i2c.init();
+    //i2c.init();
     delay_msec(10);
 
     _address_byte = static_cast<uint8_t>(address);
