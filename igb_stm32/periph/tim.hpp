@@ -239,11 +239,11 @@ struct Tim {
         as<uint32_t>(polarity) | as<uint32_t>(prescaler) | as<uint32_t>(filter));
   }
 
-  bool isState(TimState state) {
+  bool is(TimState state) {
     return !!(p_tim->SR & as<uint32_t>(state));
   }
 
-  void clearState(TimState state) {
+  void clear(TimState state) {
     p_tim->SR &= ~(as<uint32_t>(state));
   }
 
@@ -259,11 +259,11 @@ struct Tim {
     p_tim->EGR |= as<uint32_t>(event);
   }
 
-  void enableInterrupt(TimInterruptType interrupt) {
+  void enable(TimInterruptType interrupt) {
     p_tim->DIER |= as<uint32_t>(interrupt);
   }
 
-  void disableInterrupt(TimInterruptType interrupt) {
+  void disable(TimInterruptType interrupt) {
     p_tim->DIER &= ~(as<uint32_t>(interrupt));
   }
 
