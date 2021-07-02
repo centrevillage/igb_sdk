@@ -21,6 +21,13 @@ struct Reg {
 };
 
 template<uint32_t reg_addr>
+struct RegRO {
+  IGB_FAST_INLINE uint32_t operator()() {
+    return (*IGB_ACC_REG_PTR);
+  }
+};
+
+template<uint32_t reg_addr>
 struct RegFragment {
   const uint32_t bit_mask;
   const uint32_t v;
@@ -48,6 +55,13 @@ struct RegBit {
 
   IGB_FAST_INLINE RegFragment<reg_addr> val(uint32_t v) {
     return RegFragment<reg_addr> { bit_mask, v & bit_mask } ;
+  }
+};
+
+template<uint32_t reg_addr, const uint32_t bit_mask>
+struct RegBitRO {
+  IGB_FAST_INLINE uint32_t operator()() {
+    return (*IGB_ACC_REG_PTR) & (bit_mask);
   }
 };
 
@@ -91,6 +105,16 @@ struct RegFlag {
   }
 };
 
+template<uint32_t reg_addr, const uint32_t bit_mask, bool invert_logic = false>
+struct RegFlagRO {
+  IGB_FAST_INLINE bool operator()() {
+    if (invert_logic) {
+      return !((*IGB_ACC_REG_PTR) & (bit_mask));
+    }
+    return (*IGB_ACC_REG_PTR) & (bit_mask);
+  }
+};
+
 template<uint32_t reg_addr, const uint32_t bit_mask, const uint32_t bit_pos>
 struct RegValue {
   IGB_FAST_INLINE uint32_t operator()() {
@@ -104,6 +128,13 @@ struct RegValue {
 
   IGB_FAST_INLINE RegFragment<reg_addr> val(uint32_t v) {
     return RegFragment<reg_addr> { bit_mask, (v << bit_pos) & bit_mask } ;
+  }
+};
+
+template<uint32_t reg_addr, const uint32_t bit_mask, const uint32_t bit_pos>
+struct RegValueRO {
+  IGB_FAST_INLINE uint32_t operator()() {
+    return ((*IGB_ACC_REG_PTR) & (bit_mask)) >> bit_pos;
   }
 };
 
@@ -121,6 +152,13 @@ struct RegEnum {
 
   IGB_FAST_INLINE RegFragment<reg_addr> val(ENUM_TYPE v) {
     return RegFragment<reg_addr> { bit_mask, static_cast<uint32_t>(v) & bit_mask } ;
+  }
+};
+
+template<uint32_t reg_addr, const uint32_t bit_mask, typename ENUM_TYPE>
+struct RegEnumRO {
+  IGB_FAST_INLINE ENUM_TYPE operator()() {
+    return static_cast<ENUM_TYPE>((*IGB_ACC_REG_PTR) & (bit_mask));
   }
 };
 
