@@ -96,6 +96,7 @@ struct DacInfo {
 struct AdcInfo {
   const PeriphType   periph_type;
   ADC_TypeDef* const p_adc;
+  const uint32_t addr;
   const PeriphBusInfo bus;
 };
 #endif

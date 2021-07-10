@@ -1229,16 +1229,19 @@ constexpr struct PeriphInfo {
     AdcInfo {
       .periph_type = PeriphType::adc1,
       .p_adc = ADC1,
+      .addr = ADC1_BASE,
       .bus = PeriphBusInfo { BusType::ahb1, (uint32_t)1 << 5},
     },
     AdcInfo {
       .periph_type = PeriphType::adc2,
       .p_adc = ADC2,
+      .addr = ADC2_BASE,
       .bus = PeriphBusInfo { BusType::ahb1, (uint32_t)1 << 5},
     },
     AdcInfo {
       .periph_type = PeriphType::adc3,
       .p_adc = ADC3,
+      .addr = ADC3_BASE,
       .bus = PeriphBusInfo { BusType::ahb4, (uint32_t)1 << 24},
     },
   };

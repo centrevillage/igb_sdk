@@ -173,6 +173,55 @@ enum class I2cClockSrc : uint32_t {
 };
 #endif
 
+#if defined(STM32F3)
+#if defined(RCC_CFGR_ADCPRE)
+enum class AdcClockDiv : uint32_t {
+  div2 = RCC_CFGR_ADCPRE_DIV2,
+  div4 = RCC_CFGR_ADCPRE_DIV4,
+  div6 = RCC_CFGR_ADCPRE_DIV6,
+  div8 = RCC_CFGR_ADCPRE_DIV8,
+};
+#elif defined(RCC_CFGR2_ADC1PRES)
+enum class AdcClockSrc : uint8_t {
+  ahb = 0,
+  pll,
+};
+enum class AdcClockDiv : uint32_t {
+  div1 = RCC_CFGR2_ADC1PRES_DIV1,
+  div2 = RCC_CFGR2_ADC1PRES_DIV2,
+  div4 = RCC_CFGR2_ADC1PRES_DIV4,
+  div6 = RCC_CFGR2_ADC1PRES_DIV6,
+  div8 = RCC_CFGR2_ADC1PRES_DIV8,
+  div10 = RCC_CFGR2_ADC1PRES_DIV10,
+  div12 = RCC_CFGR2_ADC1PRES_DIV12,
+  div16 = RCC_CFGR2_ADC1PRES_DIV16,
+  div32 = RCC_CFGR2_ADC1PRES_DIV32,
+  div64 = RCC_CFGR2_ADC1PRES_DIV64,
+  div128 = RCC_CFGR2_ADC1PRES_DIV128,
+  div256 = RCC_CFGR2_ADC1PRES_DIV256,
+};
+#elif defined(RCC_CFGR2_ADCPRE12) || defined(RCC_CFGR2_ADCPRE34)
+enum class AdcClockSrc : uint8_t {
+  ahb = 0,
+  pll,
+};
+enum class AdcClockDiv : uint32_t {
+  div1 = RCC_CFGR2_ADCPRE12_DIV1,
+  div2 = RCC_CFGR2_ADCPRE12_DIV2,
+  div4 = RCC_CFGR2_ADCPRE12_DIV4,
+  div6 = RCC_CFGR2_ADCPRE12_DIV6,
+  div8 = RCC_CFGR2_ADCPRE12_DIV8,
+  div10 = RCC_CFGR2_ADCPRE12_DIV10,
+  div12 = RCC_CFGR2_ADCPRE12_DIV12,
+  div16 = RCC_CFGR2_ADCPRE12_DIV16,
+  div32 = RCC_CFGR2_ADCPRE12_DIV32,
+  div64 = RCC_CFGR2_ADCPRE12_DIV64,
+  div128 = RCC_CFGR2_ADCPRE12_DIV128,
+  div256 = RCC_CFGR2_ADCPRE12_DIV256,
+};
+#endif /* RCC_CFGR_ADCPRE */
+#endif /* STM32F3 */
+
 struct RccCtrl {
   static IGB_FAST_INLINE void enableBusClock(const auto& periph_bus_info) {
     periph_bus_info.enableBusClock();
@@ -336,6 +385,88 @@ struct RccCtrl {
     MODIFY_REG(RCC->CFGR3, i2c_src, clock_src);
   }
 #endif
+
+#if defined(STM32F3)
+#if defined(RCC_CFGR_ADCPRE)
+  static IGB_FAST_INLINE void setAdcClockSrc(AdcType type, AdcClockDiv div = AdcClockDiv::div2) {
+    MODIFY_REG(RCC->CFGR, RCC_CFGR_ADCPRE, static_cast<uint32_t>(div));
+  }
+#elif defined(RCC_CFGR2_ADC1PRES)
+  static IGB_FAST_INLINE void setAdcClockSrc(AdcType type, AdcClockSrc src = AdcClockSrc::ahb, AdcClockDiv div = AdcClockDiv::div1) {
+    if (src == AdcClockSrc::ahb) {
+      MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADC1PRES, RCC_CFGR2_ADC1PRES_NO);
+    } else if (src == AdcClockSrc::pll) {
+      MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADC1PRES, static_cast<uint32_t>(div));
+    }
+  }
+#elif defined(RCC_CFGR2_ADCPRE12) || defined(RCC_CFGR2_ADCPRE34)
+  static IGB_FAST_INLINE void setAdcClockSrc(AdcType type, AdcClockSrc src = AdcClockSrc::ahb, AdcClockDiv div = AdcClockDiv::div1) {
+#if defined(RCC_CFGR2_ADCPRE34)
+    if (type == AdcType::adc1 || type == AdcType::adc2) {
+      if (src == AdcClockSrc::ahb) {
+        MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADCPRE12, 0);
+      } else {
+        MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADCPRE12, static_cast<uint32_t>(div));
+      }
+    } else {
+      if (src == AdcClockSrc::ahb) {
+        MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADCPRE34, 0);
+      } else {
+        uint32_t _div = 0;
+        switch (div) {
+          case AdcClockDiv::div1:
+            _div = RCC_CFGR2_ADCPRE34_DIV1;
+            break;
+          case AdcClockDiv::div2:
+            _div = RCC_CFGR2_ADCPRE34_DIV2;
+            break;
+          case AdcClockDiv::div4:
+            _div = RCC_CFGR2_ADCPRE34_DIV4;
+            break;
+          case AdcClockDiv::div6:
+            _div = RCC_CFGR2_ADCPRE34_DIV6;
+            break;
+          case AdcClockDiv::div8:
+            _div = RCC_CFGR2_ADCPRE34_DIV8;
+            break;
+          case AdcClockDiv::div10:
+            _div = RCC_CFGR2_ADCPRE34_DIV10;
+            break;
+          case AdcClockDiv::div12:
+            _div = RCC_CFGR2_ADCPRE34_DIV12;
+            break;
+          case AdcClockDiv::div16:
+            _div = RCC_CFGR2_ADCPRE34_DIV16;
+            break;
+          case AdcClockDiv::div32:
+            _div = RCC_CFGR2_ADCPRE34_DIV32;
+            break;
+          case AdcClockDiv::div64:
+            _div = RCC_CFGR2_ADCPRE34_DIV64;
+            break;
+          case AdcClockDiv::div128:
+            _div = RCC_CFGR2_ADCPRE34_DIV128;
+            break;
+          case AdcClockDiv::div256:
+            _div = RCC_CFGR2_ADCPRE34_DIV256;
+            break;
+          default:
+            break;
+        }
+        MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADCPRE34, _div);
+      }
+    }
+    //MODIFY_REG(RCC->CFGR2, (ADCxSource >> 16U), (ADCxSource & 0x0000FFFFU));
+#else
+    if (src == AdcClockSrc::ahb) {
+      MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADCPRE12, 0);
+    } else {
+      MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADCPRE12, static_cast<uint32_t>(div));
+    }
+#endif /* RCC_CFGR2_ADCPRE34 */
+  }
+#endif /* RCC_CFGR_ADCPRE */
+#endif /* STM32F3 */
 
 #if defined(RCC_CR_PLLON)
   static IGB_FAST_INLINE void enablePLL() {

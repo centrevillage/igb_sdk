@@ -8,6 +8,7 @@
 #include <igb_util/cast.hpp>
 #include <igb_stm32/periph/gpio.hpp>
 #include <igb_stm32/periph/rcc.hpp>
+#include <igb_stm32/periph/systick.hpp>
 #include <igb_util/macro.hpp>
 #include <igb_util/reg.hpp>
 
