@@ -653,6 +653,21 @@ struct Adc {
 
     while(!is(AdcStatus::ready)) {}
   }
+
+  IGB_FAST_INLINE bool checkReady() {
+    return is(AdcStatus::ready);
+  }
+
+  IGB_FAST_INLINE bool checkEndOfConversion() {
+    if (is(AdcStatus::endOfConversion)) {
+      clear(AdcStatus::endOfConversion);
+      if (is(AdcStatus::endOfSeqConversions)) {
+        clear(AdcStatus::endOfSeqConversions);
+      }
+      return true;
+    }
+    return false;
+  }
 };
 
 #endif
