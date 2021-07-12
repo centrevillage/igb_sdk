@@ -545,43 +545,51 @@ constexpr struct PeriphInfo {
     GpioInfo {
       .periph_type = PeriphType::gpioa,
       .p_gpio = GPIOA,
+      .addr = GPIOA_BASE,
       .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 17},
     },
     GpioInfo {
       .periph_type = PeriphType::gpiob,
       .p_gpio = GPIOB,
+      .addr = GPIOB_BASE,
       .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 18},
     },
     GpioInfo {
       .periph_type = PeriphType::gpioc,
       .p_gpio = GPIOC,
+      .addr = GPIOC_BASE,
       .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 19},
     },
     GpioInfo {
       .periph_type = PeriphType::gpiod,
       .p_gpio = GPIOD,
+      .addr = GPIOD_BASE,
       .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 20},
     },
     GpioInfo {
       .periph_type = PeriphType::gpiof,
       .p_gpio = GPIOF,
+      .addr = GPIOF_BASE,
       .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 22},
     },
   };
   const TscInfo tsc {
     .periph_type = PeriphType::tsc,
     .p_tsc = TSC,
+    .addr = TSC_BASE,
     .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 24},
   };
   const RccInfo rcc {
     .periph_type = PeriphType::rcc,
     .p_rcc = RCC,
+    .addr = RCC_BASE,
   };
   const std::array<TimInfo, 8> tim {
     TimInfo {
       .periph_type = PeriphType::tim1,
       .category = TimCategory::ADVANCED,
       .p_tim = TIM1,
+      .addr = TIM1_BASE,
       .irqn = TIM1_UP_TIM16_IRQn,
       .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 11},
     },
@@ -589,6 +597,7 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::tim2,
       .category = TimCategory::GENERAL,
       .p_tim = TIM2,
+      .addr = TIM2_BASE,
       .irqn = TIM2_IRQn,
       .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 0},
     },
@@ -596,6 +605,7 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::tim3,
       .category = TimCategory::GENERAL,
       .p_tim = TIM3,
+      .addr = TIM3_BASE,
       .irqn = TIM3_IRQn,
       .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 1},
     },
@@ -603,6 +613,7 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::tim6,
       .category = TimCategory::BASIC,
       .p_tim = TIM6,
+      .addr = TIM6_BASE,
       .irqn = TIM6_DAC1_IRQn,
       .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 4},
     },
@@ -610,6 +621,7 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::tim7,
       .category = TimCategory::BASIC,
       .p_tim = TIM7,
+      .addr = TIM7_BASE,
       .irqn = TIM7_DAC2_IRQn,
       .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 5},
     },
@@ -617,6 +629,7 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::tim15,
       .category = TimCategory::GENERAL,
       .p_tim = TIM15,
+      .addr = TIM15_BASE,
       .irqn = TIM1_BRK_TIM15_IRQn,
       .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 16},
     },
@@ -624,6 +637,7 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::tim16,
       .category = TimCategory::GENERAL,
       .p_tim = TIM16,
+      .addr = TIM16_BASE,
       .irqn = TIM1_UP_TIM16_IRQn,
       .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 17},
     },
@@ -631,6 +645,7 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::tim17,
       .category = TimCategory::GENERAL,
       .p_tim = TIM17,
+      .addr = TIM17_BASE,
       .irqn = TIM1_TRG_COM_TIM17_IRQn,
       .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 18},
     },
@@ -639,16 +654,19 @@ constexpr struct PeriphInfo {
     UsartInfo {
       .periph_type = PeriphType::usart1,
       .p_usart = USART1,
+      .addr = USART1_BASE,
       .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 14},
     },
     UsartInfo {
       .periph_type = PeriphType::usart2,
       .p_usart = USART2,
+      .addr = USART2_BASE,
       .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 17},
     },
     UsartInfo {
       .periph_type = PeriphType::usart3,
       .p_usart = USART3,
+      .addr = USART3_BASE,
       .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 18},
     },
   };
@@ -660,7 +678,7 @@ constexpr struct PeriphInfo {
       .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 12},
     },
   };
-  constexpr static std::array<I2cInfo, 1> i2c {
+  const std::array<I2cInfo, 1> i2c {
     I2cInfo {
       .periph_type = PeriphType::i2c1,
       .p_i2c = I2C1,
@@ -672,11 +690,13 @@ constexpr struct PeriphInfo {
     DacInfo {
       .periph_type = PeriphType::dac1,
       .p_dac = DAC1,
+      .addr = DAC1_BASE,
       .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 29},
     },
     DacInfo {
       .periph_type = PeriphType::dac2,
       .p_dac = DAC2,
+      .addr = DAC2_BASE,
       .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 26},
     },
   };

@@ -8,6 +8,11 @@ module CppStructSchema
             value: nil,
             type: 'GPIO_TypeDef*',
             required: true
+          },
+          addr: {
+            value: nil,
+            type: 'uint32_t',
+            required: true
           }
         }
       },
@@ -22,6 +27,11 @@ module CppStructSchema
           p_tim: {
             value: nil,
             type: 'TIM_TypeDef*',
+            required: true
+          },
+          addr: {
+            value: nil,
+            type: 'uint32_t',
             required: true
           },
           irqn: {
@@ -39,7 +49,12 @@ module CppStructSchema
             value: nil,
             type: 'RCC_TypeDef*',
             required: true
-          }
+          },
+          addr: {
+            value: nil,
+            type: 'uint32_t',
+            required: true
+          },
         }
       },
       I2C: {
@@ -49,7 +64,12 @@ module CppStructSchema
             value: nil,
             type: 'I2C_TypeDef*',
             required: true
-          }
+          },
+          addr: {
+            value: nil,
+            type: 'uint32_t',
+            required: true
+          },
         },
       },
       SPI: {
@@ -58,6 +78,11 @@ module CppStructSchema
           p_spi: {
             value: nil,
             type: 'SPI_Typedef*',
+            required: true
+          },
+          addr: {
+            value: nil,
+            type: 'uint32_t',
             required: true
           }
         },
@@ -69,6 +94,11 @@ module CppStructSchema
             value: nil,
             type: 'USART_TypeDef*',
             required: true
+          },
+          addr: {
+            value: nil,
+            type: 'uint32_t',
+            required: true
           }
         },
       },
@@ -78,6 +108,11 @@ module CppStructSchema
           p_dac: {
             value: nil,
             type: 'DAC_TypeDef*',
+            required: true
+          },
+          addr: {
+            value: nil,
+            type: 'uint32_t',
             required: true
           }
         }
@@ -90,6 +125,11 @@ module CppStructSchema
             type: 'ADC_TypeDef*',
             required: true
           },
+          addr: {
+            value: nil,
+            type: 'uint32_t',
+            required: true
+          }
         }
       },
       TSC: {
@@ -99,6 +139,11 @@ module CppStructSchema
           p_tsc: {
             value: nil,
             type: 'TSC_TypeDef*'
+          },
+          addr: {
+            value: nil,
+            type: 'uint32_t',
+            required: true
           }
         }
       },

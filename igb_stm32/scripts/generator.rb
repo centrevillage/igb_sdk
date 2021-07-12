@@ -274,8 +274,10 @@ class CppSrcGenerator
         case group_name.to_sym
         when :GPIO
           struct[:attrs][:p_gpio][:value] = peripheral_name
+          struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
         when :TIM
           struct[:attrs][:p_tim][:value] = peripheral_name
+          struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
           irqn = fetch_tim_irqn_name(peripheral_name)
           struct[:attrs][:irqn][:value] = irqn
           description = @svd_parser.parsed[group_name][peripheral_name][:description]
@@ -291,18 +293,25 @@ class CppSrcGenerator
           end
         when :RCC
           struct[:attrs][:p_rcc][:value] = peripheral_name
+          struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
         when :I2C
           struct[:attrs][:p_i2c][:value] = peripheral_name
+          struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
         when :SPI
           struct[:attrs][:p_spi][:value] = peripheral_name
+          struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
         when :USART
           struct[:attrs][:p_usart][:value] = peripheral_name
+          struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
         when :ADC
           struct[:attrs][:p_adc][:value] = peripheral_name
+          struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
         when :DAC
           struct[:attrs][:p_dac][:value] = peripheral_name
+          struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
         when :TSC
           struct[:attrs][:p_tsc][:value] = peripheral_name
+          struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
         else
           next
         end
@@ -477,6 +486,6 @@ if __FILE__ == $0
   #peripheral_names = get_periheral_names
   #puts "[peripheral names] #{peripheral_names}"
 
-  generator = CppSrcGenerator.new(:stm32f030x6)
+  generator = CppSrcGenerator.new(:stm32f303x8)
   generator.process
 end

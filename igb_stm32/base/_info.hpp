@@ -31,6 +31,7 @@ struct GpioAfInfo {
 struct RccInfo {
   const PeriphType   periph_type;
   RCC_TypeDef* const p_rcc;
+  const uint32_t addr;
 };
 #endif
 
@@ -38,6 +39,7 @@ struct RccInfo {
 struct GpioInfo {
   const PeriphType    periph_type;
   GPIO_TypeDef* const p_gpio;
+  const uint32_t addr;
   const PeriphBusInfo bus;
 };
 #endif
@@ -53,6 +55,7 @@ struct TimInfo {
   const PeriphType      periph_type;
   const TimCategory     category;
   TIM_TypeDef* const    p_tim;
+  const uint32_t addr;
   const IRQn_Type       irqn;
   const PeriphBusInfo   bus;
 };
@@ -80,6 +83,7 @@ struct I2cInfo {
 struct UsartInfo {
   const PeriphType   periph_type;
   USART_TypeDef* const p_usart;
+  const uint32_t addr;
   const PeriphBusInfo bus;
 };
 #endif
@@ -88,6 +92,7 @@ struct UsartInfo {
 struct DacInfo {
   const PeriphType   periph_type;
   DAC_TypeDef* const p_dac;
+  const uint32_t addr;
   const PeriphBusInfo bus;
 };
 #endif
@@ -105,6 +110,7 @@ struct AdcInfo {
 struct TscInfo {
   const PeriphType   periph_type;
   TSC_TypeDef* const p_tsc;
+  const uint32_t addr;
   const PeriphBusInfo bus;
 };
 #endif
