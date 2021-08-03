@@ -25,20 +25,36 @@ struct MultiplexedAdc {
     return (1UL << (uint32_t)resolution) - 1;
   }
 
-  void process() {
+  IGB_FAST_INLINE void prepare() {
+    for (uint8_t i = 0; i < GPIO_PIN_COUNT; ++i) {
+      gpios[i].write(!!(process_idx & (1 << i)));
+    }
+  }
+
+  IGB_FAST_INLINE void complete(uint32_t value) {
+    _values[process_idx] = value;
+    if (on_update) {
+      on_update(process_idx, getValue(process_idx), getValueFloat(process_idx));
+    }
+  }
+  
+  IGB_FAST_INLINE void next() {
+    process_idx = (process_idx + 1) % address_size;
+  }
+
+  IGB_FAST_INLINE void start() {
+    adc.startConversion();
+  }
+
+  IGB_FAST_INLINE void process() {
     if (!_is_conversioning && adc.checkReady()) {
-      for (uint8_t i = 0; i < GPIO_PIN_COUNT; ++i) {
-        gpios[i].write(!!(process_idx & (1 << i)));
-      }
-      adc.startConversion();
+      prepare();
+      start();
       _is_conversioning = true;
     } else {
       if (adc.checkEndOfConversion()) {
-        _values[process_idx] = adc.readData();
-        if (on_update) {
-          on_update(process_idx, getValue(process_idx), getValueFloat(process_idx));
-        }
-        process_idx = (process_idx + 1) % address_size;
+        complete(adc.readData());
+        next();
         _is_conversioning = false;
       }
     }
