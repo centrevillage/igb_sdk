@@ -102,6 +102,7 @@ struct AdcInfo {
   const PeriphType   periph_type;
   ADC_TypeDef* const p_adc;
   const uint32_t addr;
+  const IRQn_Type irqn;
   const PeriphBusInfo bus;
 };
 #endif
@@ -112,5 +113,21 @@ struct TscInfo {
   TSC_TypeDef* const p_tsc;
   const uint32_t addr;
   const PeriphBusInfo bus;
+};
+#endif
+
+#ifdef STM32_PERIPHGRP_DMA_EXISTS
+struct DmaChannelInfo {
+  bool exists = true;
+  DMA_Channel_TypeDef* const p_dma_channel;
+  const uint32_t addr;
+  const IRQn_Type irqn;
+};
+struct DmaInfo {
+  const PeriphType   periph_type;
+  DMA_TypeDef* const p_dma;
+  const uint32_t addr;
+  const PeriphBusInfo bus;
+  const std::array<DmaChannelInfo, 8> channels;
 };
 #endif

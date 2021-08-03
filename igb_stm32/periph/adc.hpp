@@ -18,11 +18,11 @@ namespace stm32 {
 
 #define IGB_ADC ((ADC_TypeDef*)addr)
 #define IGB_ADC_REG_ADDR(member) (addr + offsetof(ADC_TypeDef, member))
-#define IGB_ADC_REG(member) ((ADC_TypeDef*)IGB_I2C_REG_ADDR(member))
+#define IGB_ADC_REG(member) ((ADC_TypeDef*)IGB_ADC_REG_ADDR(member))
 
 #define IGB_ADC_COMMON ((ADC_Common_TypeDef*)addr)
 #define IGB_ADC_COMMON_REG_ADDR(member) (addr + offsetof(ADC_Common_TypeDef, member))
-#define IGB_ADC_COMMON_REG(member) ((ADC_Common_TypeDef*)IGB_I2C_REG_ADDR(member))
+#define IGB_ADC_COMMON_REG(member) ((ADC_Common_TypeDef*)IGB_ADC_REG_ADDR(member))
 
 // TODO: other series
 #if defined(STM32F3)
@@ -107,25 +107,6 @@ enum class AdcResolution : uint32_t {
 enum class AdcDataAlign : uint32_t {
   right = 0,
   left = ADC_CFGR_ALIGN
-};
-
-enum class AdcExternalTriggerEvent : uint32_t {
-  none = 0,
-  event1 = (1UL << ADC_CFGR_EXTSEL_Pos),
-  event2 = (2UL << ADC_CFGR_EXTSEL_Pos),
-  event3 = (3UL << ADC_CFGR_EXTSEL_Pos),
-  event4 = (4UL << ADC_CFGR_EXTSEL_Pos),
-  event5 = (5UL << ADC_CFGR_EXTSEL_Pos),
-  event6 = (6UL << ADC_CFGR_EXTSEL_Pos),
-  event7 = (7UL << ADC_CFGR_EXTSEL_Pos),
-  event8 = (8UL << ADC_CFGR_EXTSEL_Pos),
-  event9 = (9UL << ADC_CFGR_EXTSEL_Pos),
-  event10 = (10UL << ADC_CFGR_EXTSEL_Pos),
-  event11 = (11UL << ADC_CFGR_EXTSEL_Pos),
-  event12 = (12UL << ADC_CFGR_EXTSEL_Pos),
-  event13 = (13UL << ADC_CFGR_EXTSEL_Pos),
-  event14 = (14UL << ADC_CFGR_EXTSEL_Pos),
-  event15 = (15UL << ADC_CFGR_EXTSEL_Pos),
 };
 
 enum class AdcExternalTriggerPolarity : uint32_t {
@@ -226,6 +207,28 @@ enum class AdcChannel : uint32_t {
   ch18,
 };
 
+struct AdcConf {
+  AdcResolution resolution = AdcResolution::_12bit;
+  AdcDataAlign data_align = AdcDataAlign::right;
+  bool auto_delay_mode = false;
+  uint8_t external_trigger_select = 0;
+  AdcExternalTriggerPolarity external_trigger_polarity = AdcExternalTriggerPolarity::disable;
+  bool discontinuous_conv_mode = false;
+  uint8_t discontinuous_conv_channel_count = 0;
+  bool continuous_conv_mode = false;
+  bool dma = false;
+  AdcDmaConfig dma_config = AdcDmaConfig::oneshot;
+  AdcOverrunMode overrun_mode = AdcOverrunMode::overwriteByNewData;
+  AdcCommonClockMode clock_mode = AdcCommonClockMode::async;
+  bool vrefint = false;
+  bool temperature_sensor = false;
+  bool vbat = false;
+  AdcCalibrationType calibration_type = AdcCalibrationType::singleEnded;
+  bool enable_interrupt = false;
+  uint32_t interrupt_bits = static_cast<uint32_t>(AdcInterruptType::endOfConversion);
+  bool interrupt_priority = 1;
+};
+
 struct AdcPinConf {
   AdcChannel ch;
   GpioPinType pin_type;
@@ -235,39 +238,67 @@ struct AdcPinConf {
 template<AdcType ADC_TYPE>
 struct Adc {
   constexpr static auto type = ADC_TYPE;
+  constexpr static auto info = STM32_PERIPH_INFO.adc[static_cast<size_t>(type)];
   constexpr static auto addr = STM32_PERIPH_INFO.adc[static_cast<size_t>(type)].addr;
+  constexpr static auto addr_CR = IGB_ADC_REG_ADDR(CR);
+  constexpr static auto addr_DR = IGB_ADC_REG_ADDR(DR);
+  constexpr static auto addr_ISR = IGB_ADC_REG_ADDR(ISR);
+  constexpr static auto addr_IER = IGB_ADC_REG_ADDR(IER);
+  constexpr static auto addr_CFGR = IGB_ADC_REG_ADDR(CFGR);
+  constexpr static auto addr_SMPR1 = IGB_ADC_REG_ADDR(SMPR1);
+  constexpr static auto addr_SMPR2 = IGB_ADC_REG_ADDR(SMPR2);
+  constexpr static auto addr_TR1 = IGB_ADC_REG_ADDR(TR1);
+  constexpr static auto addr_TR2 = IGB_ADC_REG_ADDR(TR2);
+  constexpr static auto addr_TR3 = IGB_ADC_REG_ADDR(TR3);
+  constexpr static auto addr_SQR1 = IGB_ADC_REG_ADDR(SQR1);
+  constexpr static auto addr_SQR2 = IGB_ADC_REG_ADDR(SQR2);
+  constexpr static auto addr_SQR3 = IGB_ADC_REG_ADDR(SQR3);
+  constexpr static auto addr_SQR4 = IGB_ADC_REG_ADDR(SQR4);
+  constexpr static auto addr_JSQR = IGB_ADC_REG_ADDR(JSQR);
+  constexpr static auto addr_OFR1 = IGB_ADC_REG_ADDR(OFR1);
+  constexpr static auto addr_OFR2 = IGB_ADC_REG_ADDR(OFR2);
+  constexpr static auto addr_OFR3 = IGB_ADC_REG_ADDR(OFR3);
+  constexpr static auto addr_OFR4 = IGB_ADC_REG_ADDR(OFR4);
+  constexpr static auto addr_JDR1 = IGB_ADC_REG_ADDR(JDR1);
+  constexpr static auto addr_JDR2 = IGB_ADC_REG_ADDR(JDR2);
+  constexpr static auto addr_JDR3 = IGB_ADC_REG_ADDR(JDR3);
+  constexpr static auto addr_JDR4 = IGB_ADC_REG_ADDR(JDR4);
+  constexpr static auto addr_AWD2CR = IGB_ADC_REG_ADDR(AWD2CR);
+  constexpr static auto addr_AWD3CR = IGB_ADC_REG_ADDR(AWD3CR);
+  constexpr static auto addr_DIFSEL = IGB_ADC_REG_ADDR(DIFSEL);
+  constexpr static auto addr_CALFACT = IGB_ADC_REG_ADDR(CALFACT);
 
-  RegValue<IGB_ADC_REG_ADDR(CR), ADC_CR_BITS_PROPERTY_RS, 0> propertyRsClearBits;
+  RegValue<addr_CR, ADC_CR_BITS_PROPERTY_RS, 0> propertyRsClearBits;
 
-  RegFlag<IGB_ADC_REG_ADDR(CR), ADC_CR_ADSTART> convStart;
-  RegFlag<IGB_ADC_REG_ADDR(CR), ADC_CR_JADSTART> injectedConvStart;
-  RegFlag<IGB_ADC_REG_ADDR(CR), ADC_CR_ADSTP> convStop;
-  RegFlag<IGB_ADC_REG_ADDR(CR), ADC_CR_JADSTP> injectedConvStop;
-  RegEnum<IGB_ADC_REG_ADDR(CR), ADC_CR_ADVREGEN, AdcRegulatorState> regulator;
-  RegFlag<IGB_ADC_REG_ADDR(CR), ADC_CR_ADCALDIF> differentialCalibration;
-  RegFlag<IGB_ADC_REG_ADDR(CR), ADC_CR_ADCAL> calibration;
+  RegFlag<addr_CR, ADC_CR_ADSTART> convStart;
+  RegFlag<addr_CR, ADC_CR_JADSTART> injectedConvStart;
+  RegFlag<addr_CR, ADC_CR_ADSTP> convStop;
+  RegFlag<addr_CR, ADC_CR_JADSTP> injectedConvStop;
+  RegEnum<addr_CR, ADC_CR_ADVREGEN, AdcRegulatorState> regulator;
+  RegFlag<addr_CR, ADC_CR_ADCALDIF> differentialCalibration;
+  RegFlag<addr_CR, ADC_CR_ADCAL> calibration;
 
-  RegFlag<IGB_ADC_REG_ADDR(CFGR), ADC_CFGR_DMAEN> dma;
-  RegEnum<IGB_ADC_REG_ADDR(CFGR), ADC_CFGR_DMACFG_Msk, AdcDmaConfig> dmaConfig;
-  RegEnum<IGB_ADC_REG_ADDR(CFGR), ADC_CFGR_RES_Msk, AdcResolution> resolution;
-  RegEnum<IGB_ADC_REG_ADDR(CFGR), ADC_CFGR_ALIGN_Msk, AdcDataAlign> dataAlign;
-  RegEnum<IGB_ADC_REG_ADDR(CFGR), ADC_CFGR_EXTSEL_Msk, AdcExternalTriggerEvent> externalTrigSelect;
-  RegEnum<IGB_ADC_REG_ADDR(CFGR), ADC_CFGR_EXTEN_Msk, AdcExternalTriggerPolarity> externalTrigPolarity;
-  RegEnum<IGB_ADC_REG_ADDR(CFGR), ADC_CFGR_OVRMOD_Msk, AdcOverrunMode> overrunMode;
+  RegFlag<addr_CFGR, ADC_CFGR_DMAEN> dma;
+  RegEnum<addr_CFGR, ADC_CFGR_DMACFG_Msk, AdcDmaConfig> dmaConfig;
+  RegEnum<addr_CFGR, ADC_CFGR_RES_Msk, AdcResolution> resolution;
+  RegEnum<addr_CFGR, ADC_CFGR_ALIGN_Msk, AdcDataAlign> dataAlign;
+  RegValue<addr_CFGR, ADC_CFGR_EXTSEL_Msk, ADC_CFGR_EXTSEL_Pos> externalTrigSelect;
+  RegEnum<addr_CFGR, ADC_CFGR_EXTEN_Msk, AdcExternalTriggerPolarity> externalTrigPolarity;
+  RegEnum<addr_CFGR, ADC_CFGR_OVRMOD_Msk, AdcOverrunMode> overrunMode;
   // ADC_CFGR_CONT and ADC_CFGR_DISCEN are must not on at same time!
-  RegFlag<IGB_ADC_REG_ADDR(CFGR), ADC_CFGR_CONT> continuousConvMode;
-  RegFlag<IGB_ADC_REG_ADDR(CFGR), ADC_CFGR_DISCEN> discontinuousConvMode;
-  RegFlag<IGB_ADC_REG_ADDR(CFGR), ADC_CFGR_AUTDLY> autoDelayMode;
-  RegValue<IGB_ADC_REG_ADDR(CFGR), ADC_CFGR_DISCNUM_Msk, ADC_CFGR_DISCNUM_Pos> discontinuousConvChannelCount; // 0 == 1 channel, 7 = 8 channnel
-  RegFlag<IGB_ADC_REG_ADDR(CFGR), ADC_CFGR_JDISCEN> injectedDiscontinuousMode;
-  RegEnum<IGB_ADC_REG_ADDR(CFGR), ADC_CFGR_JQM_Msk, AdcJsqrMode> jsqrMode;
-  RegFlag<IGB_ADC_REG_ADDR(CFGR), ADC_CFGR_AWD1SGL, false> watchdog1ForAllCh;
-  RegFlag<IGB_ADC_REG_ADDR(CFGR), ADC_CFGR_AWD1EN> regularWatchdog1;
-  RegFlag<IGB_ADC_REG_ADDR(CFGR), ADC_CFGR_JAWD1EN> injectWatchdog1;
-  RegFlag<IGB_ADC_REG_ADDR(CFGR), ADC_CFGR_JAUTO> autoInjectGroupConv;
-  RegValue<IGB_ADC_REG_ADDR(CFGR), ADC_CFGR_AWD1CH_Msk, ADC_CFGR_AWD1CH_Pos> watchdog1Channel; // 0 == reserved, 1 = channel1, 18 = channel18
+  RegFlag<addr_CFGR, ADC_CFGR_CONT> continuousConvMode;
+  RegFlag<addr_CFGR, ADC_CFGR_DISCEN> discontinuousConvMode;
+  RegFlag<addr_CFGR, ADC_CFGR_AUTDLY> autoDelayMode;
+  RegValue<addr_CFGR, ADC_CFGR_DISCNUM_Msk, ADC_CFGR_DISCNUM_Pos> discontinuousConvChannelCount; // 0 == 1 channel, 7 = 8 channnel
+  RegFlag<addr_CFGR, ADC_CFGR_JDISCEN> injectedDiscontinuousMode;
+  RegEnum<addr_CFGR, ADC_CFGR_JQM_Msk, AdcJsqrMode> jsqrMode;
+  RegFlag<addr_CFGR, ADC_CFGR_AWD1SGL, false> watchdog1ForAllCh;
+  RegFlag<addr_CFGR, ADC_CFGR_AWD1EN> regularWatchdog1;
+  RegFlag<addr_CFGR, ADC_CFGR_JAWD1EN> injectWatchdog1;
+  RegFlag<addr_CFGR, ADC_CFGR_JAUTO> autoInjectGroupConv;
+  RegValue<addr_CFGR, ADC_CFGR_AWD1CH_Msk, ADC_CFGR_AWD1CH_Pos> watchdog1Channel; // 0 == reserved, 1 = channel1, 18 = channel18
   
-  RegValueRO<IGB_ADC_REG_ADDR(DR), ADC_DR_RDATA_Msk, ADC_DR_RDATA_Pos> data; // read-only
+  RegValueRO<addr_DR, ADC_DR_RDATA_Msk, ADC_DR_RDATA_Pos> data; // read-only
 
   // sampling time value:
   // 0: 1.5 ADC Clock
@@ -278,138 +309,138 @@ struct Adc {
   // 5: 61.5 ADC Clock
   // 6: 181.5 ADC Clock
   // 7: 601.5 ADC Clock
-  RegValue<IGB_ADC_REG_ADDR(SMPR1), ADC_SMPR1_SMP1_Msk, ADC_SMPR1_SMP1_Pos> ch1SamplingTime; // 0 ~ 7
-  RegValue<IGB_ADC_REG_ADDR(SMPR1), ADC_SMPR1_SMP2_Msk, ADC_SMPR1_SMP2_Pos> ch2SamplingTime; // 0 ~ 7
-  RegValue<IGB_ADC_REG_ADDR(SMPR1), ADC_SMPR1_SMP3_Msk, ADC_SMPR1_SMP3_Pos> ch3SamplingTime; // 0 ~ 7
-  RegValue<IGB_ADC_REG_ADDR(SMPR1), ADC_SMPR1_SMP4_Msk, ADC_SMPR1_SMP4_Pos> ch4SamplingTime; // 0 ~ 7
-  RegValue<IGB_ADC_REG_ADDR(SMPR1), ADC_SMPR1_SMP5_Msk, ADC_SMPR1_SMP5_Pos> ch5SamplingTime; // 0 ~ 7
-  RegValue<IGB_ADC_REG_ADDR(SMPR1), ADC_SMPR1_SMP6_Msk, ADC_SMPR1_SMP6_Pos> ch6SamplingTime; // 0 ~ 7
-  RegValue<IGB_ADC_REG_ADDR(SMPR1), ADC_SMPR1_SMP7_Msk, ADC_SMPR1_SMP7_Pos> ch7SamplingTime; // 0 ~ 7
-  RegValue<IGB_ADC_REG_ADDR(SMPR1), ADC_SMPR1_SMP8_Msk, ADC_SMPR1_SMP8_Pos> ch8SamplingTime; // 0 ~ 7
-  RegValue<IGB_ADC_REG_ADDR(SMPR1), ADC_SMPR1_SMP9_Msk, ADC_SMPR1_SMP9_Pos> ch9SamplingTime; // 0 ~ 7
-  RegValue<IGB_ADC_REG_ADDR(SMPR2), ADC_SMPR2_SMP10_Msk, ADC_SMPR2_SMP10_Pos> ch10SamplingTime; // 0 ~ 7
-  RegValue<IGB_ADC_REG_ADDR(SMPR2), ADC_SMPR2_SMP11_Msk, ADC_SMPR2_SMP11_Pos> ch11SamplingTime; // 0 ~ 7
-  RegValue<IGB_ADC_REG_ADDR(SMPR2), ADC_SMPR2_SMP12_Msk, ADC_SMPR2_SMP12_Pos> ch12SamplingTime; // 0 ~ 7
-  RegValue<IGB_ADC_REG_ADDR(SMPR2), ADC_SMPR2_SMP13_Msk, ADC_SMPR2_SMP13_Pos> ch13SamplingTime; // 0 ~ 7
-  RegValue<IGB_ADC_REG_ADDR(SMPR2), ADC_SMPR2_SMP14_Msk, ADC_SMPR2_SMP14_Pos> ch14SamplingTime; // 0 ~ 7
-  RegValue<IGB_ADC_REG_ADDR(SMPR2), ADC_SMPR2_SMP15_Msk, ADC_SMPR2_SMP15_Pos> ch15SamplingTime; // 0 ~ 7
-  RegValue<IGB_ADC_REG_ADDR(SMPR2), ADC_SMPR2_SMP16_Msk, ADC_SMPR2_SMP16_Pos> ch16SamplingTime; // 0 ~ 7
-  RegValue<IGB_ADC_REG_ADDR(SMPR2), ADC_SMPR2_SMP17_Msk, ADC_SMPR2_SMP17_Pos> ch17SamplingTime; // 0 ~ 7
-  RegValue<IGB_ADC_REG_ADDR(SMPR2), ADC_SMPR2_SMP18_Msk, ADC_SMPR2_SMP18_Pos> ch18SamplingTime; // 0 ~ 7
+  RegValue<addr_SMPR1, ADC_SMPR1_SMP1_Msk, ADC_SMPR1_SMP1_Pos> ch1SamplingTime; // 0 ~ 7
+  RegValue<addr_SMPR1, ADC_SMPR1_SMP2_Msk, ADC_SMPR1_SMP2_Pos> ch2SamplingTime; // 0 ~ 7
+  RegValue<addr_SMPR1, ADC_SMPR1_SMP3_Msk, ADC_SMPR1_SMP3_Pos> ch3SamplingTime; // 0 ~ 7
+  RegValue<addr_SMPR1, ADC_SMPR1_SMP4_Msk, ADC_SMPR1_SMP4_Pos> ch4SamplingTime; // 0 ~ 7
+  RegValue<addr_SMPR1, ADC_SMPR1_SMP5_Msk, ADC_SMPR1_SMP5_Pos> ch5SamplingTime; // 0 ~ 7
+  RegValue<addr_SMPR1, ADC_SMPR1_SMP6_Msk, ADC_SMPR1_SMP6_Pos> ch6SamplingTime; // 0 ~ 7
+  RegValue<addr_SMPR1, ADC_SMPR1_SMP7_Msk, ADC_SMPR1_SMP7_Pos> ch7SamplingTime; // 0 ~ 7
+  RegValue<addr_SMPR1, ADC_SMPR1_SMP8_Msk, ADC_SMPR1_SMP8_Pos> ch8SamplingTime; // 0 ~ 7
+  RegValue<addr_SMPR1, ADC_SMPR1_SMP9_Msk, ADC_SMPR1_SMP9_Pos> ch9SamplingTime; // 0 ~ 7
+  RegValue<addr_SMPR2, ADC_SMPR2_SMP10_Msk, ADC_SMPR2_SMP10_Pos> ch10SamplingTime; // 0 ~ 7
+  RegValue<addr_SMPR2, ADC_SMPR2_SMP11_Msk, ADC_SMPR2_SMP11_Pos> ch11SamplingTime; // 0 ~ 7
+  RegValue<addr_SMPR2, ADC_SMPR2_SMP12_Msk, ADC_SMPR2_SMP12_Pos> ch12SamplingTime; // 0 ~ 7
+  RegValue<addr_SMPR2, ADC_SMPR2_SMP13_Msk, ADC_SMPR2_SMP13_Pos> ch13SamplingTime; // 0 ~ 7
+  RegValue<addr_SMPR2, ADC_SMPR2_SMP14_Msk, ADC_SMPR2_SMP14_Pos> ch14SamplingTime; // 0 ~ 7
+  RegValue<addr_SMPR2, ADC_SMPR2_SMP15_Msk, ADC_SMPR2_SMP15_Pos> ch15SamplingTime; // 0 ~ 7
+  RegValue<addr_SMPR2, ADC_SMPR2_SMP16_Msk, ADC_SMPR2_SMP16_Pos> ch16SamplingTime; // 0 ~ 7
+  RegValue<addr_SMPR2, ADC_SMPR2_SMP17_Msk, ADC_SMPR2_SMP17_Pos> ch17SamplingTime; // 0 ~ 7
+  RegValue<addr_SMPR2, ADC_SMPR2_SMP18_Msk, ADC_SMPR2_SMP18_Pos> ch18SamplingTime; // 0 ~ 7
   
-  RegValue<IGB_ADC_REG_ADDR(TR1), ADC_TR1_LT1_Msk, ADC_TR1_LT1_Pos> watchdog1LowThreshold;
-  RegValue<IGB_ADC_REG_ADDR(TR1), ADC_TR1_HT1_Msk, ADC_TR1_HT1_Pos> watchdog1HighThreshold;
-  RegValue<IGB_ADC_REG_ADDR(TR2), ADC_TR2_LT2_Msk, ADC_TR2_LT2_Pos> watchdog2LowThreshold;
-  RegValue<IGB_ADC_REG_ADDR(TR2), ADC_TR2_HT2_Msk, ADC_TR2_HT2_Pos> watchdog2HighThreshold;
-  RegValue<IGB_ADC_REG_ADDR(TR3), ADC_TR3_LT3_Msk, ADC_TR3_LT3_Pos> watchdog3LowThreshold;
-  RegValue<IGB_ADC_REG_ADDR(TR3), ADC_TR3_HT3_Msk, ADC_TR3_HT3_Pos> watchdog3HighThreshold;
+  RegValue<addr_TR1, ADC_TR1_LT1_Msk, ADC_TR1_LT1_Pos> watchdog1LowThreshold;
+  RegValue<addr_TR1, ADC_TR1_HT1_Msk, ADC_TR1_HT1_Pos> watchdog1HighThreshold;
+  RegValue<addr_TR2, ADC_TR2_LT2_Msk, ADC_TR2_LT2_Pos> watchdog2LowThreshold;
+  RegValue<addr_TR2, ADC_TR2_HT2_Msk, ADC_TR2_HT2_Pos> watchdog2HighThreshold;
+  RegValue<addr_TR3, ADC_TR3_LT3_Msk, ADC_TR3_LT3_Pos> watchdog3LowThreshold;
+  RegValue<addr_TR3, ADC_TR3_HT3_Msk, ADC_TR3_HT3_Pos> watchdog3HighThreshold;
 
-  RegValue<IGB_ADC_REG_ADDR(SQR1), ADC_SQR1_L_Msk, ADC_SQR1_L_Pos> seqChLength;
-  RegValue<IGB_ADC_REG_ADDR(SQR1), ADC_SQR1_SQ1_Msk, ADC_SQR1_SQ1_Pos> seqOrder1Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
-  RegValue<IGB_ADC_REG_ADDR(SQR1), ADC_SQR1_SQ2_Msk, ADC_SQR1_SQ2_Pos> seqOrder2Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
-  RegValue<IGB_ADC_REG_ADDR(SQR1), ADC_SQR1_SQ3_Msk, ADC_SQR1_SQ3_Pos> seqOrder3Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
-  RegValue<IGB_ADC_REG_ADDR(SQR1), ADC_SQR1_SQ4_Msk, ADC_SQR1_SQ4_Pos> seqOrder4Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
-  RegValue<IGB_ADC_REG_ADDR(SQR2), ADC_SQR2_SQ5_Msk, ADC_SQR2_SQ5_Pos> seqOrder5Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
-  RegValue<IGB_ADC_REG_ADDR(SQR2), ADC_SQR2_SQ6_Msk, ADC_SQR2_SQ6_Pos> seqOrder6Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
-  RegValue<IGB_ADC_REG_ADDR(SQR2), ADC_SQR2_SQ7_Msk, ADC_SQR2_SQ7_Pos> seqOrder7Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
-  RegValue<IGB_ADC_REG_ADDR(SQR2), ADC_SQR2_SQ8_Msk, ADC_SQR2_SQ8_Pos> seqOrder8Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
-  RegValue<IGB_ADC_REG_ADDR(SQR2), ADC_SQR2_SQ9_Msk, ADC_SQR2_SQ9_Pos> seqOrder9Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
-  RegValue<IGB_ADC_REG_ADDR(SQR3), ADC_SQR3_SQ10_Msk, ADC_SQR3_SQ10_Pos> seqOrder10Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
-  RegValue<IGB_ADC_REG_ADDR(SQR3), ADC_SQR3_SQ11_Msk, ADC_SQR3_SQ11_Pos> seqOrder11Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
-  RegValue<IGB_ADC_REG_ADDR(SQR3), ADC_SQR3_SQ12_Msk, ADC_SQR3_SQ12_Pos> seqOrder12Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
-  RegValue<IGB_ADC_REG_ADDR(SQR3), ADC_SQR3_SQ13_Msk, ADC_SQR3_SQ13_Pos> seqOrder13Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
-  RegValue<IGB_ADC_REG_ADDR(SQR3), ADC_SQR3_SQ14_Msk, ADC_SQR3_SQ14_Pos> seqOrder14Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
-  RegValue<IGB_ADC_REG_ADDR(SQR4), ADC_SQR4_SQ15_Msk, ADC_SQR4_SQ15_Pos> seqOrder15Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
-  RegValue<IGB_ADC_REG_ADDR(SQR4), ADC_SQR4_SQ16_Msk, ADC_SQR4_SQ16_Pos> seqOrder16Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
+  RegValue<addr_SQR1, ADC_SQR1_L_Msk, ADC_SQR1_L_Pos> seqChLength;
+  RegValue<addr_SQR1, ADC_SQR1_SQ1_Msk, ADC_SQR1_SQ1_Pos> seqOrder1Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
+  RegValue<addr_SQR1, ADC_SQR1_SQ2_Msk, ADC_SQR1_SQ2_Pos> seqOrder2Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
+  RegValue<addr_SQR1, ADC_SQR1_SQ3_Msk, ADC_SQR1_SQ3_Pos> seqOrder3Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
+  RegValue<addr_SQR1, ADC_SQR1_SQ4_Msk, ADC_SQR1_SQ4_Pos> seqOrder4Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
+  RegValue<addr_SQR2, ADC_SQR2_SQ5_Msk, ADC_SQR2_SQ5_Pos> seqOrder5Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
+  RegValue<addr_SQR2, ADC_SQR2_SQ6_Msk, ADC_SQR2_SQ6_Pos> seqOrder6Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
+  RegValue<addr_SQR2, ADC_SQR2_SQ7_Msk, ADC_SQR2_SQ7_Pos> seqOrder7Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
+  RegValue<addr_SQR2, ADC_SQR2_SQ8_Msk, ADC_SQR2_SQ8_Pos> seqOrder8Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
+  RegValue<addr_SQR2, ADC_SQR2_SQ9_Msk, ADC_SQR2_SQ9_Pos> seqOrder9Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
+  RegValue<addr_SQR3, ADC_SQR3_SQ10_Msk, ADC_SQR3_SQ10_Pos> seqOrder10Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
+  RegValue<addr_SQR3, ADC_SQR3_SQ11_Msk, ADC_SQR3_SQ11_Pos> seqOrder11Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
+  RegValue<addr_SQR3, ADC_SQR3_SQ12_Msk, ADC_SQR3_SQ12_Pos> seqOrder12Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
+  RegValue<addr_SQR3, ADC_SQR3_SQ13_Msk, ADC_SQR3_SQ13_Pos> seqOrder13Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
+  RegValue<addr_SQR3, ADC_SQR3_SQ14_Msk, ADC_SQR3_SQ14_Pos> seqOrder14Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
+  RegValue<addr_SQR4, ADC_SQR4_SQ15_Msk, ADC_SQR4_SQ15_Pos> seqOrder15Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
+  RegValue<addr_SQR4, ADC_SQR4_SQ16_Msk, ADC_SQR4_SQ16_Pos> seqOrder16Ch; // 0 = reserved, 1 = channel1 ..., 18 = channel18
 
-  RegValue<IGB_ADC_REG_ADDR(JSQR), ADC_JSQR_JL_Msk, ADC_JSQR_JL_Pos> injectSeqChLength; // 0 =  1 conversion, 3 = 4 conversion
-  RegValue<IGB_ADC_REG_ADDR(JSQR), ADC_JSQR_JEXTSEL_Msk, ADC_JSQR_JEXTSEL_Pos> injectGrpExtTrig; // 0 = event0, 15 = event 15
-  RegEnum<IGB_ADC_REG_ADDR(JSQR), ADC_JSQR_JEXTEN_Msk, AdcInjectGrpExtTrigMode> injectGrpExtTrigMode;
-  RegValue<IGB_ADC_REG_ADDR(JSQR), ADC_JSQR_JSQ1_Msk, ADC_JSQR_JSQ1_Pos> injectSeqOrder1Ch; // 0 = reserved, 1 = channel1, 18 = channel18
-  RegValue<IGB_ADC_REG_ADDR(JSQR), ADC_JSQR_JSQ2_Msk, ADC_JSQR_JSQ2_Pos> injectSeqOrder2Ch; // 0 = reserved, 1 = channel1, 18 = channel18
-  RegValue<IGB_ADC_REG_ADDR(JSQR), ADC_JSQR_JSQ3_Msk, ADC_JSQR_JSQ3_Pos> injectSeqOrder3Ch; // 0 = reserved, 1 = channel1, 18 = channel18
-  RegValue<IGB_ADC_REG_ADDR(JSQR), ADC_JSQR_JSQ4_Msk, ADC_JSQR_JSQ4_Pos> injectSeqOrder4Ch; // 0 = reserved, 1 = channel1, 18 = channel18
+  RegValue<addr_JSQR, ADC_JSQR_JL_Msk, ADC_JSQR_JL_Pos> injectSeqChLength; // 0 =  1 conversion, 3 = 4 conversion
+  RegValue<addr_JSQR, ADC_JSQR_JEXTSEL_Msk, ADC_JSQR_JEXTSEL_Pos> injectGrpExtTrig; // 0 = event0, 15 = event 15
+  RegEnum<addr_JSQR, ADC_JSQR_JEXTEN_Msk, AdcInjectGrpExtTrigMode> injectGrpExtTrigMode;
+  RegValue<addr_JSQR, ADC_JSQR_JSQ1_Msk, ADC_JSQR_JSQ1_Pos> injectSeqOrder1Ch; // 0 = reserved, 1 = channel1, 18 = channel18
+  RegValue<addr_JSQR, ADC_JSQR_JSQ2_Msk, ADC_JSQR_JSQ2_Pos> injectSeqOrder2Ch; // 0 = reserved, 1 = channel1, 18 = channel18
+  RegValue<addr_JSQR, ADC_JSQR_JSQ3_Msk, ADC_JSQR_JSQ3_Pos> injectSeqOrder3Ch; // 0 = reserved, 1 = channel1, 18 = channel18
+  RegValue<addr_JSQR, ADC_JSQR_JSQ4_Msk, ADC_JSQR_JSQ4_Pos> injectSeqOrder4Ch; // 0 = reserved, 1 = channel1, 18 = channel18
 
-  RegValue<IGB_ADC_REG_ADDR(OFR1), ADC_OFR1_OFFSET1_Msk, ADC_OFR1_OFFSET1_Pos> dataOffset1Value;
-  RegValue<IGB_ADC_REG_ADDR(OFR1), ADC_OFR1_OFFSET1_CH_Msk, ADC_OFR1_OFFSET1_CH_Pos> dataOffset1Ch;
-  RegFlag<IGB_ADC_REG_ADDR(OFR1), ADC_OFR1_OFFSET1_EN> dataOffset1;
+  RegValue<addr_OFR1, ADC_OFR1_OFFSET1_Msk, ADC_OFR1_OFFSET1_Pos> dataOffset1Value;
+  RegValue<addr_OFR1, ADC_OFR1_OFFSET1_CH_Msk, ADC_OFR1_OFFSET1_CH_Pos> dataOffset1Ch;
+  RegFlag<addr_OFR1, ADC_OFR1_OFFSET1_EN> dataOffset1;
 
-  RegValue<IGB_ADC_REG_ADDR(OFR2), ADC_OFR2_OFFSET2_Msk, ADC_OFR2_OFFSET2_Pos> dataOffset2Value;
-  RegValue<IGB_ADC_REG_ADDR(OFR2), ADC_OFR2_OFFSET2_CH_Msk, ADC_OFR2_OFFSET2_CH_Pos> dataOffset2Ch;
-  RegFlag<IGB_ADC_REG_ADDR(OFR2), ADC_OFR2_OFFSET2_EN> dataOffset2;
+  RegValue<addr_OFR2, ADC_OFR2_OFFSET2_Msk, ADC_OFR2_OFFSET2_Pos> dataOffset2Value;
+  RegValue<addr_OFR2, ADC_OFR2_OFFSET2_CH_Msk, ADC_OFR2_OFFSET2_CH_Pos> dataOffset2Ch;
+  RegFlag<addr_OFR2, ADC_OFR2_OFFSET2_EN> dataOffset2;
 
-  RegValue<IGB_ADC_REG_ADDR(OFR3), ADC_OFR3_OFFSET3_Msk, ADC_OFR3_OFFSET3_Pos> dataOffset3Value;
-  RegValue<IGB_ADC_REG_ADDR(OFR3), ADC_OFR3_OFFSET3_CH_Msk, ADC_OFR3_OFFSET3_CH_Pos> dataOffset3Ch;
-  RegFlag<IGB_ADC_REG_ADDR(OFR3), ADC_OFR3_OFFSET3_EN> dataOffset3;
+  RegValue<addr_OFR3, ADC_OFR3_OFFSET3_Msk, ADC_OFR3_OFFSET3_Pos> dataOffset3Value;
+  RegValue<addr_OFR3, ADC_OFR3_OFFSET3_CH_Msk, ADC_OFR3_OFFSET3_CH_Pos> dataOffset3Ch;
+  RegFlag<addr_OFR3, ADC_OFR3_OFFSET3_EN> dataOffset3;
 
-  RegValue<IGB_ADC_REG_ADDR(OFR4), ADC_OFR4_OFFSET4_Msk, ADC_OFR4_OFFSET4_Pos> dataOffset4Value;
-  RegValue<IGB_ADC_REG_ADDR(OFR4), ADC_OFR4_OFFSET4_CH_Msk, ADC_OFR4_OFFSET4_CH_Pos> dataOffset4Ch;
-  RegFlag<IGB_ADC_REG_ADDR(OFR4), ADC_OFR4_OFFSET4_EN> dataOffset4;
+  RegValue<addr_OFR4, ADC_OFR4_OFFSET4_Msk, ADC_OFR4_OFFSET4_Pos> dataOffset4Value;
+  RegValue<addr_OFR4, ADC_OFR4_OFFSET4_CH_Msk, ADC_OFR4_OFFSET4_CH_Pos> dataOffset4Ch;
+  RegFlag<addr_OFR4, ADC_OFR4_OFFSET4_EN> dataOffset4;
 
-  RegValue<IGB_ADC_REG_ADDR(JDR1), ADC_JDR1_JDATA_Msk, ADC_JDR1_JDATA_Pos> injectData1;
-  RegValue<IGB_ADC_REG_ADDR(JDR2), ADC_JDR2_JDATA_Msk, ADC_JDR2_JDATA_Pos> injectData2;
-  RegValue<IGB_ADC_REG_ADDR(JDR3), ADC_JDR3_JDATA_Msk, ADC_JDR3_JDATA_Pos> injectData3;
-  RegValue<IGB_ADC_REG_ADDR(JDR4), ADC_JDR4_JDATA_Msk, ADC_JDR4_JDATA_Pos> injectData4;
+  RegValue<addr_JDR1, ADC_JDR1_JDATA_Msk, ADC_JDR1_JDATA_Pos> injectData1;
+  RegValue<addr_JDR2, ADC_JDR2_JDATA_Msk, ADC_JDR2_JDATA_Pos> injectData2;
+  RegValue<addr_JDR3, ADC_JDR3_JDATA_Msk, ADC_JDR3_JDATA_Pos> injectData3;
+  RegValue<addr_JDR4, ADC_JDR4_JDATA_Msk, ADC_JDR4_JDATA_Pos> injectData4;
 
-  RegFlag<IGB_ADC_REG_ADDR(AWD2CR), ADC_AWD2CR_AWD2CH_0> watchdog2Ch1Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD2CR), ADC_AWD2CR_AWD2CH_1> watchdog2Ch2Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD2CR), ADC_AWD2CR_AWD2CH_2> watchdog2Ch3Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD2CR), ADC_AWD2CR_AWD2CH_3> watchdog2Ch4Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD2CR), ADC_AWD2CR_AWD2CH_4> watchdog2Ch5Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD2CR), ADC_AWD2CR_AWD2CH_5> watchdog2Ch6Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD2CR), ADC_AWD2CR_AWD2CH_6> watchdog2Ch7Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD2CR), ADC_AWD2CR_AWD2CH_7> watchdog2Ch8Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD2CR), ADC_AWD2CR_AWD2CH_8> watchdog2Ch9Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD2CR), ADC_AWD2CR_AWD2CH_9> watchdog2Ch10Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD2CR), ADC_AWD2CR_AWD2CH_10> watchdog2Ch11Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD2CR), ADC_AWD2CR_AWD2CH_11> watchdog2Ch12Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD2CR), ADC_AWD2CR_AWD2CH_12> watchdog2Ch13Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD2CR), ADC_AWD2CR_AWD2CH_13> watchdog2Ch14Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD2CR), ADC_AWD2CR_AWD2CH_14> watchdog2Ch15Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD2CR), ADC_AWD2CR_AWD2CH_15> watchdog2Ch16Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD2CR), ADC_AWD2CR_AWD2CH_16> watchdog2Ch17Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD2CR), ADC_AWD2CR_AWD2CH_17> watchdog2Ch18Enable;
+  RegFlag<addr_AWD2CR, ADC_AWD2CR_AWD2CH_0> watchdog2Ch1Enable;
+  RegFlag<addr_AWD2CR, ADC_AWD2CR_AWD2CH_1> watchdog2Ch2Enable;
+  RegFlag<addr_AWD2CR, ADC_AWD2CR_AWD2CH_2> watchdog2Ch3Enable;
+  RegFlag<addr_AWD2CR, ADC_AWD2CR_AWD2CH_3> watchdog2Ch4Enable;
+  RegFlag<addr_AWD2CR, ADC_AWD2CR_AWD2CH_4> watchdog2Ch5Enable;
+  RegFlag<addr_AWD2CR, ADC_AWD2CR_AWD2CH_5> watchdog2Ch6Enable;
+  RegFlag<addr_AWD2CR, ADC_AWD2CR_AWD2CH_6> watchdog2Ch7Enable;
+  RegFlag<addr_AWD2CR, ADC_AWD2CR_AWD2CH_7> watchdog2Ch8Enable;
+  RegFlag<addr_AWD2CR, ADC_AWD2CR_AWD2CH_8> watchdog2Ch9Enable;
+  RegFlag<addr_AWD2CR, ADC_AWD2CR_AWD2CH_9> watchdog2Ch10Enable;
+  RegFlag<addr_AWD2CR, ADC_AWD2CR_AWD2CH_10> watchdog2Ch11Enable;
+  RegFlag<addr_AWD2CR, ADC_AWD2CR_AWD2CH_11> watchdog2Ch12Enable;
+  RegFlag<addr_AWD2CR, ADC_AWD2CR_AWD2CH_12> watchdog2Ch13Enable;
+  RegFlag<addr_AWD2CR, ADC_AWD2CR_AWD2CH_13> watchdog2Ch14Enable;
+  RegFlag<addr_AWD2CR, ADC_AWD2CR_AWD2CH_14> watchdog2Ch15Enable;
+  RegFlag<addr_AWD2CR, ADC_AWD2CR_AWD2CH_15> watchdog2Ch16Enable;
+  RegFlag<addr_AWD2CR, ADC_AWD2CR_AWD2CH_16> watchdog2Ch17Enable;
+  RegFlag<addr_AWD2CR, ADC_AWD2CR_AWD2CH_17> watchdog2Ch18Enable;
 
-  RegFlag<IGB_ADC_REG_ADDR(AWD3CR), ADC_AWD3CR_AWD3CH_0> watchdog3Ch1Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD3CR), ADC_AWD3CR_AWD3CH_1> watchdog3Ch2Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD3CR), ADC_AWD3CR_AWD3CH_2> watchdog3Ch3Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD3CR), ADC_AWD3CR_AWD3CH_3> watchdog3Ch4Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD3CR), ADC_AWD3CR_AWD3CH_4> watchdog3Ch5Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD3CR), ADC_AWD3CR_AWD3CH_5> watchdog3Ch6Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD3CR), ADC_AWD3CR_AWD3CH_6> watchdog3Ch7Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD3CR), ADC_AWD3CR_AWD3CH_7> watchdog3Ch8Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD3CR), ADC_AWD3CR_AWD3CH_8> watchdog3Ch9Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD3CR), ADC_AWD3CR_AWD3CH_9> watchdog3Ch10Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD3CR), ADC_AWD3CR_AWD3CH_10> watchdog3Ch11Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD3CR), ADC_AWD3CR_AWD3CH_11> watchdog3Ch12Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD3CR), ADC_AWD3CR_AWD3CH_12> watchdog3Ch13Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD3CR), ADC_AWD3CR_AWD3CH_13> watchdog3Ch14Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD3CR), ADC_AWD3CR_AWD3CH_14> watchdog3Ch15Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD3CR), ADC_AWD3CR_AWD3CH_15> watchdog3Ch16Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD3CR), ADC_AWD3CR_AWD3CH_16> watchdog3Ch17Enable;
-  RegFlag<IGB_ADC_REG_ADDR(AWD3CR), ADC_AWD3CR_AWD3CH_17> watchdog3Ch18Enable;
+  RegFlag<addr_AWD3CR, ADC_AWD3CR_AWD3CH_0> watchdog3Ch1Enable;
+  RegFlag<addr_AWD3CR, ADC_AWD3CR_AWD3CH_1> watchdog3Ch2Enable;
+  RegFlag<addr_AWD3CR, ADC_AWD3CR_AWD3CH_2> watchdog3Ch3Enable;
+  RegFlag<addr_AWD3CR, ADC_AWD3CR_AWD3CH_3> watchdog3Ch4Enable;
+  RegFlag<addr_AWD3CR, ADC_AWD3CR_AWD3CH_4> watchdog3Ch5Enable;
+  RegFlag<addr_AWD3CR, ADC_AWD3CR_AWD3CH_5> watchdog3Ch6Enable;
+  RegFlag<addr_AWD3CR, ADC_AWD3CR_AWD3CH_6> watchdog3Ch7Enable;
+  RegFlag<addr_AWD3CR, ADC_AWD3CR_AWD3CH_7> watchdog3Ch8Enable;
+  RegFlag<addr_AWD3CR, ADC_AWD3CR_AWD3CH_8> watchdog3Ch9Enable;
+  RegFlag<addr_AWD3CR, ADC_AWD3CR_AWD3CH_9> watchdog3Ch10Enable;
+  RegFlag<addr_AWD3CR, ADC_AWD3CR_AWD3CH_10> watchdog3Ch11Enable;
+  RegFlag<addr_AWD3CR, ADC_AWD3CR_AWD3CH_11> watchdog3Ch12Enable;
+  RegFlag<addr_AWD3CR, ADC_AWD3CR_AWD3CH_12> watchdog3Ch13Enable;
+  RegFlag<addr_AWD3CR, ADC_AWD3CR_AWD3CH_13> watchdog3Ch14Enable;
+  RegFlag<addr_AWD3CR, ADC_AWD3CR_AWD3CH_14> watchdog3Ch15Enable;
+  RegFlag<addr_AWD3CR, ADC_AWD3CR_AWD3CH_15> watchdog3Ch16Enable;
+  RegFlag<addr_AWD3CR, ADC_AWD3CR_AWD3CH_16> watchdog3Ch17Enable;
+  RegFlag<addr_AWD3CR, ADC_AWD3CR_AWD3CH_17> watchdog3Ch18Enable;
 
-  RegFlag<IGB_ADC_REG_ADDR(DIFSEL), ADC_DIFSEL_DIFSEL_0> diffModeCh1Enable;
-  RegFlag<IGB_ADC_REG_ADDR(DIFSEL), ADC_DIFSEL_DIFSEL_1> diffModeCh2Enable;
-  RegFlag<IGB_ADC_REG_ADDR(DIFSEL), ADC_DIFSEL_DIFSEL_2> diffModeCh3Enable;
-  RegFlag<IGB_ADC_REG_ADDR(DIFSEL), ADC_DIFSEL_DIFSEL_3> diffModeCh4Enable;
-  RegFlag<IGB_ADC_REG_ADDR(DIFSEL), ADC_DIFSEL_DIFSEL_4> diffModeCh5Enable;
-  RegFlag<IGB_ADC_REG_ADDR(DIFSEL), ADC_DIFSEL_DIFSEL_5> diffModeCh6Enable;
-  RegFlag<IGB_ADC_REG_ADDR(DIFSEL), ADC_DIFSEL_DIFSEL_6> diffModeCh7Enable;
-  RegFlag<IGB_ADC_REG_ADDR(DIFSEL), ADC_DIFSEL_DIFSEL_7> diffModeCh8Enable;
-  RegFlag<IGB_ADC_REG_ADDR(DIFSEL), ADC_DIFSEL_DIFSEL_8> diffModeCh9Enable;
-  RegFlag<IGB_ADC_REG_ADDR(DIFSEL), ADC_DIFSEL_DIFSEL_9> diffModeCh10Enable;
-  RegFlag<IGB_ADC_REG_ADDR(DIFSEL), ADC_DIFSEL_DIFSEL_10> diffModeCh11Enable;
-  RegFlag<IGB_ADC_REG_ADDR(DIFSEL), ADC_DIFSEL_DIFSEL_11> diffModeCh12Enable;
-  RegFlag<IGB_ADC_REG_ADDR(DIFSEL), ADC_DIFSEL_DIFSEL_12> diffModeCh13Enable;
-  RegFlag<IGB_ADC_REG_ADDR(DIFSEL), ADC_DIFSEL_DIFSEL_13> diffModeCh14Enable;
-  RegFlag<IGB_ADC_REG_ADDR(DIFSEL), ADC_DIFSEL_DIFSEL_14> diffModeCh15Enable;
-  RegFlag<IGB_ADC_REG_ADDR(DIFSEL), ADC_DIFSEL_DIFSEL_15> diffModeCh16Enable;
-  RegFlag<IGB_ADC_REG_ADDR(DIFSEL), ADC_DIFSEL_DIFSEL_16> diffModeCh17Enable;
-  RegFlag<IGB_ADC_REG_ADDR(DIFSEL), ADC_DIFSEL_DIFSEL_17> diffModeCh18Enable;
+  RegFlag<addr_DIFSEL, ADC_DIFSEL_DIFSEL_0> diffModeCh1Enable;
+  RegFlag<addr_DIFSEL, ADC_DIFSEL_DIFSEL_1> diffModeCh2Enable;
+  RegFlag<addr_DIFSEL, ADC_DIFSEL_DIFSEL_2> diffModeCh3Enable;
+  RegFlag<addr_DIFSEL, ADC_DIFSEL_DIFSEL_3> diffModeCh4Enable;
+  RegFlag<addr_DIFSEL, ADC_DIFSEL_DIFSEL_4> diffModeCh5Enable;
+  RegFlag<addr_DIFSEL, ADC_DIFSEL_DIFSEL_5> diffModeCh6Enable;
+  RegFlag<addr_DIFSEL, ADC_DIFSEL_DIFSEL_6> diffModeCh7Enable;
+  RegFlag<addr_DIFSEL, ADC_DIFSEL_DIFSEL_7> diffModeCh8Enable;
+  RegFlag<addr_DIFSEL, ADC_DIFSEL_DIFSEL_8> diffModeCh9Enable;
+  RegFlag<addr_DIFSEL, ADC_DIFSEL_DIFSEL_9> diffModeCh10Enable;
+  RegFlag<addr_DIFSEL, ADC_DIFSEL_DIFSEL_10> diffModeCh11Enable;
+  RegFlag<addr_DIFSEL, ADC_DIFSEL_DIFSEL_11> diffModeCh12Enable;
+  RegFlag<addr_DIFSEL, ADC_DIFSEL_DIFSEL_12> diffModeCh13Enable;
+  RegFlag<addr_DIFSEL, ADC_DIFSEL_DIFSEL_13> diffModeCh14Enable;
+  RegFlag<addr_DIFSEL, ADC_DIFSEL_DIFSEL_14> diffModeCh15Enable;
+  RegFlag<addr_DIFSEL, ADC_DIFSEL_DIFSEL_15> diffModeCh16Enable;
+  RegFlag<addr_DIFSEL, ADC_DIFSEL_DIFSEL_16> diffModeCh17Enable;
+  RegFlag<addr_DIFSEL, ADC_DIFSEL_DIFSEL_17> diffModeCh18Enable;
 
-  RegValue<IGB_ADC_REG_ADDR(CALFACT), ADC_CALFACT_CALFACT_S_Msk, ADC_CALFACT_CALFACT_S_Pos> singleendCalibrationFactor;
-  RegValue<IGB_ADC_REG_ADDR(CALFACT), ADC_CALFACT_CALFACT_D_Msk, ADC_CALFACT_CALFACT_D_Pos> differentialCalibrationFactor;
+  RegValue<addr_CALFACT, ADC_CALFACT_CALFACT_S_Msk, ADC_CALFACT_CALFACT_S_Pos> singleendCalibrationFactor;
+  RegValue<addr_CALFACT, ADC_CALFACT_CALFACT_D_Msk, ADC_CALFACT_CALFACT_D_Pos> differentialCalibrationFactor;
 
 
   IGB_FAST_INLINE void enable() {
@@ -488,46 +519,8 @@ struct Adc {
   }
   static IGB_FAST_INLINE void prepareGpios() { }
 
-  IGB_FAST_INLINE void initRegularContinuous(auto&&... confs) {
-    enableBusClock();
-    prepareGpios(confs...);
-    (
-     resolution.val(AdcResolution::_12bit) |
-     dataAlign.val(AdcDataAlign::right) | 
-     autoDelayMode.val(false)
-    ).update();
-    // TODO:
-  }
-
-  IGB_FAST_INLINE void initRegularSingle(AdcPinConf conf) {
-    enableBusClock();
-    prepareGpio(conf.pin_type);
-    
-    (
-     resolution.val(AdcResolution::_12bit) |
-     dataAlign.val(AdcDataAlign::right) | 
-     autoDelayMode.val(false)
-    ).update();
-
-    (
-     externalTrigSelect.val(AdcExternalTriggerEvent::none) |
-     externalTrigPolarity.val(AdcExternalTriggerPolarity::disable) |
-     discontinuousConvMode.val(false) |
-     discontinuousConvChannelCount.val(0) |
-     continuousConvMode.val(false) |
-     dma.val(false) |
-     dmaConfig.val(AdcDmaConfig::oneshot) |
-     overrunMode.val(AdcOverrunMode::overwriteByNewData)
-    ).update();
-
-    AdcCommon adc_common;
-    adc_common.clockMode(AdcCommonClockMode::async);
-    enableRegulator();
-    delay_msec(2);
-
-    (seqChLength.val(0) | seqOrder1Ch.val(static_cast<uint32_t>(conf.ch))).update();
-    const uint32_t adc_clock = 4; // 19.5 ADC Clock
-    switch (conf.ch) {
+  IGB_FAST_INLINE void _initCh(AdcPinConf pin_conf, uint32_t adc_clock = 4 /* 19.5 ADC Clock */) {
+    switch (pin_conf.ch) {
       case AdcChannel::ch1:
         ch1SamplingTime(adc_clock);
         break;
@@ -586,7 +579,7 @@ struct Adc {
         break;
     }
 
-    switch (conf.ch) {
+    switch (pin_conf.ch) {
       case AdcChannel::ch1:
         diffModeCh1Enable(false);
         break;
@@ -644,6 +637,125 @@ struct Adc {
       default:
         break;
     }
+  }
+
+  IGB_FAST_INLINE void init(AdcConf conf, AdcPinConf pin_conf) {
+    enableBusClock();
+    prepareGpio(pin_conf.pin_type);
+    
+    if (conf.enable_interrupt) {
+      NvicCtrl::setPriority(info.irqn, conf.interrupt_priority);
+      NvicCtrl::enable(info.irqn);
+      IGB_ADC->IER |= conf.interrupt_bits;
+    }
+
+    (
+     resolution.val(conf.resolution) |
+     dataAlign.val(conf.data_align) | 
+     autoDelayMode.val(conf.auto_delay_mode)
+    ).update();
+
+    (
+     externalTrigSelect.val(conf.external_trigger_select) |
+     externalTrigPolarity.val(conf.external_trigger_polarity) |
+     discontinuousConvMode.val(conf.discontinuous_conv_mode) |
+     discontinuousConvChannelCount.val(conf.discontinuous_conv_channel_count) |
+     continuousConvMode.val(conf.continuous_conv_mode) |
+     dma.val(conf.dma) |
+     dmaConfig.val(conf.dma_config) |
+     overrunMode.val(conf.overrun_mode)
+    ).update();
+
+    AdcCommon adc_common;
+    adc_common.clockMode(conf.clock_mode);
+    adc_common.vrefint(conf.vrefint);
+    adc_common.temperatureSensor(conf.temperature_sensor);
+    adc_common.vbat(conf.vbat);
+    enableRegulator();
+    delay_msec(2);
+
+    (seqChLength.val(0) | seqOrder1Ch.val(static_cast<uint32_t>(pin_conf.ch))).update();
+
+    _initCh(pin_conf);
+
+    startCalibration(AdcCalibrationType::singleEnded);
+
+    delay_msec(2);
+
+    enable();
+
+    while(!is(AdcStatus::ready)) {}
+  }
+
+  IGB_FAST_INLINE void initRegularSingle(AdcPinConf pin_conf) {
+    enableBusClock();
+    prepareGpio(pin_conf.pin_type);
+    
+    (
+     resolution.val(AdcResolution::_12bit) |
+     dataAlign.val(AdcDataAlign::right) | 
+     autoDelayMode.val(false)
+    ).update();
+
+    (
+     externalTrigSelect.val(0) |
+     externalTrigPolarity.val(AdcExternalTriggerPolarity::disable) |
+     discontinuousConvMode.val(false) |
+     discontinuousConvChannelCount.val(0) |
+     continuousConvMode.val(false) |
+     dma.val(false) |
+     dmaConfig.val(AdcDmaConfig::oneshot) |
+     overrunMode.val(AdcOverrunMode::overwriteByNewData)
+    ).update();
+
+    AdcCommon adc_common;
+    adc_common.clockMode(AdcCommonClockMode::async);
+    enableRegulator();
+    delay_msec(2);
+
+    (seqChLength.val(0) | seqOrder1Ch.val(static_cast<uint32_t>(pin_conf.ch))).update();
+
+    _initCh(pin_conf);
+
+    startCalibration(AdcCalibrationType::singleEnded);
+
+    delay_msec(2);
+
+    enable();
+
+    while(!is(AdcStatus::ready)) {}
+  }
+
+  IGB_FAST_INLINE void initDmaRegularSingle(AdcPinConf pin_conf, uint8_t trigger_event_id) {
+    // TODO:
+    enableBusClock();
+    prepareGpio(pin_conf.pin_type);
+    
+    (
+     resolution.val(AdcResolution::_12bit) |
+     dataAlign.val(AdcDataAlign::right) | 
+     autoDelayMode.val(false)
+    ).update();
+
+    (
+     externalTrigSelect.val(0) |
+     externalTrigPolarity.val(AdcExternalTriggerPolarity::disable) |
+     discontinuousConvMode.val(false) |
+     discontinuousConvChannelCount.val(0) |
+     continuousConvMode.val(false) |
+     dma.val(false) |
+     dmaConfig.val(AdcDmaConfig::oneshot) |
+     overrunMode.val(AdcOverrunMode::overwriteByNewData)
+    ).update();
+
+    AdcCommon adc_common;
+    adc_common.clockMode(AdcCommonClockMode::async);
+    enableRegulator();
+    delay_msec(2);
+
+    (seqChLength.val(0) | seqOrder1Ch.val(static_cast<uint32_t>(pin_conf.ch))).update();
+
+    _initCh(pin_conf);
 
     startCalibration(AdcCalibrationType::singleEnded);
 

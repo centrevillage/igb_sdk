@@ -129,6 +129,19 @@ constexpr struct PeriphInfo {
 <%      if bus = struct[:bus] %>
       .bus = PeriphBusInfo { BusType::<%= bus[:name].downcase %>, (uint32_t)1 << <%= bus[:bit_offset] %>},
 <%      end  %>
+<%      if group_name.to_sym == :DMA %>
+      .channels = {
+<%        (1..8).each do |i| %>
+  <%          dma_ch_exists = !@svd_parser.search_interrupts(/\A#{struct[:periph]}_CH#{i}(_|\z)/).empty? %>
+        DmaChannelInfo {
+          .exists = <%= dma_ch_exists ? 'true' : 'false' %>,
+          .p_dma_channel = <%= dma_ch_exists ? "#{struct[:periph]}_Channel#{i}" : '(DMA_Channel_TypeDef*)0' %>,
+          .addr = <%= dma_ch_exists ? "#{struct[:periph]}_Channel#{i}_BASE" : '0' %>,
+          .irqn = <%= fetch_dma_irqn_name(struct[:periph], i) || '(IRQn_Type)0' %>
+        },
+<%        end %>
+      },
+<%      end  %>
     },
 <%    end %>
   };

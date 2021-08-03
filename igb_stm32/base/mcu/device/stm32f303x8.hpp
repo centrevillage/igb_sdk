@@ -99,6 +99,7 @@ enum class PeriphGroupType : uint16_t {
   gpio = 0,
   tsc,
   rcc,
+  dma,
   tim,
   usart,
   spi,
@@ -115,6 +116,7 @@ enum class PeriphType : uint16_t {
   gpiof,
   tsc,
   rcc,
+  dma1,
   tim1,
   tim2,
   tim3,
@@ -140,6 +142,9 @@ enum class GpioType : uint8_t {
   gpioc,
   gpiod,
   gpiof,
+};
+enum class DmaType : uint8_t {
+  dma1 = 0,
 };
 enum class TimType : uint8_t {
   tim1 = 0,
@@ -584,6 +589,72 @@ constexpr struct PeriphInfo {
     .p_rcc = RCC,
     .addr = RCC_BASE,
   };
+  const std::array<DmaInfo, 1> dma {
+    DmaInfo {
+      .periph_type = PeriphType::dma1,
+      .p_dma = DMA1,
+      .addr = DMA1_BASE,
+      .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 0},
+      .channels = {
+  
+        DmaChannelInfo {
+          .exists = true,
+          .p_dma_channel = DMA1_Channel1,
+          .addr = DMA1_Channel1_BASE,
+          .irqn = DMA1_Channel1_IRQn
+        },
+  
+        DmaChannelInfo {
+          .exists = true,
+          .p_dma_channel = DMA1_Channel2,
+          .addr = DMA1_Channel2_BASE,
+          .irqn = DMA1_Channel2_IRQn
+        },
+  
+        DmaChannelInfo {
+          .exists = true,
+          .p_dma_channel = DMA1_Channel3,
+          .addr = DMA1_Channel3_BASE,
+          .irqn = DMA1_Channel3_IRQn
+        },
+  
+        DmaChannelInfo {
+          .exists = true,
+          .p_dma_channel = DMA1_Channel4,
+          .addr = DMA1_Channel4_BASE,
+          .irqn = DMA1_Channel4_IRQn
+        },
+  
+        DmaChannelInfo {
+          .exists = true,
+          .p_dma_channel = DMA1_Channel5,
+          .addr = DMA1_Channel5_BASE,
+          .irqn = DMA1_Channel5_IRQn
+        },
+  
+        DmaChannelInfo {
+          .exists = true,
+          .p_dma_channel = DMA1_Channel6,
+          .addr = DMA1_Channel6_BASE,
+          .irqn = DMA1_Channel6_IRQn
+        },
+  
+        DmaChannelInfo {
+          .exists = true,
+          .p_dma_channel = DMA1_Channel7,
+          .addr = DMA1_Channel7_BASE,
+          .irqn = DMA1_Channel7_IRQn
+        },
+  
+        DmaChannelInfo {
+          .exists = false,
+          .p_dma_channel = (DMA_Channel_TypeDef*)0,
+          .addr = 0,
+          .irqn = (IRQn_Type)0
+        },
+      },
+    },
+  };
   const std::array<TimInfo, 8> tim {
     TimInfo {
       .periph_type = PeriphType::tim1,
@@ -705,12 +776,14 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::adc1,
       .p_adc = ADC1,
       .addr = ADC1_BASE,
+      .irqn = ADC1_2_IRQn,
       .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 28},
     },
     AdcInfo {
       .periph_type = PeriphType::adc2,
       .p_adc = ADC2,
       .addr = ADC2_BASE,
+      .irqn = ADC1_2_IRQn,
       .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 28},
     },
   };
@@ -1329,6 +1402,14 @@ inline std::optional<PeriphType> as_periph_type(GpioType type) {
       return PeriphType::gpiod;
     case GpioType::gpiof:
       return PeriphType::gpiof;
+  }
+  return std::nullopt;
+}
+template<>
+inline std::optional<PeriphType> as_periph_type(DmaType type) {
+  switch (type) {
+    case DmaType::dma1:
+      return PeriphType::dma1;
   }
   return std::nullopt;
 }

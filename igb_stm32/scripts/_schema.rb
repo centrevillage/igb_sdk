@@ -129,6 +129,11 @@ module CppStructSchema
             value: nil,
             type: 'uint32_t',
             required: true
+          },
+          irqn: {
+            value: nil,
+            type: 'IRQn_Type',
+            required: true
           }
         }
       },
@@ -139,6 +144,21 @@ module CppStructSchema
           p_tsc: {
             value: nil,
             type: 'TSC_TypeDef*'
+          },
+          addr: {
+            value: nil,
+            type: 'uint32_t',
+            required: true
+          }
+        }
+      },
+      DMA: {
+        name: 'DmaInfo',
+        attrs: {
+          p_dma: {
+            value: nil,
+            type: 'DMA_TypeDef*',
+            required: true
           },
           addr: {
             value: nil,
@@ -192,21 +212,6 @@ module CppStructSchema
       #    },
       #  }
       #},
-      # DMA: { # Port と Ch に分ける？
-      #   name: 'DMACh',
-      #   attrs: {
-      #     p_dma: {
-      #       value: nil,
-      #       type: 'DMA_TypeDef*',
-      #       required: true
-      #     },
-      #     p_dma_ch: {
-      #       value: nil,
-      #       type: 'DMA_Channel_TypeDef*',
-      #       required: true
-      #     }
-      #   }
-      # },
       # FSMC: {
       #   name: 'FSMCCtrl'
       # },

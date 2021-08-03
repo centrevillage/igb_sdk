@@ -176,6 +176,21 @@ enum class TimDmaBurstLen : uint32_t {
 //  TO_MCO = (TIM14_OR_TI1_RMP_0  | TIM14_OR_TI1_RMP_1  | TIM14_OR_RMP_MASK),
 //};
 
+struct TimConf {
+  uint32_t prescale = 0;
+  uint32_t period = 1;
+  TimCounterMode counter_mode = TimCounterMode::up;
+  TimClockDiv clock_div = TimClockDiv::div1;
+  uint8_t repetition_counter = 0;
+  bool arr_preload = false;
+  TimClockSrc clock_src = TimClockSrc::internal;
+  TimTriggerOut trigger_out = TimTriggerOut::reset;
+  bool master_slave_mode = false;
+
+  bool enable_update_interrupt = false;
+  uint16_t interrupt_priority = 1;
+};
+
 struct Tim {
   TIM_TypeDef* p_tim;
 
@@ -259,11 +274,11 @@ struct Tim {
     p_tim->EGR |= as<uint32_t>(event);
   }
 
-  void enable(TimInterruptType interrupt) {
+  void enableIt(TimInterruptType interrupt) {
     p_tim->DIER |= as<uint32_t>(interrupt);
   }
 
-  void disable(TimInterruptType interrupt) {
+  void disableIt(TimInterruptType interrupt) {
     p_tim->DIER &= ~(as<uint32_t>(interrupt));
   }
 
@@ -319,6 +334,31 @@ struct Tim {
     p_tim->CR1 &= ~TIM_CR1_CEN;
   }
 
+  void init(TimType type, TimConf conf) {
+    const auto& info = STM32_PERIPH_INFO.tim[as<uint32_t>(type)];
+    p_tim = info.p_tim;
+    info.bus.enableBusClock();
+
+    if (conf.enable_update_interrupt) {
+      NvicCtrl::setPriority(info.irqn, conf.interrupt_priority);
+      NvicCtrl::enable(info.irqn);
+      enableIt(TimInterruptType::update);
+    }
+    setPrescaler(conf.prescale);
+    setAutoreload((conf.period == 0 ? 0 : (conf.period - 1)));
+    setCounterMode(conf.counter_mode);
+    setClockDiv(conf.clock_div);
+    setRepetitionCounter(conf.repetition_counter);
+    if (conf.arr_preload) {
+      enableArrPreload();
+    } else {
+      disableArrPreload();
+    }
+    setClockSrc(conf.clock_src);
+    setTriggerOutput(conf.trigger_out);
+    setMasterSlaveMode(conf.master_slave_mode);
+  }
+
   // TODO: コンパイル時の依存を減らすため、外部関数化＆外部ファイル化すべき？
   static Tim newIntervalTimer(TimType type, uint16_t prescale, uint32_t period, uint16_t priority) {
     const auto& info = STM32_PERIPH_INFO.tim[as<uint32_t>(type)];
@@ -328,7 +368,7 @@ struct Tim {
     NvicCtrl::enable(info.irqn);
 
     auto timer = Tim { info.p_tim };
-    timer.enableInterrupt(TimInterruptType::update);
+    timer.enableIt(TimInterruptType::update);
     timer.setPrescaler(prescale);
     timer.setCounterMode(TimCounterMode::up);
     timer.setAutoreload((period == 0 ? 0 : (period - 1)));

@@ -306,11 +306,16 @@ class CppSrcGenerator
         when :ADC
           struct[:attrs][:p_adc][:value] = peripheral_name
           struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
+          irqn = fetch_adc_irqn_name(peripheral_name)
+          struct[:attrs][:irqn][:value] = irqn
         when :DAC
           struct[:attrs][:p_dac][:value] = peripheral_name
           struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
         when :TSC
           struct[:attrs][:p_tsc][:value] = peripheral_name
+          struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
+        when :DMA
+          struct[:attrs][:p_dma][:value] = peripheral_name
           struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
         else
           next
@@ -318,6 +323,16 @@ class CppSrcGenerator
         @periph_names << peripheral_name.to_s
         @cpp_structs[group_name] << struct
       end
+    end
+  end
+
+  def regulate_irqn_name(name)
+    if name =~ /_IRQ\Z/
+      "#{name}n"
+    elsif name =~ /_IRQn\Z/
+      name
+    else
+      "#{name}_IRQn"
     end
   end
 
@@ -335,13 +350,20 @@ class CppSrcGenerator
     else
       interrupts.keys.first.to_s
     end
-    if name =~ /_IRQ\Z/
-      "#{name}n"
-    elsif name =~ /_IRQn\Z/
-      name
-    else
-      "#{name}_IRQn"
-    end
+    regulate_irqn_name(name)
+  end
+
+  def fetch_dma_irqn_name(peripheral_name, channel)
+    name = @svd_parser.search_interrupts(/\A#{peripheral_name}(Channel|CH|_)+#{channel}(_|\z)/).keys.first
+    return name unless name
+    name = name.gsub(/_CH/, '_Channel')
+    regulate_irqn_name(name)
+  end
+
+  def fetch_adc_irqn_name(peripheral_name)
+    adc_number = peripheral_name.to_s.gsub(/\A.*(\d+)/, '\1').to_i
+    name = @svd_parser.search_interrupts(/\AADC.*#{adc_number}/).keys.first
+    regulate_irqn_name(name)
   end
 
   def gen_af_info_structs
@@ -392,6 +414,7 @@ class CppSrcGenerator
           USART4: :UART4,
           USART5: :UART5,
           DAC: :DAC1,
+          DMA: :DMA1,
         }
       when :stm32f446xx
         {
