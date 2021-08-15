@@ -205,6 +205,10 @@ struct I2c {
     return receiveU8();
   }
 
+  IGB_FAST_INLINE bool isReceivable() {
+    return is(I2cStatus::txInterrupt);
+  }
+
   IGB_FAST_INLINE void sendU8(uint8_t value) {
     IGB_I2C->TXDR = value;
   }
@@ -218,6 +222,10 @@ struct I2c {
     }
     sendU8(value);
     return true;
+  }
+
+  IGB_FAST_INLINE bool isSendable() {
+    return is(I2cStatus::txInterrupt);
   }
 
   IGB_FAST_INLINE void prepareGpio(GpioPinType pin_type) {
@@ -282,6 +290,10 @@ struct I2c {
       | startCondition.val(true)
     ;
     reg.update();
+  }
+
+  IGB_FAST_INLINE bool isTransferEnd() {
+    return is(I2cStatus::stop);
   }
 
   // TODO: autoEnd でない時も正常に停止できる様に

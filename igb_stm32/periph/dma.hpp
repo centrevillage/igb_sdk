@@ -112,7 +112,7 @@ struct DmaChannel {
   DReg periphAddress {IGB_DMA_CH_REG_ADDR(CPAR)};
   DReg memoryAddress {IGB_DMA_CH_REG_ADDR(CMAR)};
 
-  IGB_FAST_INLINE void configure(DmaChannelConf conf) {
+  IGB_FAST_INLINE void configure(auto&& conf) {
     direction(conf.direction);
     circular(conf.circular);
     periphIncrement(conf.periph_increment);

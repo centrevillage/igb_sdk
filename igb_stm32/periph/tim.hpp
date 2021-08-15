@@ -334,7 +334,7 @@ struct Tim {
     p_tim->CR1 &= ~TIM_CR1_CEN;
   }
 
-  void init(TimType type, TimConf conf) {
+  void init(TimType type, auto&& conf) {
     const auto& info = STM32_PERIPH_INFO.tim[as<uint32_t>(type)];
     p_tim = info.p_tim;
     info.bus.enableBusClock();
@@ -344,6 +344,7 @@ struct Tim {
       NvicCtrl::enable(info.irqn);
       enableIt(TimInterruptType::update);
     }
+    setCount(0);
     setPrescaler(conf.prescale);
     setAutoreload((conf.period == 0 ? 0 : (conf.period - 1)));
     setCounterMode(conf.counter_mode);

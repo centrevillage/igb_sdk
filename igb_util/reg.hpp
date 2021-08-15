@@ -138,27 +138,27 @@ struct RegValueRO {
   }
 };
 
-template<uint32_t reg_addr, const uint32_t bit_mask, typename ENUM_TYPE>
+template<uint32_t reg_addr, const uint32_t bit_mask, typename ENUM_TYPE, const uint32_t bit_pos = 0>
 struct RegEnum {
   // getter
   IGB_FAST_INLINE ENUM_TYPE operator()() {
-    return static_cast<ENUM_TYPE>((*IGB_ACC_REG_PTR) & (bit_mask));
+    return static_cast<ENUM_TYPE>(((*IGB_ACC_REG_PTR) & (bit_mask)) >> bit_pos);
   }
 
   // setter
   IGB_FAST_INLINE void operator()(ENUM_TYPE v) {
-    (*IGB_ACC_REG_PTR) = ((*IGB_ACC_REG_PTR) & (~bit_mask)) | (static_cast<uint32_t>(v) & bit_mask);
+    (*IGB_ACC_REG_PTR) = ((*IGB_ACC_REG_PTR) & (~bit_mask)) | ((static_cast<uint32_t>(v) << bit_pos) & bit_mask);
   }
 
   IGB_FAST_INLINE RegFragment<reg_addr> val(ENUM_TYPE v) {
-    return RegFragment<reg_addr> { bit_mask, static_cast<uint32_t>(v) & bit_mask } ;
+    return RegFragment<reg_addr> { bit_mask, (static_cast<uint32_t>(v) << bit_pos) & bit_mask } ;
   }
 };
 
-template<uint32_t reg_addr, const uint32_t bit_mask, typename ENUM_TYPE>
+template<uint32_t reg_addr, const uint32_t bit_mask, typename ENUM_TYPE, const uint32_t bit_pos = 0>
 struct RegEnumRO {
   IGB_FAST_INLINE ENUM_TYPE operator()() {
-    return static_cast<ENUM_TYPE>((*IGB_ACC_REG_PTR) & (bit_mask));
+    return static_cast<ENUM_TYPE>(((*IGB_ACC_REG_PTR) & (bit_mask)) >> bit_pos);
   }
 };
 

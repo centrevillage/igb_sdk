@@ -4,6 +4,7 @@
 #include <igb_stm32/base.hpp>
 #include <igb_util/cast.hpp>
 #include <igb_util/macro.hpp>
+#include <igb_util/reg.hpp>
 
 namespace igb {
 namespace stm32 {
@@ -220,7 +221,22 @@ enum class AdcClockDiv : uint32_t {
   div256 = RCC_CFGR2_ADCPRE12_DIV256,
 };
 #endif /* RCC_CFGR_ADCPRE */
+
+enum class UsartClockSrc : uint8_t {
+  pclk = 0,
+  system = 1,
+  lse = 2,
+  hsi = 3
+};
+
 #endif /* STM32F3 */
+
+struct RccClockFreq {
+  uint32_t sysclk = 0;
+  uint32_t hclk = 0;
+  uint32_t pclk1 = 0;
+  uint32_t pclk2 = 0;
+};
 
 struct RccCtrl {
   static IGB_FAST_INLINE void enableBusClock(const auto& periph_bus_info) {
@@ -249,6 +265,10 @@ struct RccCtrl {
 
   static IGB_FAST_INLINE bool isReadyHSI() {
     return (READ_BIT(RCC->CR, RCC_CR_HSIRDY) == (RCC_CR_HSIRDY));
+  }
+
+  static IGB_FAST_INLINE RccPllClockSrc getPllSrc() {
+    return static_cast<RccPllClockSrc>(RCC->CFGR & RCC_CFGR_PLLSRC);
   }
 
 #if defined(RCC_HSI48_SUPPORT)
@@ -466,6 +486,7 @@ struct RccCtrl {
 #endif /* RCC_CFGR2_ADCPRE34 */
   }
 #endif /* RCC_CFGR_ADCPRE */
+
 #endif /* STM32F3 */
 
 #if defined(RCC_CR_PLLON)

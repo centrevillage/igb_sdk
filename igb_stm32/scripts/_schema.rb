@@ -99,6 +99,11 @@ module CppStructSchema
             value: nil,
             type: 'uint32_t',
             required: true
+          },
+          irqn: {
+            value: nil,
+            type: 'IRQn_Type',
+            required: true
           }
         },
       },
@@ -113,6 +118,11 @@ module CppStructSchema
           addr: {
             value: nil,
             type: 'uint32_t',
+            required: true
+          },
+          irqn: {
+            value: nil,
+            type: 'IRQn_Type',
             required: true
           }
         }

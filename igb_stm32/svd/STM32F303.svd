@@ -30004,7 +30004,7 @@ xs:noNamespaceSchemaLocation="CMSIS-SVD_Schema_1_1.xsd">
         <usage>registers</usage>
       </addressBlock>
       <interrupt>
-        <name>TIM6_DACUNDER</name>
+        <name>TIM6_DAC</name>
         <description>TIM6 global and DAC12 underrun
         interrupts</description>
         <value>54</value>
@@ -30211,7 +30211,7 @@ xs:noNamespaceSchemaLocation="CMSIS-SVD_Schema_1_1.xsd">
         <usage>registers</usage>
       </addressBlock>
       <interrupt>
-        <name>TIM6_DACUNDER</name>
+        <name>TIM6_DAC</name>
         <description>TIM6 global and DAC12 underrun
         interrupts</description>
         <value>54</value>

@@ -303,6 +303,8 @@ class CppSrcGenerator
         when :USART
           struct[:attrs][:p_usart][:value] = peripheral_name
           struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
+          irqn = fetch_usart_irqn_name(peripheral_name)
+          struct[:attrs][:irqn][:value] = irqn
         when :ADC
           struct[:attrs][:p_adc][:value] = peripheral_name
           struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
@@ -311,6 +313,8 @@ class CppSrcGenerator
         when :DAC
           struct[:attrs][:p_dac][:value] = peripheral_name
           struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
+          irqn = fetch_dac_irqn_name(peripheral_name)
+          struct[:attrs][:irqn][:value] = irqn
         when :TSC
           struct[:attrs][:p_tsc][:value] = peripheral_name
           struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
@@ -366,6 +370,19 @@ class CppSrcGenerator
     regulate_irqn_name(name)
   end
 
+  def fetch_dac_irqn_name(peripheral_name)
+    dac_number = peripheral_name.to_s.gsub(/\A.*(\d+)/, '\1').to_i
+    name = @svd_parser.search_interrupts(/DAC.*#{dac_number}/).keys.first
+    regulate_irqn_name(name)
+  end
+
+  def fetch_usart_irqn_name(peripheral_name)
+    number = peripheral_name.to_s.gsub(/\A.*(\d+)/, '\1').to_i
+    name = @svd_parser.search_interrupts(/USART#{number}/).keys.first
+    name = name.gsub(/_EXTI\d+/, '')
+    regulate_irqn_name(name)
+  end
+
   def gen_af_info_structs
     @df_parser.parsed[:gpio_af].each do |group_name, group|
       @af_info_structs[group_name] ||= {}
@@ -407,7 +424,7 @@ class CppSrcGenerator
           USART7: :UART7,
           USART8: :UART8,
         }
-      when :stm32f303x8
+      when :stm32f303x8, :stm32f303xc, :stm32f303xe
         {
           ADC12:  [:ADC1, :ADC2], 
           ADC34:  [:ADC3, :ADC4], 
@@ -437,6 +454,8 @@ class CppSrcGenerator
       %W(ADC12_Common ADC3_Common).include?(periph_name.to_s)
     when :stm32f303x8
       %W(I2S2ext I2S3ext SPI2 SPI3 I2C2 I2C3).include?(periph_name.to_s)
+    when :stm32f303xc
+      %W(I2S2ext I2S3ext SPI2 SPI3 SPI4 I2C2 I2C3 GPIOG GPIOH TIM20).include?(periph_name.to_s)
     when :stm32f446xx
       %W(C_ADC).include?(periph_name.to_s)
     else

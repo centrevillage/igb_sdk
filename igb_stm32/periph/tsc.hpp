@@ -356,6 +356,7 @@ struct Tsc {
     if (io_type == TscIoType::none) { return; }
 
     GpioPin pin = GpioPin::newPin(pin_type);
+    pin.enable();
     pin.setMode(GpioMode::alternate);
     pin.setPullMode(GpioPullMode::no);
     pin.setSpeedMode(GpioSpeedMode::medium);

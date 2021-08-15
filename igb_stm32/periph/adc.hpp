@@ -639,7 +639,7 @@ struct Adc {
     }
   }
 
-  IGB_FAST_INLINE void init(AdcConf conf, AdcPinConf pin_conf) {
+  IGB_FAST_INLINE void init(auto&& conf, AdcPinConf pin_conf) {
     enableBusClock();
     prepareGpio(pin_conf.pin_type);
     

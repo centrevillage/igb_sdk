@@ -2,6 +2,7 @@
 #define IGB_SDK_DEVICE_IS31FL3731_I2C_H
 
 #include <igb_sdk/base.hpp>
+#include <igb_util/ring_buf.hpp>
 
 namespace igb {
 namespace sdk {
@@ -26,6 +27,23 @@ struct Is31Fl3731I2c {
 
   uint8_t _address_byte = i2c_address_base;
   uint8_t _frame = 0;
+
+  struct LedCmd {
+    uint8_t num = 0;
+    uint8_t power = 0;
+  };
+
+  enum class LedCmdState : uint8_t {
+    ready = 0,
+    begin,
+    processingNum,
+    processingPower,
+  };
+
+  RingBuf256<LedCmd> _cmd_buf; 
+
+  std::optional<LedCmd> _current_cmd;
+  LedCmdState _current_cmd_state = LedCmdState::ready;
 
   enum class Address : uint8_t {
     first = i2c_address_base,
@@ -60,6 +78,8 @@ struct Is31Fl3731I2c {
       }
     }
     writeReg(page_function_reg, reg_audiosync, 0);
+
+    movePage(_frame);
 
     return true;
   }
@@ -120,7 +140,44 @@ struct Is31Fl3731I2c {
   void setLed(uint8_t lednum, uint8_t power) {
     writeReg(_frame, 0x24 + lednum, power);
   }
-  // TODO:
+
+  void addLedCmd(uint8_t lednum, uint8_t power) {
+    _cmd_buf.add(LedCmd { lednum, power } );
+  }
+
+  void processLedCmd() {
+    switch (_current_cmd_state) {
+      case LedCmdState::ready:
+        if (!_current_cmd) {
+          _current_cmd = _cmd_buf.get();
+        }
+        if (_current_cmd) {
+          i2c.beginSending(_address_byte, 2);
+          _current_cmd_state = LedCmdState::begin;
+        }
+        break;
+      case LedCmdState::begin:
+        if (i2c.isSendable()) {
+          i2c.sendU8(0x24 + _current_cmd.value().num);
+          _current_cmd_state = LedCmdState::processingNum;
+        }
+        break;
+      case LedCmdState::processingNum:
+        if (i2c.isSendable()) {
+          i2c.sendU8(_current_cmd.value().power);
+          _current_cmd_state = LedCmdState::processingPower;
+        }
+        break;
+      case LedCmdState::processingPower:
+        if (i2c.isTransferEnd()) {
+          _current_cmd = std::nullopt;
+          _current_cmd_state = LedCmdState::ready;
+        }
+        break;
+      default:
+        break;
+    }
+  }
 };
 
 }
