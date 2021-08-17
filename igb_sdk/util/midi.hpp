@@ -49,7 +49,7 @@ struct MidiEvent {
   uint8_t data1 = noData;
   uint8_t data2 = noData;
 
-  IGB_FAST_INLINE bool is(MidiStatus _status) {
+  IGB_FAST_INLINE bool is(const MidiStatus _status) const {
     return status == static_cast<uint8_t>(_status);
   }
 };
@@ -59,7 +59,7 @@ struct Midi {
   RingBuf256<uint8_t> tx_buffer;
   MidiEvent event;
 
-  IGB_FAST_INLINE void addEvent(MidiEvent event) {
+  IGB_FAST_INLINE void addEvent(auto&& event) {
     tx_buffer.add(event.status);
     if (event.data1 != MidiEvent::noData) {
       tx_buffer.add(event.data1);

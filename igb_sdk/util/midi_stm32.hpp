@@ -25,7 +25,7 @@ struct MidiStm32 {
 
   bool _midi_transfer_interrupt_enabled = false;
 
-  IGB_FAST_INLINE void send(MidiEvent event) {
+  IGB_FAST_INLINE void send(auto&& event) {
     midi.addEvent(event);
   }
 
