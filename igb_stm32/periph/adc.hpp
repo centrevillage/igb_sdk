@@ -230,9 +230,21 @@ struct AdcConf {
   bool interrupt_priority = 1;
 };
 
+enum class AdcSamplingTime : uint8_t {
+  clock1 = 0,
+  clock2,
+  clock4,
+  clock7,
+  clock19,
+  clock61,
+  clock181,
+  clock601,
+};
+
 struct AdcPinConf {
   AdcChannel ch;
   GpioPinType pin_type;
+  AdcSamplingTime sampling_time = AdcSamplingTime::clock19;
 };
 
 
@@ -520,61 +532,62 @@ struct Adc {
   }
   static IGB_FAST_INLINE void prepareGpios() { }
 
-  IGB_FAST_INLINE void _initCh(AdcPinConf pin_conf, uint32_t adc_clock = 4 /* 19.5 ADC Clock */) {
+  IGB_FAST_INLINE void _initCh(AdcPinConf pin_conf) {
+    uint32_t smp = static_cast<uint32_t>(pin_conf.sampling_time);
     switch (pin_conf.ch) {
       case AdcChannel::ch1:
-        ch1SamplingTime(adc_clock);
+        ch1SamplingTime(smp);
         break;
       case AdcChannel::ch2:
-        ch2SamplingTime(adc_clock);
+        ch2SamplingTime(smp);
         break;
       case AdcChannel::ch3:
-        ch3SamplingTime(adc_clock);
+        ch3SamplingTime(smp);
         break;
       case AdcChannel::ch4:
-        ch4SamplingTime(adc_clock);
+        ch4SamplingTime(smp);
         break;
       case AdcChannel::ch5:
-        ch5SamplingTime(adc_clock);
+        ch5SamplingTime(smp);
         break;
       case AdcChannel::ch6:
-        ch6SamplingTime(adc_clock);
+        ch6SamplingTime(smp);
         break;
       case AdcChannel::ch7:
-        ch7SamplingTime(adc_clock);
+        ch7SamplingTime(smp);
         break;
       case AdcChannel::ch8:
-        ch8SamplingTime(adc_clock);
+        ch8SamplingTime(smp);
         break;
       case AdcChannel::ch9:
-        ch9SamplingTime(adc_clock);
+        ch9SamplingTime(smp);
         break;
       case AdcChannel::ch10:
-        ch10SamplingTime(adc_clock);
+        ch10SamplingTime(smp);
         break;
       case AdcChannel::ch11:
-        ch11SamplingTime(adc_clock);
+        ch11SamplingTime(smp);
         break;
       case AdcChannel::ch12:
-        ch12SamplingTime(adc_clock);
+        ch12SamplingTime(smp);
         break;
       case AdcChannel::ch13:
-        ch13SamplingTime(adc_clock);
+        ch13SamplingTime(smp);
         break;
       case AdcChannel::ch14:
-        ch14SamplingTime(adc_clock);
+        ch14SamplingTime(smp);
         break;
       case AdcChannel::ch15:
-        ch15SamplingTime(adc_clock);
+        ch15SamplingTime(smp);
         break;
       case AdcChannel::ch16:
-        ch16SamplingTime(adc_clock);
+        ch16SamplingTime(smp);
         break;
       case AdcChannel::ch17:
-        ch17SamplingTime(adc_clock);
+        ch17SamplingTime(smp);
         break;
       case AdcChannel::ch18:
-        ch18SamplingTime(adc_clock);
+        ch18SamplingTime(smp);
         break;
       default:
         break;
@@ -640,9 +653,78 @@ struct Adc {
     }
   }
 
-  IGB_FAST_INLINE void init(auto&& conf, AdcPinConf pin_conf) {
+  IGB_FAST_INLINE void _initChannels(auto&& first, auto&&... rest) {
+    _initCh(first);
+    _initChannels(rest...);
+  }
+  IGB_FAST_INLINE void _initChannels() { }
+
+  IGB_FAST_INLINE void _setSeqOrder(uint8_t idx, auto&& pin_conf) {
+    uint32_t ch = static_cast<uint32_t>(pin_conf.ch);
+    switch(idx) {
+      case 0:
+        seqOrder1Ch(ch);
+        break;
+      case 1:
+        seqOrder2Ch(ch);
+        break;
+      case 2:
+        seqOrder3Ch(ch);
+        break;
+      case 3:
+        seqOrder4Ch(ch);
+        break;
+      case 4:
+        seqOrder5Ch(ch);
+        break;
+      case 5:
+        seqOrder6Ch(ch);
+        break;
+      case 6:
+        seqOrder7Ch(ch);
+        break;
+      case 7:
+        seqOrder8Ch(ch);
+        break;
+      case 8:
+        seqOrder9Ch(ch);
+        break;
+      case 9:
+        seqOrder10Ch(ch);
+        break;
+      case 10:
+        seqOrder11Ch(ch);
+        break;
+      case 11:
+        seqOrder12Ch(ch);
+        break;
+      case 12:
+        seqOrder13Ch(ch);
+        break;
+      case 13:
+        seqOrder14Ch(ch);
+        break;
+      case 14:
+        seqOrder15Ch(ch);
+        break;
+      case 15:
+        seqOrder16Ch(ch);
+        break;
+      default:
+        break;
+    }
+  }
+
+  IGB_FAST_INLINE void _setSeqOrders(uint8_t idx, auto&& first, auto&&... rest) {
+    _setSeqOrder(idx, first);
+    _setSeqOrders(idx+1, rest...);
+  }
+  IGB_FAST_INLINE void _setSeqOrders(uint8_t idx) { }
+
+
+  IGB_FAST_INLINE void init(auto&& conf, auto&&... pin_confs) {
     enableBusClock();
-    prepareGpio(pin_conf.pin_type);
+    prepareGpios(pin_confs...);
     
     if (conf.enable_interrupt) {
       NvicCtrl::setPriority(info.irqn, conf.interrupt_priority);
@@ -675,9 +757,11 @@ struct Adc {
     enableRegulator();
     delay_msec(2);
 
-    (seqChLength.val(0) | seqOrder1Ch.val(static_cast<uint32_t>(pin_conf.ch))).update();
+    seqChLength((sizeof...(pin_confs)) - 1);
+    _setSeqOrders(0, pin_confs...);
+    //(seqChLength.val(0) | seqOrder1Ch.val(static_cast<uint32_t>(pin_conf.ch))).update();
 
-    _initCh(pin_conf);
+    _initChannels(pin_confs...);
 
     startCalibration(AdcCalibrationType::singleEnded);
 
