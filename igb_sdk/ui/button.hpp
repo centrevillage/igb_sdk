@@ -29,7 +29,7 @@ struct DefaultButtonBuffer {
     return false;
   }
 
-  bool isOn() {
+  bool isOn() const {
     return on;
   }
 
@@ -60,7 +60,7 @@ struct ButtonSingle {
     buf.add(!!pin.read() != is_pull_up);
   };
 
-  bool isOn() {
+  bool isOn() const {
     return buf.isOn();
   }
 };
@@ -99,7 +99,7 @@ struct ButtonMatrix {
     _out_pin_idx = (_out_pin_idx + 1) % out_pin_size;
   }
 
-  bool isOn(size_t in_index, size_t out_index) {
+  bool isOn(size_t in_index, size_t out_index) const {
     return bufs[in_index][out_index].isOn();
   }
 };

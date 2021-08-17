@@ -10,6 +10,7 @@
 #include <igb_util/macro.hpp>
 #include <igb_util/reg.hpp>
 #include <igb_stm32/periph/systick.hpp>
+#include <igb_stm32/periph/nvic.hpp>
 
 #define ADC_CR_BITS_PROPERTY_RS (ADC_CR_ADCAL | ADC_CR_JADSTP | ADC_CR_ADSTP | ADC_CR_JADSTART | ADC_CR_ADSTART | ADC_CR_ADDIS | ADC_CR_ADEN) /* ADC register CR bits with HW property "rs": Software can read as well as set this bit. Writing '0' has no effect on the bit value. */
 

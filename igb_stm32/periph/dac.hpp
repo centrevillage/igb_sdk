@@ -10,6 +10,7 @@
 #include <igb_stm32/periph/gpio.hpp>
 #include <igb_stm32/periph/rcc.hpp>
 #include <igb_stm32/periph/systick.hpp>
+#include <igb_stm32/periph/nvic.hpp>
 
 namespace igb {
 namespace stm32 {

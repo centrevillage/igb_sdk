@@ -18,7 +18,7 @@ template<typename USART>
 struct MidiStm32 {
   const std::optional<igb::stm32::GpioPinType> rx_pin_type = std::nullopt;
   const std::optional<igb::stm32::GpioPinType> tx_pin_type = std::nullopt;
-  std::function<void(MidiEvent)> on_receive;
+  std::function<void(const MidiEvent& event)> on_receive;
 
   USART usart;
   Midi midi;
