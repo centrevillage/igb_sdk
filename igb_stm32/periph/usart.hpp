@@ -132,7 +132,9 @@ enum class UsartWakeupItFlagType : uint32_t {
 
 enum class UsartDataWidth : uint32_t {
   _8bit = 0,
+#ifdef USART_CR1_M1
   _7bit = USART_CR1_M1,
+#endif
   _9bit = USART_CR1_M0
 };
 
@@ -254,7 +256,12 @@ struct Usart {
   RegFlag<addr_CR1, USART_CR1_PCE> enableParity;
   RegEnum<addr_CR1, USART_CR1_PS_Msk, UsartParity> paritySelect;
   RegEnum<addr_CR1, USART_CR1_WAKE_Msk, UsartWakeupType> wakeupType;
+
+#ifdef USART_CR1_M1
   RegEnum<addr_CR1, USART_CR1_M0_Msk | USART_CR1_M1_Msk, UsartDataWidth> dataWidth;
+#else
+  RegEnum<addr_CR1, USART_CR1_M0_Msk, UsartDataWidth> dataWidth;
+#endif
   RegFlag<addr_CR1, USART_CR1_MME> muteMode;
   RegEnum<addr_CR1, USART_CR1_OVER8_Msk, UsartOverSampling> overSampling;
   RegValue<addr_CR1, USART_CR1_DEDT_Msk, USART_CR1_DEDT_Pos> driverEnableDeAssertionTime;

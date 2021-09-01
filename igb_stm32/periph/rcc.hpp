@@ -406,6 +406,70 @@ struct RccCtrl {
   }
 #endif
 
+#if defined(STM32F3) && defined(RCC_CFGR3_USART1SW) && STM32_PERIPH_USART1_EXISTS
+  static IGB_FAST_INLINE void setUsartClockSrc(UsartType type, UsartClockSrc src) {
+    uint32_t usart_src = 0;
+    uint32_t clock_src = 0;
+    switch(type) {
+      case UsartType::usart1:
+        usart_src = RCC_CFGR3_USART1SW;
+        switch(src) {
+          case UsartClockSrc::pclk:
+            clock_src = RCC_CFGR3_USART1SW_PCLK;
+            break;
+          case UsartClockSrc::system:
+            clock_src = RCC_CFGR3_USART1SW_SYSCLK;
+            break;
+          case UsartClockSrc::lse:
+            clock_src = RCC_CFGR3_USART1SW_LSE;
+            break;
+          case UsartClockSrc::hsi:
+            clock_src = RCC_CFGR3_USART1SW_HSI;
+            break;
+        }
+        break;
+#if defined(RCC_CFGR3_USART2SW) && STM32_PERIPH_USART2_EXISTS
+      case UsartType::usart2:
+        usart_src = RCC_CFGR3_USART2SW;
+        switch(src) {
+          case UsartClockSrc::pclk:
+            clock_src = RCC_CFGR3_USART2SW_PCLK;
+            break;
+          case UsartClockSrc::system:
+            clock_src = RCC_CFGR3_USART2SW_SYSCLK;
+            break;
+          case UsartClockSrc::lse:
+            clock_src = RCC_CFGR3_USART2SW_LSE;
+            break;
+          case UsartClockSrc::hsi:
+            clock_src = RCC_CFGR3_USART2SW_HSI;
+            break;
+        }
+        break;
+#endif
+#if defined(RCC_CFGR3_USART3SW) && STM32_PERIPH_USART3_EXISTS
+      case UsartType::usart3:
+        usart_src = RCC_CFGR3_USART3SW;
+        switch(src) {
+          case UsartClockSrc::pclk:
+            clock_src = RCC_CFGR3_USART3SW_PCLK;
+            break;
+          case UsartClockSrc::system:
+            clock_src = RCC_CFGR3_USART3SW_SYSCLK;
+            break;
+          case UsartClockSrc::lse:
+            clock_src = RCC_CFGR3_USART3SW_LSE;
+            break;
+          case UsartClockSrc::hsi:
+            clock_src = RCC_CFGR3_USART3SW_HSI;
+            break;
+        }
+        break;
+#endif
+    }
+  }
+#endif
+
 #if defined(STM32F3)
 #if defined(RCC_CFGR_ADCPRE)
   static IGB_FAST_INLINE void setAdcClockSrc(AdcType type, AdcClockDiv div = AdcClockDiv::div2) {

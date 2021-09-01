@@ -473,11 +473,11 @@ struct Adc {
     IGB_ADC->ISR = static_cast<uint32_t>(status);
   }
 
-  IGB_FAST_INLINE void enable(AdcInterruptType interrupt) {
+  IGB_FAST_INLINE void enableIt(AdcInterruptType interrupt) {
     IGB_ADC->IER |= static_cast<uint32_t>(interrupt);
   }
 
-  IGB_FAST_INLINE void disable(AdcInterruptType interrupt) {
+  IGB_FAST_INLINE void disableIt(AdcInterruptType interrupt) {
     IGB_ADC->IER &= ~(static_cast<uint32_t>(interrupt));
   }
 

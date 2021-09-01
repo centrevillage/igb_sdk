@@ -3,43 +3,66 @@
 
 #include <array>
 #include <functional>
+#include <cmath>
 #include <igb_sdk/base.hpp>
 #include <igb_util/macro.hpp>
 
 namespace igb {
 namespace sdk {
 
-template<typename ADC_TYPE, uint8_t ADC_RESOLUTION, typename GPIO_PIN_TYPE, size_t GPIO_PIN_COUNT>
+template<typename ADC_TYPE, uint8_t ADC_RESOLUTION, typename GPIO_PIN_TYPE, size_t gpio_pin_count, size_t buffer_size = 4>
 struct MultiplexedAdc {
-  static constexpr uint8_t address_size = (1 << GPIO_PIN_COUNT);
+  static constexpr uint8_t address_size = (1 << gpio_pin_count);
 
   ADC_TYPE adc;
-  std::array<GPIO_PIN_TYPE, GPIO_PIN_COUNT> gpios;
+  std::array<GPIO_PIN_TYPE, gpio_pin_count> gpios;
   std::function<void(uint8_t, uint32_t, float)> on_update;
+  int32_t threshold = 0;
 
+  std::array<std::array<uint32_t, address_size>, buffer_size> _buf;
   std::array<uint32_t, address_size> _values;
   bool _is_conversioning = false;
   uint8_t process_idx = 0;
+  uint8_t buffer_idx = 0;
 
   constexpr uint32_t resolutionBits(uint32_t resolution) {
     return (1UL << (uint32_t)resolution) - 1;
   }
 
   IGB_FAST_INLINE void prepare() {
-    for (uint8_t i = 0; i < GPIO_PIN_COUNT; ++i) {
+    for (uint8_t i = 0; i < gpio_pin_count; ++i) {
       gpios[i].write(!!(process_idx & (1 << i)));
     }
   }
 
   IGB_FAST_INLINE void complete(uint32_t value) {
-    _values[process_idx] = value;
-    if (on_update) {
-      on_update(process_idx, getValue(process_idx), getValueFloat(process_idx));
-    }
+    _buf[buffer_idx][process_idx] = value;
+//    if (on_update) {
+//      on_update(process_idx, getValue(process_idx), getValueFloat(process_idx));
+//    }
   }
   
   IGB_FAST_INLINE void next() {
     process_idx = (process_idx + 1) % address_size;
+    if (process_idx == 0) {
+      buffer_idx = (buffer_idx + 1) % buffer_size;
+      if (buffer_idx == 0) {
+        // complete all
+        for (uint8_t i = 0; i < address_size; ++i) {
+          uint32_t new_value = 0;
+          for (uint8_t j = 0; j < buffer_size; ++j) {
+            new_value += _buf[j][i];
+          }
+          new_value = (new_value + buffer_size / 2) / buffer_size;
+          if (std::abs((int32_t)(_values[i] - new_value)) > threshold) {
+            _values[i] = new_value;
+            if (on_update) {
+              on_update(i, getValue(i), getValueFloat(i));
+            }
+          }
+        }
+      }
+    }
   }
 
   IGB_FAST_INLINE void start() {
