@@ -50,7 +50,15 @@ struct MidiEvent {
   uint8_t data2 = noData;
 
   IGB_FAST_INLINE bool is(const MidiStatus _status) const {
-    return status == static_cast<uint8_t>(_status);
+    if (status >= 0xF0) {
+      return status == static_cast<uint8_t>(_status);
+    }
+    // channel message
+    return (status & 0xF0) == static_cast<uint8_t>(_status);
+  }
+
+  inline static bool isStatusByte(uint8_t byte) {
+    return byte & 0x80;
   }
 };
 

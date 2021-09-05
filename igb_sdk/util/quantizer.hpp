@@ -12,8 +12,8 @@ struct ScaleQuantizer {
 
   uint16_t _scale_bit = 0x0FFF;
   int8_t _scale_map[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  int8_t _max_note = max_octave * 12 - 1;
-  int8_t _min_note = 0;
+  int16_t _max_note = max_octave * 12 - 1;
+  int16_t _min_note = 0;
 
   void updateScale(uint16_t scale_bit) {
     if (_scale_bit != scale_bit) {
@@ -22,8 +22,8 @@ struct ScaleQuantizer {
     }
   }
 
-  uint8_t quantize(uint8_t note) {
-    return std::clamp((int8_t)(note + _scale_map[note % 12]), _min_note, _max_note);
+  uint8_t quantize(uint16_t note) const noexcept {
+    return std::clamp((int16_t)(note + _scale_map[note % 12]), _min_note, _max_note);
   }
 
   void _reconstruct() {
