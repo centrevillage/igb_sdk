@@ -178,7 +178,7 @@ enum class TimDmaBurstLen : uint32_t {
 
 struct TimConf {
   uint32_t prescale = 0;
-  uint32_t period = 1;
+  uint32_t period = 0;
   TimCounterMode counter_mode = TimCounterMode::up;
   TimClockDiv clock_div = TimClockDiv::div1;
   uint8_t repetition_counter = 0;
@@ -346,7 +346,7 @@ struct Tim {
     }
     setCount(0);
     setPrescaler(conf.prescale);
-    setAutoreload((conf.period == 0 ? 0 : (conf.period - 1)));
+    setAutoreload(conf.period);
     setCounterMode(conf.counter_mode);
     setClockDiv(conf.clock_div);
     setRepetitionCounter(conf.repetition_counter);
@@ -372,7 +372,7 @@ struct Tim {
     timer.enableIt(TimInterruptType::update);
     timer.setPrescaler(prescale);
     timer.setCounterMode(TimCounterMode::up);
-    timer.setAutoreload((period == 0 ? 0 : (period - 1)));
+    timer.setAutoreload(period);
     timer.setClockDiv(TimClockDiv::div1);
     timer.setRepetitionCounter(0);
     timer.disableArrPreload();
