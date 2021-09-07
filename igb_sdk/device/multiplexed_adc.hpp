@@ -48,18 +48,33 @@ struct MultiplexedAdc {
       buffer_idx = (buffer_idx + 1) % buffer_size;
       if (buffer_idx == 0) {
         // complete all
-        for (uint8_t i = 0; i < address_size; ++i) {
-          uint32_t new_value = 0;
-          for (uint8_t j = 0; j < buffer_size; ++j) {
-            new_value += _buf[j][i];
-          }
-          new_value = (new_value + buffer_size / 2) / buffer_size;
-          if (std::abs((int32_t)(_values[i] - new_value)) > threshold) {
-            _values[i] = new_value;
-            if (on_update) {
-              on_update(i, getValue(i), getValueFloat(i));
-            }
-          }
+        update();
+      }
+    }
+  }
+
+  IGB_FAST_INLINE bool nextWithoutUpdate() {
+    process_idx = (process_idx + 1) % address_size;
+    if (process_idx == 0) {
+      buffer_idx = (buffer_idx + 1) % buffer_size;
+      if (buffer_idx == 0) {
+        return true; // need to update
+      }
+    }
+    return false;
+  }
+
+  IGB_FAST_INLINE void update() {
+    for (uint8_t i = 0; i < address_size; ++i) {
+      uint32_t new_value = 0;
+      for (uint8_t j = 0; j < buffer_size; ++j) {
+        new_value += _buf[j][i];
+      }
+      new_value = (new_value + buffer_size / 2) / buffer_size;
+      if (std::abs((int32_t)(_values[i] - new_value)) > threshold) {
+        _values[i] = new_value;
+        if (on_update) {
+          on_update(i, getValue(i), getValueFloat(i));
         }
       }
     }
