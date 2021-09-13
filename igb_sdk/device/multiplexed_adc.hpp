@@ -17,10 +17,11 @@ struct MultiplexedAdc {
   ADC_TYPE adc;
   std::array<GPIO_PIN_TYPE, gpio_pin_count> gpios;
   std::function<void(uint8_t, uint32_t, float)> on_update;
-  int32_t threshold = 0;
+  float threshold = 1.4f;
+  float filter_coeff = 0.1f;
 
-  std::array<std::array<uint32_t, address_size>, buffer_size> _buf;
-  std::array<uint32_t, address_size> _values;
+  std::array<std::array<float, address_size>, buffer_size> _buf;
+  std::array<float, address_size> _values;
   bool _is_conversioning = false;
   uint8_t process_idx = 0;
   uint8_t buffer_idx = 0;
@@ -36,7 +37,13 @@ struct MultiplexedAdc {
   }
 
   IGB_FAST_INLINE void complete(uint32_t value) {
-    _buf[buffer_idx][process_idx] = value;
+    const float v = (float)value;
+    if (buffer_size > 1) {
+      const float prev_v = _buf[((buffer_idx + buffer_size - 1) % buffer_size)][process_idx];
+      _buf[buffer_idx][process_idx] = (prev_v * (1.0f - filter_coeff)) + (v * filter_coeff);
+    } else {
+      _buf[buffer_idx][process_idx] = v;
+    }
 //    if (on_update) {
 //      on_update(process_idx, getValue(process_idx), getValueFloat(process_idx));
 //    }
@@ -66,16 +73,24 @@ struct MultiplexedAdc {
 
   IGB_FAST_INLINE void update() {
     for (uint8_t i = 0; i < address_size; ++i) {
-      uint32_t new_value = 0;
+      float new_value = 0;
       for (uint8_t j = 0; j < buffer_size; ++j) {
         new_value += _buf[j][i];
       }
-      new_value = (new_value + buffer_size / 2) / buffer_size;
-      if (std::abs((int32_t)(_values[i] - new_value)) > threshold) {
-        _values[i] = new_value;
+      new_value = (new_value + (float)buffer_size / 2.0f) / (float)buffer_size;
+      if (std::abs((_values[i] - new_value)) > threshold) {
+        _values[i] = (float)((int32_t)new_value);
         if (on_update) {
           on_update(i, getValue(i), getValueFloat(i));
         }
+      }
+    }
+  }
+
+  IGB_FAST_INLINE void forceUpdate() {
+    if (on_update) {
+      for (uint8_t i = 0; i < address_size; ++i) {
+        on_update(i, getValue(i), getValueFloat(i));
       }
     }
   }
@@ -102,7 +117,7 @@ struct MultiplexedAdc {
     return _values[address_idx];
   }
   IGB_FAST_INLINE float getValueFloat(uint8_t address_idx) {
-    return (float)getValue(address_idx) / (float)(resolutionBits(ADC_RESOLUTION));
+    return _values[address_idx] / (float)(resolutionBits(ADC_RESOLUTION));
   }
 };
 
