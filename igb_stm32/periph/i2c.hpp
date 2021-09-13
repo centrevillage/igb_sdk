@@ -91,6 +91,50 @@ enum class I2cTransferRequestType {
   read = I2C_CR2_RD_WRN
 };
 
+struct I2cConf {
+  uint32_t timing = 0x00702025; // 100kHz (clock src = HSI 8MHz)
+  uint8_t timingScll = 0;
+  uint8_t timingSclh = 0;
+  uint8_t timing_sdadel = 0;
+  uint8_t timing_scldel = 0;
+  uint8_t timing_prescale = 0;
+
+  bool general_call = false;
+  bool clock_stretch = true;
+  bool analog_filter = false;
+  uint8_t digital_filter = 0;
+  bool dma_tx = false;
+  bool dma_rx = false;
+  bool slave_byte_control = false;
+  I2cAddressingMode master_addressing = I2cAddressingMode::_7bit;
+  bool own_address1 = true;
+  uint16_t own_address1_value = 1;
+  I2cOwnAddress1Size own_address1_size = I2cOwnAddress1Size::_7bit;
+  bool own_address2 = false;
+  uint8_t own_address2_value = 0;
+  I2cOwnAddress2Mask own_address2_mask = I2cOwnAddress2Mask::nomask;
+
+  bool sm_bus_host = false;
+  bool sm_bus_device = false;
+  bool sm_bus_alert = false;
+  bool sm_bus_packet_err_calc = false;
+  bool sm_bus_timeout_a = false; 
+  uint16_t sm_bus_timeout_a_value = 0;
+  bool sm_bus_timeout_b = false; 
+  uint16_t sm_bus_timeout_b_value = 0;
+  I2cSmbusTimeoutAMode sm_bus_timeout_a_mode = I2cSmbusTimeoutAMode::sclLow;
+
+  bool enable_it_tx = false;
+  bool enable_it_rx = false;
+  bool enable_it_addr = false;
+  bool enable_it_nack = false;
+  bool enable_it_stop = false;
+  bool enable_it_transfer_complete = false;
+  bool enable_it_error = false;
+
+  uint8_t interrupt_priority = 1;
+};
+
 // TODO: base_clockをRCCの設定から自動計算
 template<I2cType I2C_TYPE, GpioPinType SCL_PIN, GpioPinType SDA_PIN>
 struct I2c {
@@ -141,13 +185,13 @@ struct I2c {
   RegValue<IGB_I2C_REG_ADDR(TIMEOUTR), I2C_TIMEOUTR_TIMEOUTB, I2C_TIMEOUTR_TIMEOUTB_Pos> smBusTimeoutBValue;
   RegEnum<IGB_I2C_REG_ADDR(TIMEOUTR), I2C_TIMEOUTR_TIDLE, I2cSmbusTimeoutAMode> smBusTimeoutAMode;
 
-  RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_TXIE> interruptTx;
-  RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_RXIE> interruptRx;
-  RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_ADDRIE> interruptAddr;
-  RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_NACKIE> interruptNack;
-  RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_STOPIE> interruptStop;
-  RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_TCIE> interruptTransferComplete;
-  RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_ERRIE> interruptError;
+  RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_TXIE> enableItTx;
+  RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_RXIE> enableItRx;
+  RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_ADDRIE> enableItAddr;
+  RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_NACKIE> enableItNack;
+  RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_STOPIE> enableItStop;
+  RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_TCIE> enableItTransferComplete;
+  RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_ERRIE> enableItError;
 
   IGB_FAST_INLINE bool is(I2cStatus status) {
     return IGB_I2C->ISR & static_cast<uint32_t>(status);
@@ -277,6 +321,82 @@ struct I2c {
 
   IGB_FAST_INLINE void init(uint8_t address = 1) {
     initDefault(address);
+  }
+
+  IGB_FAST_INLINE void init(auto&& conf) {
+    const auto& i2c_info = STM32_PERIPH_INFO.i2c[static_cast<size_t>(type)];
+    i2c_info.bus.enableBusClock();
+    i2c_info.bus.forceResetBusClock();
+    i2c_info.bus.releaseResetBusClock();
+    prepareGpio(scl_pin);
+    prepareGpio(sda_pin);
+
+    reloadEndMode(I2cReloadEndType::autoEnd);
+
+    if (conf.own_address2) {
+      (
+       ownAddress2.val(conf.own_address2) |
+       ownAddress2Value.val(conf.own_address2_value) |
+       ownAddress2Mask.val(conf.own_address2_mask)
+      ).update();
+    } else {
+      ownAddress2.disable();
+    }
+
+    (generalCall.val(conf.general_call) | clockStretch.val(conf.clock_stretch)).update();
+
+    disable();
+    (analogFilter.val(conf.analog_filter) | digitalFilter.val(conf.digital_filter)).update();
+
+    timing(conf.timing);
+    enable();
+
+    ownAddress1.disable();
+    if (conf.own_address1) {
+      (ownAddress1.val(conf.own_address1) | ownAddress1Value.val(conf.own_address1_value << 1)).update();
+    }
+    ownAddress1Size(conf.own_address1_size);
+
+    (
+     smBusHost.val(conf.sm_bus_host) |
+     smBusDevice.val(conf.sm_bus_device) |
+     smBusAlert.val(conf.sm_bus_alert) |
+     smBusPacketErrCalc.val(conf.sm_bus_packet_err_calc)
+    ).update();
+
+    if (conf.sm_bus_host || conf.sm_bus_device) {
+      (
+       smBusTimeoutA.val(conf.sm_bus_timeout_a) |
+       smBusTimeoutB.val(conf.sm_bus_timeout_b) |
+       smBusTimeoutAValue.val(conf.sm_bus_timeout_a_value) |
+       smBusTimeoutBValue.val(conf.sm_bus_timeout_b_value) |
+       smBusTimeoutAMode.val(conf.sm_bus_timeout_a_mode)
+      ).update();
+    }
+
+    if (
+      conf.enable_it_tx ||
+      conf.enable_it_rx ||
+      conf.enable_it_addr ||
+      conf.enable_it_nack ||
+      conf.enable_it_stop ||
+      conf.enable_it_transfer_complete ||
+      conf.enable_it_error
+        ) {
+      // TODO: enable nvic
+      //NvicCtrl::setPriority(i2c_info.irqn, conf.interrupt_priority);
+      //NvicCtrl::enable(i2c_info.irqn);
+    }
+
+    (
+     enableItTx.val(conf.enable_it_tx) |
+     enableItRx.val(conf.enable_it_rx) |
+     enableItAddr.val(conf.enable_it_addr) |
+     enableItNack.val(conf.enable_it_nack) |
+     enableItStop.val(conf.enable_it_stop) |
+     enableItTransferComplete.val(conf.enable_it_transfer_complete) |
+     enableItError.val(conf.enable_it_error)
+    ).update();
   }
 
   IGB_FAST_INLINE void beginTransfer(uint8_t address, uint8_t transfer_size, I2cTransferRequestType request_type, I2cReloadEndType reload_end = I2cReloadEndType::autoEnd) {
