@@ -283,8 +283,7 @@ struct TscPinConf {
 
 enum class TscProcessState : uint8_t {
   ready = 0,
-  start,
-  tuning
+  start
 };
 
 enum class TscTouchState : uint8_t {
@@ -294,8 +293,9 @@ enum class TscTouchState : uint8_t {
 };
 
 struct TscChannelState {
-  uint16_t threshold = 500;
-  uint16_t value = 0;
+  float threshold = 900.0f; // touch / untouch threshold value
+  float base_value = 1000.0f; // value when not touched
+  float value = 1000.0f; // current value
   TscTouchState state;
 };
 
@@ -314,6 +314,8 @@ struct TscConf {
   bool enable_it_end_of_acquisition = false;
   bool enable_it_max_count_error = false;
   uint8_t interrupt_priority = 1;
+
+  float value_filter_coeff = 0.1f;
 };
 
 struct Tsc {
@@ -324,11 +326,15 @@ struct Tsc {
       return channel.state == TscTouchState::pressed;
     }
 
-    IGB_FAST_INLINE uint16_t getValue() const noexcept {
+    IGB_FAST_INLINE float getBaseValue() const noexcept {
+      return channel.base_value;
+    }
+
+    IGB_FAST_INLINE float getValue() const noexcept {
       return channel.value;
     }
 
-    IGB_FAST_INLINE uint16_t getThreshold() const noexcept {
+    IGB_FAST_INLINE float getThreshold() const noexcept {
       return channel.threshold;
     }
   };
@@ -353,10 +359,12 @@ struct Tsc {
   TscChannelState channels[CHANNEL_MAX];
   uint32_t touch_bit;
   std::function<void(uint32_t)> on_acquisition_end;
+  std::function<void()> on_error;
 
   TscProcessState _state = TscProcessState::ready;
   uint8_t _process_ch_of_grp_idx = 0;
   uint32_t _touch_bits = 0;
+  float _value_filter_coeff = 0.f;
 
   // auto = TscPinConf
   static IGB_FAST_INLINE void prepareGpio(GpioPinType pin_type, TscIoType io_type) {
@@ -413,7 +421,7 @@ struct Tsc {
   }
   static IGB_FAST_INLINE TscChannelBit constructAnalogSwitchBit() { return TscChannelBit {}; }
 
-  IGB_FAST_INLINE void setThreshold(TscChannel channel, uint16_t threshold) {
+  IGB_FAST_INLINE void setThreshold(TscChannel channel, float threshold) {
     channels[static_cast<uint8_t>(channel)].threshold = threshold;
   }
 
@@ -460,6 +468,8 @@ struct Tsc {
         channels[i].state = TscTouchState::inactive;
       }
     }
+
+    _value_filter_coeff = tsc_conf.value_filter_coeff;
   }
 
   IGB_FAST_INLINE void initConfigDefault() {
@@ -524,7 +534,34 @@ struct Tsc {
         if (v == MAX_COUNT) {
           continue;
         }
-        ch.value = v;
+        float new_value = (float)v;
+        ch.value = (ch.value * (1.0f - _value_filter_coeff)) + (new_value * _value_filter_coeff);
+      }
+    }
+  }
+
+  IGB_FAST_INLINE uint8_t _calcNextIdx(uint8_t base_idx) {
+    while (!(input_ch_bit & CH_OF_GRP_MASK[base_idx]) && base_idx < CHANNEL_SIZE_OF_GROUP) { ++base_idx; }
+    return base_idx;
+  }
+
+  IGB_FAST_INLINE bool isStart() {
+    return _state == TscProcessState::start;
+  }
+
+  IGB_FAST_INLINE bool isReady() {
+    return _state == TscProcessState::ready;
+  }
+
+  IGB_FAST_INLINE void start() {
+    startAcquisition();
+    _state = TscProcessState::start;
+  }
+
+  IGB_FAST_INLINE void updateTouchBits() {
+    for (uint8_t i = 0; i < CHANNEL_MAX; ++i) {
+      if (input_ch_bit & (1UL << i)) {
+        TscChannelState& ch = channels[i];
         if (ch.value < ch.threshold) {
           if (ch.state == TscTouchState::released) {
             ch.state = TscTouchState::pressed;
@@ -540,99 +577,51 @@ struct Tsc {
     }
   }
 
-  IGB_FAST_INLINE uint8_t _calcNextIdx(uint8_t base_idx) {
-    while (!(input_ch_bit & CH_OF_GRP_MASK[base_idx]) && base_idx < CHANNEL_SIZE_OF_GROUP) { ++base_idx; }
-    return base_idx;
+  // return true if acuisition end
+  IGB_FAST_INLINE bool processAcquisition() {
+    bool retval = false;
+    if (TscCtrl::isEndOfAcquisition()) {
+      execAcquisition();
+      uint8_t next_idx = _calcNextIdx(_process_ch_of_grp_idx + 1);
+      if (next_idx >= CHANNEL_SIZE_OF_GROUP) {
+        retval = true;
+        if (on_acquisition_end) {
+          updateTouchBits();
+          on_acquisition_end(_touch_bits);
+        }
+        next_idx = _calcNextIdx(0);
+      }
+      _process_ch_of_grp_idx = next_idx;
+      _state = TscProcessState::ready;
+    }
+    return retval;
   }
 
-  void process() {
-    if (!input_ch_bit) { return; }
-    if (_state == TscProcessState::ready) {
-      startAcquisition();
-      _state = TscProcessState::start;
+  IGB_FAST_INLINE bool process() {
+    if (!input_ch_bit) { return false; }
+    if (isReady()) {
+      start();
     } else {
-      if (TscCtrl::isEndOfAcquisition()) {
-        execAcquisition();
-        uint8_t next_idx = _calcNextIdx(_process_ch_of_grp_idx + 1);
-        if (next_idx >= CHANNEL_SIZE_OF_GROUP) {
-          if (on_acquisition_end) {
-            on_acquisition_end(_touch_bits);
-          }
-          //_touch_bits = 0;
-          next_idx = _calcNextIdx(0);
-        }
-        _process_ch_of_grp_idx = next_idx;
-        _state = TscProcessState::ready;
+      return processAcquisition();
+    }
+    return false;
+  }
+
+  IGB_FAST_INLINE void irqHandler() {
+    if (TscCtrl::isEndOfAcquisition()) {
+      processAcquisition();
+      if (isReady()) {
+        start();
       }
+      TscCtrl::clearItEndOfAcquisition(true);
+    }
+    if (TscCtrl::isMaxCountError()) {
+      if (on_error) {
+        on_error();
+      }
+      TscCtrl::clearItMaxCountError(true);
     }
   }
-
-  // TODO: freeze...
-  //void autoTuningThreshold(uint8_t threshold_margin = 20) {
-  //  if (!input_ch_bit) { return; }
-
-  //  _state = TscProcessState::tuning;
-  //  _process_ch_of_grp_idx = _calcNextIdx(0);
-
-  //  for (uint8_t i = 0; i < CHANNEL_MAX; ++i) {
-  //    TscChannelState& ch = channels[i];
-  //    if (input_ch_bit & (1UL << i)) {
-  //      ch.value = 0;
-  //    }
-  //  }
-
-  //  bool is_end = false;
-
-  //  while (!is_end) {
-  //    startAcquisition();
-
-  //    while (!TscCtrl::isEndOfAcquisition());
-
-  //    for (uint8_t i = _process_ch_of_grp_idx; i < CHANNEL_MAX; i += CHANNEL_SIZE_OF_GROUP) {
-  //      TscChannelState& ch = channels[i];
-  //      if (ch.state != TscTouchState::inactive) {
-  //        uint16_t v = TscCtrl::getValue(static_cast<TscGroup>(i / CHANNEL_SIZE_OF_GROUP));
-  //        if (v == MAX_COUNT) {
-  //          continue;
-  //        }
-  //        ch.value = v;
-  //        ch.state = TscTouchState::released;
-  //      }
-  //    }
-
-  //    uint8_t next_idx = _calcNextIdx(_process_ch_of_grp_idx + 1);
-  //    if (next_idx >= CHANNEL_SIZE_OF_GROUP) {
-  //      is_end = true;
-  //      for (uint8_t i = 0; i < CHANNEL_MAX; ++i) {
-  //        TscChannelState& ch = channels[i];
-  //        if (input_ch_bit & (1UL << i)) {
-  //          if (ch.state != TscTouchState::inactive && !ch.value) {
-  //            if (!ch.value) {
-  //              // exists non-updated value
-  //              is_end = false;
-  //            }
-  //          }
-  //        }
-  //      }
-  //      _process_ch_of_grp_idx = _calcNextIdx(0);
-  //    }
-  //  }
-
-  //  for (uint8_t i = 0; i < CHANNEL_MAX; ++i) {
-  //    if (input_ch_bit & (1UL << i)) {
-  //      TscChannelState& ch = channels[i];
-  //      if (ch.value > threshold_margin) {
-  //        ch.threshold = ch.value - threshold_margin;
-  //      } else {
-  //        ch.threshold = 0;
-  //      }
-  //    }
-  //  }
-
-  //  _touch_bits = 0;
-  //  _process_ch_of_grp_idx = _calcNextIdx(0);
-  //  _state = TscProcessState::ready;
-  //}
 
   IGB_FAST_INLINE Channel newChannel(TscChannel ch) {
     return Channel {
