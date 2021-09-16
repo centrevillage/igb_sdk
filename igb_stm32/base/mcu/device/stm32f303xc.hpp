@@ -671,6 +671,7 @@ constexpr struct PeriphInfo {
     .periph_type = PeriphType::tsc,
     .p_tsc = TSC,
     .addr = TSC_BASE,
+    .irqn = EXTI2_TSC_IRQn,
     .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 24},
   };
   const RccInfo rcc {

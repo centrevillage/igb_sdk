@@ -4,13 +4,19 @@
 #include <functional>
 #include <igb_stm32/base.hpp>
 #include <igb_stm32/periph/gpio.hpp>
+#include <igb_stm32/periph/nvic.hpp>
 #include <igb_util/cast.hpp>
 #include <igb_util/macro.hpp>
 #include <igb_util/container.hpp>
 #include <igb_util/bitmagic.hpp>
+#include <igb_util/reg.hpp>
 
 namespace igb {
 namespace stm32 {
+
+#define IGB_TSC ((TSC_TypeDef*)addr)
+#define IGB_TSC_REG_ADDR(member) (addr + offsetof(TSC_TypeDef, member))
+#define IGB_TSC_REG(member) ((TSC_TypeDef*)IGB_TSC_REG_ADDR(member))
 
 enum class TscAcquisitionMode : uint8_t {
   normal       = 0,
@@ -103,123 +109,104 @@ using TscGroupBit = BitStruct<TscGroup, uint32_t>;
 using TscChannelBit = BitStruct<TscChannel, uint32_t>;
 
 struct TscCtrl {
-  //constexpr static TSC_TypeDef* const p_tsc = STM32_PERIPH_INFO.tsc.p_tsc;
+  constexpr static auto info = STM32_PERIPH_INFO.tsc;
+  constexpr static auto addr = STM32_PERIPH_INFO.tsc.addr;
+  constexpr static auto addr_CR = IGB_TSC_REG_ADDR(CR);
+  constexpr static auto addr_IER = IGB_TSC_REG_ADDR(IER);
+  constexpr static auto addr_ICR = IGB_TSC_REG_ADDR(IER);
+  constexpr static auto addr_ISR = IGB_TSC_REG_ADDR(ISR);
+  constexpr static auto addr_IOHCR = IGB_TSC_REG_ADDR(IOHCR);
+  constexpr static auto addr_IOASCR = IGB_TSC_REG_ADDR(IOASCR);
+  constexpr static auto addr_IOSCR = IGB_TSC_REG_ADDR(IOSCR);
+  constexpr static auto addr_IOCCR = IGB_TSC_REG_ADDR(IOCCR);
+  constexpr static auto addr_IOGCSR = IGB_TSC_REG_ADDR(IOGCSR);
+  constexpr static auto addr_IOGXCR = IGB_TSC_REG_ADDR(IOGXCR);
+  
+  static RegFlag<addr_CR, TSC_CR_TSCE> enable;
+  //static RegFlag<addr_CR, TSC_CR_START> start;
+  static RegEnum<addr_CR, TSC_CR_AM_Msk, TscAcquisitionMode, TSC_CR_AM_Pos> acquisitionMode;
+  static RegEnum<addr_CR, TSC_CR_SYNCPOL_Msk, TscSyncPolarity, TSC_CR_SYNCPOL_Pos> syncPolarity;
+  static RegEnum<addr_CR, TSC_CR_IODEF_Msk, TscIoDefaultMode, TSC_CR_IODEF_Pos> ioDefaultMode;
+  static RegEnum<addr_CR, TSC_CR_MCV_Msk, TscMaxCount, TSC_CR_MCV_Pos> maxCount;
+  static RegEnum<addr_CR, TSC_CR_PGPSC_Msk, TscPulsePrescaler, TSC_CR_PGPSC_Pos> pulsePrescaler;
+  static RegEnum<addr_CR, TSC_CR_SSPSC_Msk, TscSpreadSpectrumPrescaler, TSC_CR_SSPSC_Pos> spreadSpectrumPrescaler;
+  static RegFlag<addr_CR, TSC_CR_SSE> enableSpreadSpectrum;
+  static RegValue<addr_CR, TSC_CR_SSD_Msk, TSC_CR_SSD_Pos> spreadSpectrumDeviation;
+  static RegValue<addr_CR, TSC_CR_CTPL_Msk, TSC_CR_CTPL_Pos> chargePulseLow;
+  static RegValue<addr_CR, TSC_CR_CTPH_Msk, TSC_CR_CTPH_Pos> chargePulseHigh;
+
+  static RegFlag<addr_IER, TSC_IER_EOAIE> enableItEndOfAcquisition;
+  static RegFlag<addr_IER, TSC_IER_MCEIE> enableItMaxCountError;
+
+  static RegFlag<addr_ICR, TSC_ICR_EOAIC> clearItEndOfAcquisition;
+  static RegFlag<addr_ICR, TSC_ICR_MCEIC> clearItMaxCountError;
+
+  static RegFlagRO<addr_ISR, TSC_ISR_EOAF> isEndOfAcquisition;
+  static RegFlagRO<addr_ISR, TSC_ISR_MCEF> isMaxCountError;
 
   static IGB_FAST_INLINE void enableBusClock() {
-    STM32_PERIPH_INFO.tsc.bus.enableBusClock();
-  }
-
-  static IGB_FAST_INLINE void enable() {
-    STM32_PERIPH_INFO.tsc.p_tsc->CR |= TSC_CR_TSCE;
-  }
-
-  static IGB_FAST_INLINE void disable() {
-    STM32_PERIPH_INFO.tsc.p_tsc->CR &= ~TSC_CR_TSCE;
+    info.bus.enableBusClock();
   }
 
   static IGB_FAST_INLINE void start() {
-    STM32_PERIPH_INFO.tsc.p_tsc->ICR |= TSC_ICR_EOAIC | TSC_ICR_MCEIC; // request clearing MCEF and EOAF flags 
-    STM32_PERIPH_INFO.tsc.p_tsc->CR |= TSC_CR_START;
+    info.p_tsc->ICR |= TSC_ICR_EOAIC | TSC_ICR_MCEIC; // request clearing MCEF and EOAF flags 
+    info.p_tsc->CR |= TSC_CR_START;
   }
 
-  static IGB_FAST_INLINE void setAcquisitionMode(TscAcquisitionMode mode) {
-    MODIFY_REG_SIMPLE(STM32_PERIPH_INFO.tsc.p_tsc->CR, TSC_CR_AM, mode);
+  static IGB_FAST_INLINE void analogSwitch(TscChannelBit bit) {
+    info.p_tsc->IOASCR = bit.get();
   }
 
-  static IGB_FAST_INLINE void setSyncPolarity(TscSyncPolarity polarity) {
-    MODIFY_REG_SIMPLE(STM32_PERIPH_INFO.tsc.p_tsc->CR, TSC_CR_SYNCPOL, polarity);
+  static IGB_FAST_INLINE void samplingCap(TscChannel io) {
+    info.p_tsc->IOSCR |= 1UL << static_cast<uint32_t>(io);
   }
 
-  static IGB_FAST_INLINE void setIoDefaultMode(TscIoDefaultMode mode) {
-    MODIFY_REG_SIMPLE(STM32_PERIPH_INFO.tsc.p_tsc->CR, TSC_CR_IODEF, mode);
+  static IGB_FAST_INLINE void samplingCap(TscChannelBit bit) {
+    info.p_tsc->IOSCR = bit.get();
   }
 
-  static IGB_FAST_INLINE void setMaxCount(TscMaxCount count) {
-    MODIFY_REG_SIMPLE(STM32_PERIPH_INFO.tsc.p_tsc->CR, TSC_CR_MCV, count);
-  }
-
-  static IGB_FAST_INLINE void setPulsePrescaler(TscPulsePrescaler prescaler) {
-    MODIFY_REG_SIMPLE(STM32_PERIPH_INFO.tsc.p_tsc->CR, TSC_CR_PGPSC, prescaler);
-  }
-
-  static IGB_FAST_INLINE void setSpreadSpectrumPrescaler(TscSpreadSpectrumPrescaler prescaler) {
-    MODIFY_REG_SIMPLE(STM32_PERIPH_INFO.tsc.p_tsc->CR, TSC_CR_SSPSC, prescaler);
-  }
-
-  static IGB_FAST_INLINE void enableSpreadSpectrum() {
-    STM32_PERIPH_INFO.tsc.p_tsc->CR |= TSC_CR_SSE;
-  }
-
-  static IGB_FAST_INLINE void disableSpreadSpectrum() {
-    STM32_PERIPH_INFO.tsc.p_tsc->CR &= ~TSC_CR_SSE;
-  }
-
-  static IGB_FAST_INLINE void setSpreadSpectrumDeviation(uint8_t deviation) {
-    MODIFY_REG_SIMPLE(STM32_PERIPH_INFO.tsc.p_tsc->CR, TSC_CR_SSD, deviation & 0x7F);
-  }
-
-  static IGB_FAST_INLINE void setChargePulseLow(uint8_t pulse_duration) {
-    MODIFY_REG_SIMPLE(STM32_PERIPH_INFO.tsc.p_tsc->CR, TSC_CR_CTPL, pulse_duration & 0x0F);
-  }
-
-  static IGB_FAST_INLINE void setChargePulseHigh(uint8_t pulse_duration) {
-    MODIFY_REG_SIMPLE(STM32_PERIPH_INFO.tsc.p_tsc->CR, TSC_CR_CTPH, pulse_duration & 0x0F);
-  }
-
-  static IGB_FAST_INLINE void setSamplingCap(TscChannel io) {
-    STM32_PERIPH_INFO.tsc.p_tsc->IOSCR |= 1UL << static_cast<uint32_t>(io);
-  }
-
-  static IGB_FAST_INLINE void setSamplingCap(TscChannelBit bit) {
-    STM32_PERIPH_INFO.tsc.p_tsc->IOSCR = bit.get();
+  static IGB_FAST_INLINE uint32_t samplingCap() {
+    return info.p_tsc->IOSCR;
   }
 
   static IGB_FAST_INLINE void clearSamplingCap() {
-    STM32_PERIPH_INFO.tsc.p_tsc->IOSCR = 0;
+    info.p_tsc->IOSCR = 0;
   }
 
   static IGB_FAST_INLINE void enableHysteresisCtrl(TscChannel io) {
-    STM32_PERIPH_INFO.tsc.p_tsc->IOHCR |= 1UL << static_cast<uint32_t>(io);
+    info.p_tsc->IOHCR |= 1UL << static_cast<uint32_t>(io);
   }
 
   static IGB_FAST_INLINE void clearHisteresisCtrl() {
-    STM32_PERIPH_INFO.tsc.p_tsc->IOHCR = 0;
+    info.p_tsc->IOHCR = 0;
   }
 
-  static IGB_FAST_INLINE void setHysteresisCtrlBit(TscChannelBit bit) {
-    STM32_PERIPH_INFO.tsc.p_tsc->IOHCR = bit.get();
+  static IGB_FAST_INLINE void hysteresisCtrlBit(TscChannelBit bit) {
+    info.p_tsc->IOHCR = bit.get();
   }
 
   static IGB_FAST_INLINE void enableGroup(TscGroup group) {
-    STM32_PERIPH_INFO.tsc.p_tsc->IOGCSR |= 1UL << static_cast<uint32_t>(group);
+    info.p_tsc->IOGCSR |= 1UL << static_cast<uint32_t>(group);
   }
 
   static IGB_FAST_INLINE void disableGroup(TscGroup group) {
-    STM32_PERIPH_INFO.tsc.p_tsc->IOGCSR &= ~(1UL << static_cast<uint32_t>(group));
+    info.p_tsc->IOGCSR &= ~(1UL << static_cast<uint32_t>(group));
   }
 
-  static IGB_FAST_INLINE void setGroupCtrl(TscGroupBit bit) {
-    STM32_PERIPH_INFO.tsc.p_tsc->IOGCSR = bit.get();
+  static IGB_FAST_INLINE void groupCtrl(TscGroupBit bit) {
+    info.p_tsc->IOGCSR = bit.get();
   }
 
   static IGB_FAST_INLINE void enableChannel(TscChannel ch) {
-    STM32_PERIPH_INFO.tsc.p_tsc->IOCCR |= 1UL << static_cast<uint32_t>(ch);
+    info.p_tsc->IOCCR |= 1UL << static_cast<uint32_t>(ch);
   }
 
-  static IGB_FAST_INLINE void setChannelCtrl(TscChannelBit bit) {
-    STM32_PERIPH_INFO.tsc.p_tsc->IOCCR = bit.get();
+  static IGB_FAST_INLINE void channelCtrl(TscChannelBit bit) {
+    info.p_tsc->IOCCR = bit.get();
   }
 
-  static IGB_FAST_INLINE uint16_t value(TscGroup group) {
-    return STM32_PERIPH_INFO.tsc.p_tsc->IOGXCR[static_cast<uint8_t>(group)];
-  }
-
-  static bool IGB_FAST_INLINE isEoc() {
-    return (STM32_PERIPH_INFO.tsc.p_tsc->ISR & 0x01);
-  }
-
-  static bool IGB_FAST_INLINE isError() {
-    return (STM32_PERIPH_INFO.tsc.p_tsc->ISR & 0x02);
+  static IGB_FAST_INLINE uint16_t getValue(TscGroup group) {
+    return info.p_tsc->IOGXCR[static_cast<uint8_t>(group)];
   }
 };
 
@@ -290,11 +277,14 @@ struct TscPinConf {
   TscChannel channel;
   GpioPinType pin_type;
   TscIoType io_type;
+  bool enable_hysteresis = false;
+  bool enable_analog_switch = false;
 };
 
 enum class TscProcessState : uint8_t {
   ready = 0,
-  start
+  start,
+  tuning
 };
 
 enum class TscTouchState : uint8_t {
@@ -305,8 +295,25 @@ enum class TscTouchState : uint8_t {
 
 struct TscChannelState {
   uint16_t threshold = 500;
-  uint16_t value = 2000;
+  uint16_t value = 0;
   TscTouchState state;
+};
+
+struct TscConf {
+  TscMaxCount max_count = TscMaxCount::_16383;
+  TscPulsePrescaler pulse_prescaler = TscPulsePrescaler::div4;
+  uint8_t charge_pulse_low = 1;
+  uint8_t charge_pulse_high = 1;
+  bool enable_spread_spectrum = false;
+  uint8_t spread_spectrum_deviation = 0;
+  TscSpreadSpectrumPrescaler spread_spectrum_prescaler = TscSpreadSpectrumPrescaler::div1;
+  TscIoDefaultMode io_default_mode = TscIoDefaultMode::pushpullLow;
+  TscSyncPolarity sync_polarity = TscSyncPolarity::fallingEdgeOnly;
+  TscAcquisitionMode acquisition_mode = TscAcquisitionMode::normal;
+  
+  bool enable_it_end_of_acquisition = false;
+  bool enable_it_max_count_error = false;
+  uint8_t interrupt_priority = 1;
 };
 
 struct Tsc {
@@ -341,6 +348,8 @@ struct Tsc {
   TscChannelBit channel_bit;
   TscChannelBit sampling_cap_bit;
   TscChannelBit input_ch_bit;
+  TscChannelBit hysteresis_bit;
+  TscChannelBit analog_sw_bit;
   TscChannelState channels[CHANNEL_MAX];
   uint32_t touch_bit;
   std::function<void(uint32_t)> on_acquisition_end;
@@ -394,20 +403,55 @@ struct Tsc {
   }
   static IGB_FAST_INLINE TscChannelBit constructInputChBit() { return TscChannelBit {}; }
 
+  static IGB_FAST_INLINE TscChannelBit constructHysteresisBit(auto&& first, auto&&... rest) {
+    return (first.enable_hysteresis ? TscChannelBit(first.channel) : (TscChannelBit {})) | constructHysteresisBit(rest...);
+  }
+  static IGB_FAST_INLINE TscChannelBit constructHysteresisBit() { return TscChannelBit {}; }
+
+  static IGB_FAST_INLINE TscChannelBit constructAnalogSwitchBit(auto&& first, auto&&... rest) {
+    return (first.enable_analog_switch ? TscChannelBit(first.channel) : (TscChannelBit {})) | constructAnalogSwitchBit(rest...);
+  }
+  static IGB_FAST_INLINE TscChannelBit constructAnalogSwitchBit() { return TscChannelBit {}; }
+
   IGB_FAST_INLINE void setThreshold(TscChannel channel, uint16_t threshold) {
     channels[static_cast<uint8_t>(channel)].threshold = threshold;
   }
 
-  IGB_FAST_INLINE void initConfigDefault() {
+  IGB_FAST_INLINE uint16_t getValue(TscChannel channel) {
+    return channels[static_cast<uint8_t>(channel)].value;
+  }
+
+  IGB_FAST_INLINE void initConfig(auto&& tsc_conf /* TscConf */) {
     TscCtrl::enableBusClock();
-    TscCtrl::setMaxCount(TscMaxCount::_16383);
-    TscCtrl::setPulsePrescaler(TscPulsePrescaler::div4);
-    TscCtrl::setChargePulseLow(1);
-    TscCtrl::setChargePulseHigh(1);
-    TscCtrl::enable();
-    TscCtrl::setSamplingCap(sampling_cap_bit);
-    TscCtrl::clearHisteresisCtrl();
-    TscCtrl::setGroupCtrl(group_bit);
+
+    (
+       TscCtrl::maxCount.val(tsc_conf.max_count) |
+       TscCtrl::pulsePrescaler.val(tsc_conf.pulse_prescaler) |
+       TscCtrl::chargePulseLow.val(tsc_conf.charge_pulse_low) |
+       TscCtrl::chargePulseHigh.val(tsc_conf.charge_pulse_high) |
+       TscCtrl::acquisitionMode.val(tsc_conf.acquisition_mode) |
+       TscCtrl::syncPolarity.val(tsc_conf.sync_polarity) |
+       TscCtrl::ioDefaultMode.val(tsc_conf.io_default_mode) |
+       TscCtrl::enableSpreadSpectrum.val(tsc_conf.enable_spread_spectrum) |
+       TscCtrl::spreadSpectrumPrescaler.val(tsc_conf.spread_spectrum_prescaler) |
+       TscCtrl::spreadSpectrumDeviation.val(tsc_conf.spread_spectrum_deviation)
+    ).update();
+
+    if (tsc_conf.enable_it_end_of_acquisition || tsc_conf.enable_it_max_count_error) {
+      NvicCtrl::setPriority(TscCtrl::info.irqn, tsc_conf.interrupt_priority);
+      NvicCtrl::enable(TscCtrl::info.irqn);
+    }
+
+    (
+      TscCtrl::enableItEndOfAcquisition.val(tsc_conf.enable_it_end_of_acquisition) |
+      TscCtrl::enableItMaxCountError.val(tsc_conf.enable_it_max_count_error)
+    ).update();
+
+    TscCtrl::enable(true);
+    TscCtrl::samplingCap(sampling_cap_bit);
+    TscCtrl::hysteresisCtrlBit(hysteresis_bit);
+    TscCtrl::analogSwitch(analog_sw_bit);
+    TscCtrl::groupCtrl(group_bit);
     
     for (uint8_t i = 0; i < CHANNEL_MAX; ++i) {
       if (input_ch_bit & (1UL << i)) {
@@ -418,12 +462,49 @@ struct Tsc {
     }
   }
 
+  IGB_FAST_INLINE void initConfigDefault() {
+    TscCtrl::enableBusClock();
+    TscCtrl::maxCount(TscMaxCount::_16383);
+    TscCtrl::pulsePrescaler(TscPulsePrescaler::div4);
+    TscCtrl::chargePulseLow(1);
+    TscCtrl::chargePulseHigh(1);
+    TscCtrl::enable(true);
+    TscCtrl::samplingCap(sampling_cap_bit);
+    TscCtrl::clearHisteresisCtrl();
+    TscCtrl::groupCtrl(group_bit);
+    
+    for (uint8_t i = 0; i < CHANNEL_MAX; ++i) {
+      if (input_ch_bit & (1UL << i)) {
+        channels[i].state = TscTouchState::released;
+      } else {
+        channels[i].state = TscTouchState::inactive;
+      }
+    }
+  }
+
+  IGB_FAST_INLINE void init(auto&& tsc_conf /* TscConf */, auto&&... pin_confs /* TscPinConf */) {
+    prepareGpios(pin_confs...);
+    group_bit = constructGroupBit(pin_confs...);
+    channel_bit = constructChannelBit(pin_confs...);
+    sampling_cap_bit = constructSamplingCapBit(pin_confs...);
+    input_ch_bit = constructInputChBit(pin_confs...);
+    hysteresis_bit = constructHysteresisBit(pin_confs...);
+    analog_sw_bit = constructAnalogSwitchBit(pin_confs...);
+    initConfig(tsc_conf);
+    _state = TscProcessState::ready;
+    _process_ch_of_grp_idx = 0;
+    _touch_bits = 0;
+  }
+
+  // deprecated:
   IGB_FAST_INLINE void initDefault(auto&&... confs) {
     prepareGpios(confs...);
     group_bit = constructGroupBit(confs...);
     channel_bit = constructChannelBit(confs...);
     sampling_cap_bit = constructSamplingCapBit(confs...);
     input_ch_bit = constructInputChBit(confs...);
+    hysteresis_bit = constructHysteresisBit(confs...);
+    analog_sw_bit = constructAnalogSwitchBit(confs...);
     initConfigDefault();
     _state = TscProcessState::ready;
     _process_ch_of_grp_idx = 0;
@@ -431,7 +512,7 @@ struct Tsc {
   }
 
   IGB_FAST_INLINE void startAcquisition() {
-    TscCtrl::setChannelCtrl(input_ch_bit & CH_OF_GRP_MASK[_process_ch_of_grp_idx]);
+    TscCtrl::channelCtrl(input_ch_bit & CH_OF_GRP_MASK[_process_ch_of_grp_idx]);
     TscCtrl::start();
   }
 
@@ -439,7 +520,7 @@ struct Tsc {
     for (uint8_t i = _process_ch_of_grp_idx; i < CHANNEL_MAX; i += CHANNEL_SIZE_OF_GROUP) {
       TscChannelState& ch = channels[i];
       if (ch.state != TscTouchState::inactive) {
-        uint16_t v = TscCtrl::value(static_cast<TscGroup>(i / CHANNEL_SIZE_OF_GROUP));
+        uint16_t v = TscCtrl::getValue(static_cast<TscGroup>(i / CHANNEL_SIZE_OF_GROUP));
         if (v == MAX_COUNT) {
           continue;
         }
@@ -459,24 +540,26 @@ struct Tsc {
     }
   }
 
+  IGB_FAST_INLINE uint8_t _calcNextIdx(uint8_t base_idx) {
+    while (!(input_ch_bit & CH_OF_GRP_MASK[base_idx]) && base_idx < CHANNEL_SIZE_OF_GROUP) { ++base_idx; }
+    return base_idx;
+  }
+
   void process() {
     if (!input_ch_bit) { return; }
     if (_state == TscProcessState::ready) {
       startAcquisition();
       _state = TscProcessState::start;
     } else {
-      if (TscCtrl::isEoc()) {
+      if (TscCtrl::isEndOfAcquisition()) {
         execAcquisition();
-        uint8_t next_idx = _process_ch_of_grp_idx + 1;
-        while (!(input_ch_bit & CH_OF_GRP_MASK[next_idx]) && next_idx < CHANNEL_SIZE_OF_GROUP) { ++next_idx; }
-        if (next_idx < CHANNEL_SIZE_OF_GROUP) {
-        } else {
+        uint8_t next_idx = _calcNextIdx(_process_ch_of_grp_idx + 1);
+        if (next_idx >= CHANNEL_SIZE_OF_GROUP) {
           if (on_acquisition_end) {
             on_acquisition_end(_touch_bits);
           }
           //_touch_bits = 0;
-          next_idx = 0;
-          while (!(input_ch_bit & CH_OF_GRP_MASK[next_idx]) && next_idx < CHANNEL_SIZE_OF_GROUP) { ++next_idx; }
+          next_idx = _calcNextIdx(0);
         }
         _process_ch_of_grp_idx = next_idx;
         _state = TscProcessState::ready;
@@ -484,12 +567,83 @@ struct Tsc {
     }
   }
 
+  // TODO: freeze...
+  //void autoTuningThreshold(uint8_t threshold_margin = 20) {
+  //  if (!input_ch_bit) { return; }
+
+  //  _state = TscProcessState::tuning;
+  //  _process_ch_of_grp_idx = _calcNextIdx(0);
+
+  //  for (uint8_t i = 0; i < CHANNEL_MAX; ++i) {
+  //    TscChannelState& ch = channels[i];
+  //    if (input_ch_bit & (1UL << i)) {
+  //      ch.value = 0;
+  //    }
+  //  }
+
+  //  bool is_end = false;
+
+  //  while (!is_end) {
+  //    startAcquisition();
+
+  //    while (!TscCtrl::isEndOfAcquisition());
+
+  //    for (uint8_t i = _process_ch_of_grp_idx; i < CHANNEL_MAX; i += CHANNEL_SIZE_OF_GROUP) {
+  //      TscChannelState& ch = channels[i];
+  //      if (ch.state != TscTouchState::inactive) {
+  //        uint16_t v = TscCtrl::getValue(static_cast<TscGroup>(i / CHANNEL_SIZE_OF_GROUP));
+  //        if (v == MAX_COUNT) {
+  //          continue;
+  //        }
+  //        ch.value = v;
+  //        ch.state = TscTouchState::released;
+  //      }
+  //    }
+
+  //    uint8_t next_idx = _calcNextIdx(_process_ch_of_grp_idx + 1);
+  //    if (next_idx >= CHANNEL_SIZE_OF_GROUP) {
+  //      is_end = true;
+  //      for (uint8_t i = 0; i < CHANNEL_MAX; ++i) {
+  //        TscChannelState& ch = channels[i];
+  //        if (input_ch_bit & (1UL << i)) {
+  //          if (ch.state != TscTouchState::inactive && !ch.value) {
+  //            if (!ch.value) {
+  //              // exists non-updated value
+  //              is_end = false;
+  //            }
+  //          }
+  //        }
+  //      }
+  //      _process_ch_of_grp_idx = _calcNextIdx(0);
+  //    }
+  //  }
+
+  //  for (uint8_t i = 0; i < CHANNEL_MAX; ++i) {
+  //    if (input_ch_bit & (1UL << i)) {
+  //      TscChannelState& ch = channels[i];
+  //      if (ch.value > threshold_margin) {
+  //        ch.threshold = ch.value - threshold_margin;
+  //      } else {
+  //        ch.threshold = 0;
+  //      }
+  //    }
+  //  }
+
+  //  _touch_bits = 0;
+  //  _process_ch_of_grp_idx = _calcNextIdx(0);
+  //  _state = TscProcessState::ready;
+  //}
+
   IGB_FAST_INLINE Channel newChannel(TscChannel ch) {
     return Channel {
       .channel = channels[static_cast<uint8_t>(ch)]
     };
   }
 };
+
+#undef IGB_TSC_REG
+#undef IGB_TSC_REG_ADDR
+#undef IGB_TSC
 
 }
 }

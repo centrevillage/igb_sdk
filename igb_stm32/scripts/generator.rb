@@ -318,6 +318,8 @@ class CppSrcGenerator
         when :TSC
           struct[:attrs][:p_tsc][:value] = peripheral_name
           struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
+          irqn = fetch_tsc_irqn_name(peripheral_name)
+          struct[:attrs][:irqn][:value] = irqn
         when :DMA
           struct[:attrs][:p_dma][:value] = peripheral_name
           struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
@@ -381,6 +383,11 @@ class CppSrcGenerator
     name = @svd_parser.search_interrupts(/USART#{number}/).keys.first
     name = name.gsub(/_EXTI\d+/, '')
     regulate_irqn_name(name)
+  end
+
+  def fetch_tsc_irqn_name(peripheral_name)
+    interrupts = @svd_parser.search_interrupts(/(\A|_)#{peripheral_name}(_|\z)/)
+    regulate_irqn_name(interrupts.keys.first.to_s)
   end
 
   def gen_af_info_structs
