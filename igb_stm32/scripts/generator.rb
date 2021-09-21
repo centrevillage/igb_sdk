@@ -374,13 +374,15 @@ class CppSrcGenerator
 
   def fetch_dac_irqn_name(peripheral_name)
     dac_number = peripheral_name.to_s.gsub(/\A.*(\d+)/, '\1').to_i
-    name = @svd_parser.search_interrupts(/DAC.*#{dac_number}/).keys.first
+    name = 
+      @svd_parser.search_interrupts(/DAC.*#{dac_number}/).keys.first ||
+      (dac_number == 1 && @svd_parser.search_interrupts(/DAC(\z|_)/).keys.first)
     regulate_irqn_name(name)
   end
 
   def fetch_usart_irqn_name(peripheral_name)
     number = peripheral_name.to_s.gsub(/\A.*(\d+)/, '\1').to_i
-    name = @svd_parser.search_interrupts(/USART#{number}/).keys.first
+    name = @svd_parser.search_interrupts(/US?ART#{number}/).keys.first
     name = name.gsub(/_EXTI\d+/, '')
     regulate_irqn_name(name)
   end
@@ -462,7 +464,7 @@ class CppSrcGenerator
     when :stm32f303x8
       %W(I2S2ext I2S3ext SPI2 SPI3 I2C2 I2C3).include?(periph_name.to_s)
     when :stm32f303xc
-      %W(I2S2ext I2S3ext SPI2 SPI3 SPI4 I2C2 I2C3 GPIOG GPIOH TIM20).include?(periph_name.to_s)
+      %W(I2S2ext I2S3ext SPI2 SPI3 SPI4 I2C2 I2C3 GPIOG GPIOH TIM20 ADC1_2 ADC3_4).include?(periph_name.to_s)
     when :stm32f446xx
       %W(C_ADC).include?(periph_name.to_s)
     else
@@ -535,6 +537,6 @@ if __FILE__ == $0
   #peripheral_names = get_periheral_names
   #puts "[peripheral names] #{peripheral_names}"
 
-  generator = CppSrcGenerator.new(:stm32f303x8)
+  generator = CppSrcGenerator.new(:stm32f303xc)
   generator.process
 end

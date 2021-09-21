@@ -9,6 +9,7 @@
 <% @svd_parser.parsed.keys.each do |group_name| %>
 #define STM32_PERIPHGRP_<%= group_name.upcase %>_EXISTS 1
 <% @svd_parser.parsed[group_name].keys.each do |periph_name| %>
+<%   next if include_black_list?(periph_name) %>
 #define STM32_PERIPH_<%= periph_name.upcase %>_EXISTS 1
 <% end %>
 <% end %>
@@ -46,6 +47,16 @@ enum class <%= group_name.capitalize %>Type : uint8_t {
   <%= struct[:periph].downcase %><%= (first = false) or ' = 0' if first %>,
 <%  end %>
 };
+constexpr static uint8_t to_idx(<%= group_name.capitalize %>Type type) {
+  switch (type) {
+<%  structs.each_with_index do |struct, idx| %>
+    case <%= group_name.capitalize %>Type::<%= struct[:periph].downcase %>:
+      return <%= idx %>;
+      break;
+<%  end %>
+  }
+  return 0;
+}
 <% end %>
 
 enum class GpioPinType : uint8_t {
@@ -56,7 +67,7 @@ enum class GpioPinType : uint8_t {
 <% end %>
 };
 
-static inline GpioType extract_gpio_type(GpioPinType pin_type) {
+constexpr static GpioType extract_gpio_type(GpioPinType pin_type) {
   switch (pin_type) {
 <% @cpp_structs[:GPIO].each do |struct| %>
 <%  (0..15).each do |id| %>
@@ -71,7 +82,7 @@ static inline GpioType extract_gpio_type(GpioPinType pin_type) {
   return static_cast<GpioType>(0); // never reach
 }
 
-static inline uint8_t extract_pin_idx(GpioPinType pin_type) {
+constexpr static uint8_t extract_pin_idx(GpioPinType pin_type) {
   switch (pin_type) {
 <% @cpp_structs[:GPIO].each do |struct| %>
 <%  (0..15).each do |id| %>
@@ -149,32 +160,6 @@ constexpr struct PeriphInfo {
 <% end %>
 } STM32_PERIPH_INFO;
 
-<% if false %>
-const struct PeriphGpioAfInfo {
-<% @af_info_structs.each do |group_name, group| %>
-  <% next if group.values.empty? || group.values.first.values.empty? %>
-  const std::array<std::array<std::array<GpioAfInfo, <%= group.first.last.first.last.size %>>, <%= group.first.last.size %>>, <%= group.size %>> <%= group_name.downcase %> = {
-<% group.each do |periph_name, periph| %>
-    {
-<% periph.each do |func_name, funcs| %>
-      {
-<% funcs.each do |data| %>
-        GpioAfInfo {
-<% data[:attrs].each do |param_name, param| %>
-          .<%= param_name %> = <%= param[:value] %>,
-<% end %>
-        },
-<% end %>
-      },
-<% end %>
-    },
-<% end %>
-  };
-<% end %>
-
-} STM32_PERIPH_GPIO_AF_INFO;
-<% end %>
-
 enum class GpioAf : uint8_t {
   af0 = 0,
 <% (1 .. @df_parser.af_max_idx).each do |idx| %>
@@ -182,9 +167,10 @@ enum class GpioAf : uint8_t {
 <% end %>
 };
 
-static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinType gpio_pin) {
+constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinType gpio_pin) {
   switch (gpio_pin) {
 <% @df_parser.parsed[:gpio].each do |port_name, port| %>
+<%   next if include_black_list?("GPIO#{port_name.upcase}") %>
 <%  port.each do |pin, signals| %>
 <%    next if signals.empty? || !signals.any?{|sig| sig[:af]}%>
     case GpioPinType::p<%= port_name %><%= pin %>:
@@ -208,7 +194,7 @@ static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinTy
 }
 
 template<typename T>
-static inline std::optional<PeriphType> as_periph_type(T type) {
+constexpr static std::optional<PeriphType> as_periph_type(T type) {
   return std::nullopt;
 }
 

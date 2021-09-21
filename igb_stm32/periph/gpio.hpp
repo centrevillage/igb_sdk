@@ -37,7 +37,7 @@ enum class GpioOutputMode : uint32_t {
 
 struct GpioPort {
   const GpioType type;
-  GPIO_TypeDef* const p_gpio = STM32_PERIPH_INFO.gpio[as<uint8_t>(type)].p_gpio;
+  GPIO_TypeDef* const p_gpio = STM32_PERIPH_INFO.gpio[to_idx(type)].p_gpio;
 
   IGB_FAST_INLINE void setMode(uint32_t pin_bit, GpioMode mode) {
     MODIFY_REG(p_gpio->MODER, ((pin_bit * pin_bit) * GPIO_MODE_MASK), ((pin_bit * pin_bit) * static_cast<uint32_t>(mode)));

@@ -143,9 +143,37 @@ enum class GpioType : uint8_t {
   gpiod,
   gpiof,
 };
+constexpr static uint8_t to_idx(GpioType type) {
+  switch (type) {
+    case GpioType::gpioa:
+      return 0;
+      break;
+    case GpioType::gpiob:
+      return 1;
+      break;
+    case GpioType::gpioc:
+      return 2;
+      break;
+    case GpioType::gpiod:
+      return 3;
+      break;
+    case GpioType::gpiof:
+      return 4;
+      break;
+  }
+  return 0;
+}
 enum class DmaType : uint8_t {
   dma1 = 0,
 };
+constexpr static uint8_t to_idx(DmaType type) {
+  switch (type) {
+    case DmaType::dma1:
+      return 0;
+      break;
+  }
+  return 0;
+}
 enum class TimType : uint8_t {
   tim1 = 0,
   tim2,
@@ -156,25 +184,106 @@ enum class TimType : uint8_t {
   tim16,
   tim17,
 };
+constexpr static uint8_t to_idx(TimType type) {
+  switch (type) {
+    case TimType::tim1:
+      return 0;
+      break;
+    case TimType::tim2:
+      return 1;
+      break;
+    case TimType::tim3:
+      return 2;
+      break;
+    case TimType::tim6:
+      return 3;
+      break;
+    case TimType::tim7:
+      return 4;
+      break;
+    case TimType::tim15:
+      return 5;
+      break;
+    case TimType::tim16:
+      return 6;
+      break;
+    case TimType::tim17:
+      return 7;
+      break;
+  }
+  return 0;
+}
 enum class UsartType : uint8_t {
   usart1 = 0,
   usart2,
   usart3,
 };
+constexpr static uint8_t to_idx(UsartType type) {
+  switch (type) {
+    case UsartType::usart1:
+      return 0;
+      break;
+    case UsartType::usart2:
+      return 1;
+      break;
+    case UsartType::usart3:
+      return 2;
+      break;
+  }
+  return 0;
+}
 enum class SpiType : uint8_t {
   spi1 = 0,
 };
+constexpr static uint8_t to_idx(SpiType type) {
+  switch (type) {
+    case SpiType::spi1:
+      return 0;
+      break;
+  }
+  return 0;
+}
 enum class I2cType : uint8_t {
   i2c1 = 0,
 };
+constexpr static uint8_t to_idx(I2cType type) {
+  switch (type) {
+    case I2cType::i2c1:
+      return 0;
+      break;
+  }
+  return 0;
+}
 enum class DacType : uint8_t {
   dac1 = 0,
   dac2,
 };
+constexpr static uint8_t to_idx(DacType type) {
+  switch (type) {
+    case DacType::dac1:
+      return 0;
+      break;
+    case DacType::dac2:
+      return 1;
+      break;
+  }
+  return 0;
+}
 enum class AdcType : uint8_t {
   adc1 = 0,
   adc2,
 };
+constexpr static uint8_t to_idx(AdcType type) {
+  switch (type) {
+    case AdcType::adc1:
+      return 0;
+      break;
+    case AdcType::adc2:
+      return 1;
+      break;
+  }
+  return 0;
+}
 
 enum class GpioPinType : uint8_t {
   pa0 = (0 << 4) | 0,
@@ -259,7 +368,7 @@ enum class GpioPinType : uint8_t {
   pf15 = (5 << 4) | 15,
 };
 
-static inline GpioType extract_gpio_type(GpioPinType pin_type) {
+constexpr static GpioType extract_gpio_type(GpioPinType pin_type) {
   switch (pin_type) {
     case GpioPinType::pa0:
     case GpioPinType::pa1:
@@ -357,7 +466,7 @@ static inline GpioType extract_gpio_type(GpioPinType pin_type) {
   return static_cast<GpioType>(0); // never reach
 }
 
-static inline uint8_t extract_pin_idx(GpioPinType pin_type) {
+constexpr static uint8_t extract_pin_idx(GpioPinType pin_type) {
   switch (pin_type) {
     case GpioPinType::pa0:
       return 0;
@@ -795,7 +904,6 @@ constexpr struct PeriphInfo {
   };
 } STM32_PERIPH_INFO;
 
-
 enum class GpioAf : uint8_t {
   af0 = 0,
   af1,
@@ -812,7 +920,7 @@ enum class GpioAf : uint8_t {
   af12,
 };
 
-static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinType gpio_pin) {
+constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinType gpio_pin) {
   switch (gpio_pin) {
     case GpioPinType::pa0:
       switch (periph_type) {
@@ -1391,7 +1499,7 @@ static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinTy
 }
 
 template<typename T>
-static inline std::optional<PeriphType> as_periph_type(T type) {
+constexpr static std::optional<PeriphType> as_periph_type(T type) {
   return std::nullopt;
 }
 
