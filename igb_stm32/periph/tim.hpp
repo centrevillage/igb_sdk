@@ -350,7 +350,7 @@ struct Tim {
   }
 
   void init(TimType type, auto&& conf) {
-    const auto& info = STM32_PERIPH_INFO.tim[as<uint32_t>(type)];
+    const auto& info = STM32_PERIPH_INFO.tim[to_idx(type)];
     p_tim = info.p_tim;
     info.bus.enableBusClock();
 
@@ -377,7 +377,7 @@ struct Tim {
 
   // TODO: コンパイル時の依存を減らすため、外部関数化＆外部ファイル化すべき？
   static Tim newIntervalTimer(TimType type, uint16_t prescale, uint32_t period, uint16_t priority) {
-    const auto& info = STM32_PERIPH_INFO.tim[as<uint32_t>(type)];
+    const auto& info = STM32_PERIPH_INFO.tim[to_idx(type)];
     info.bus.enableBusClock();
 
     NvicCtrl::setPriority(info.irqn, priority);

@@ -251,8 +251,8 @@ struct AdcPinConf {
 template<AdcType ADC_TYPE>
 struct Adc {
   constexpr static auto type = ADC_TYPE;
-  constexpr static auto info = STM32_PERIPH_INFO.adc[static_cast<size_t>(type)];
-  constexpr static auto addr = STM32_PERIPH_INFO.adc[static_cast<size_t>(type)].addr;
+  constexpr static auto info = STM32_PERIPH_INFO.adc[to_idx(type)];
+  constexpr static auto addr = STM32_PERIPH_INFO.adc[to_idx(type)].addr;
   constexpr static auto addr_CR = IGB_ADC_REG_ADDR(CR);
   constexpr static auto addr_DR = IGB_ADC_REG_ADDR(DR);
   constexpr static auto addr_ISR = IGB_ADC_REG_ADDR(ISR);
@@ -516,7 +516,7 @@ struct Adc {
   IGB_FAST_INLINE uint16_t readData() { return data(); }
 
   static IGB_FAST_INLINE void enableBusClock() {
-    STM32_PERIPH_INFO.adc[static_cast<size_t>(type)].bus.enableBusClock();
+    STM32_PERIPH_INFO.adc[to_idx(type)].bus.enableBusClock();
   }
 
   static IGB_FAST_INLINE void prepareGpio(GpioPinType pin_type) {

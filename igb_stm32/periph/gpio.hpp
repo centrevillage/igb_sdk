@@ -113,7 +113,7 @@ struct GpioPort {
   }
 
   IGB_FAST_INLINE void enable() {
-    STM32_PERIPH_INFO.gpio[as<uint8_t>(type)].bus.enableBusClock();
+    STM32_PERIPH_INFO.gpio[to_idx(type)].bus.enableBusClock();
   }
 
   IGB_FAST_INLINE void disable() {

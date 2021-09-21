@@ -259,7 +259,7 @@ struct Spi {
   constexpr static auto mosi_pin = MOSI_PIN;
   constexpr static auto miso_pin = MISO_PIN;
   constexpr static auto sck_pin = SCK_PIN;
-  constexpr static auto addr = STM32_PERIPH_INFO.spi[static_cast<size_t>(type)].addr;
+  constexpr static auto addr = STM32_PERIPH_INFO.spi[to_idx(type)].addr;
 
   IGB_FAST_INLINE void enable() { IGB_SPI->CR1 |= SPI_CR1_SPE; }
   IGB_FAST_INLINE void disable() { IGB_SPI->CR1 &= ~SPI_CR1_SPE; }
@@ -653,7 +653,7 @@ struct Spi {
   }
 
   IGB_FAST_INLINE void initMaster(SpiBaudratePrescaler prescaler = SpiBaudratePrescaler::div16) {
-    const auto& spi_info = STM32_PERIPH_INFO.spi[as<uint8_t>(type)];
+    const auto& spi_info = STM32_PERIPH_INFO.spi[to_idx(type)];
     spi_info.bus.enableBusClock();
     prepareGpio(mosi_pin);
     prepareGpio(miso_pin);
@@ -665,7 +665,7 @@ struct Spi {
   }
 
   IGB_FAST_INLINE void initMasterOutOnly(SpiBaudratePrescaler prescaler) {
-    const auto& spi_info = STM32_PERIPH_INFO.spi[as<uint8_t>(type)];
+    const auto& spi_info = STM32_PERIPH_INFO.spi[to_idx(type)];
     spi_info.bus.enableBusClock();
     prepareGpio(mosi_pin);
     prepareGpio(sck_pin);
@@ -704,7 +704,7 @@ struct Spi {
   }
 
   IGB_FAST_INLINE void initMasterOutOnlyHardSS(GpioPinType cs_pin, SpiBaudratePrescaler prescaler) {
-    const auto& spi_info = STM32_PERIPH_INFO.spi[as<uint8_t>(type)];
+    const auto& spi_info = STM32_PERIPH_INFO.spi[to_idx(type)];
     spi_info.bus.enableBusClock();
     prepareGpio(mosi_pin);
     prepareGpio(sck_pin);

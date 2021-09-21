@@ -226,8 +226,8 @@ struct UsartConf {
 template<UsartType USART_TYPE>
 struct Usart {
   constexpr static auto type = USART_TYPE;
-  constexpr static auto info = STM32_PERIPH_INFO.usart[static_cast<size_t>(type)];
-  constexpr static auto addr = STM32_PERIPH_INFO.usart[static_cast<size_t>(type)].addr;
+  constexpr static auto info = STM32_PERIPH_INFO.usart[to_idx(type)];
+  constexpr static auto addr = STM32_PERIPH_INFO.usart[to_idx(type)].addr;
   constexpr static auto addr_CR1 = IGB_USART_REG_ADDR(CR1);
   constexpr static auto addr_CR2 = IGB_USART_REG_ADDR(CR2);
   constexpr static auto addr_CR3 = IGB_USART_REG_ADDR(CR3);
@@ -353,7 +353,7 @@ struct Usart {
   Reg<addr_TDR> txData;
 
   IGB_FAST_INLINE void enableBusClock() {
-    STM32_PERIPH_INFO.usart[static_cast<size_t>(type)].bus.enableBusClock();
+    STM32_PERIPH_INFO.usart[to_idx(type)].bus.enableBusClock();
   }
 
   IGB_FAST_INLINE void prepareGpio(GpioPinType pin_type) {

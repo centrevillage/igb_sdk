@@ -136,7 +136,7 @@ struct I2cMaster {
   }
 
   void initBusClock() {
-    const auto& i2c_info = STM32_PERIPH_INFO.i2c[static_cast<size_t>(type)];
+    const auto& i2c_info = STM32_PERIPH_INFO.i2c[to_idx(type)];
     i2c_info.bus.enableBusClock();
     i2c_info.bus.forceResetBusClock();
     i2c_info.bus.releaseResetBusClock();

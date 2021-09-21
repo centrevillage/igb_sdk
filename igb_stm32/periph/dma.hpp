@@ -141,8 +141,8 @@ struct DmaChannel {
 template<DmaType DMA_TYPE>
 struct Dma {
   constexpr static auto type = DMA_TYPE;
-  constexpr static auto addr = STM32_PERIPH_INFO.dma[static_cast<size_t>(type)].addr;
-  constexpr static auto _channels = STM32_PERIPH_INFO.dma[static_cast<size_t>(type)].channels;
+  constexpr static auto addr = STM32_PERIPH_INFO.dma[to_idx(type)].addr;
+  constexpr static auto _channels = STM32_PERIPH_INFO.dma[to_idx(type)].channels;
 
   IGB_FAST_INLINE bool is(DmaChannelType ch_type, DmaStatus status) {
     const auto ch_idx = static_cast<uint32_t>(ch_type);
@@ -163,7 +163,7 @@ struct Dma {
   }
 
   IGB_FAST_INLINE void enableBusClock() {
-    const auto& dma_info = STM32_PERIPH_INFO.dma[as<uint8_t>(type)];
+    const auto& dma_info = STM32_PERIPH_INFO.dma[to_idx(type)];
     dma_info.bus.enableBusClock();
   }
 

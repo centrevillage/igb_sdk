@@ -43,8 +43,8 @@ struct DacConf {
 template<DacType DAC_TYPE>
 struct Dac {
   constexpr static auto type = DAC_TYPE;
-  constexpr static auto info = STM32_PERIPH_INFO.dac[static_cast<size_t>(type)];
-  constexpr static auto addr = STM32_PERIPH_INFO.dac[static_cast<size_t>(type)].addr;
+  constexpr static auto info = STM32_PERIPH_INFO.dac[to_idx(type)];
+  constexpr static auto addr = STM32_PERIPH_INFO.dac[to_idx(type)].addr;
   constexpr static auto addr_CR = IGB_DAC_REG_ADDR(CR);
   constexpr static auto addr_SWTRIGR = IGB_DAC_REG_ADDR(SWTRIGR);
   constexpr static auto addr_DHR12R1 = IGB_DAC_REG_ADDR(DHR12R1);
@@ -103,7 +103,7 @@ struct Dac {
   RegFlag<addr_SR, DAC_SR_DMAUDR2> isUnderrunError2;
 
   static IGB_FAST_INLINE void enableBusClock() {
-    STM32_PERIPH_INFO.dac[static_cast<size_t>(type)].bus.enableBusClock();
+    STM32_PERIPH_INFO.dac[to_idx(type)].bus.enableBusClock();
   }
 
   static IGB_FAST_INLINE void prepareGpio(GpioPinType pin_type) {

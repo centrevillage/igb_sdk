@@ -141,7 +141,7 @@ struct I2c {
   constexpr static auto type = I2C_TYPE;
   constexpr static auto scl_pin = SCL_PIN;
   constexpr static auto sda_pin = SDA_PIN;
-  constexpr static auto addr = STM32_PERIPH_INFO.i2c[static_cast<size_t>(type)].addr;
+  constexpr static auto addr = STM32_PERIPH_INFO.i2c[to_idx(type)].addr;
 
   IGB_FAST_INLINE void enable() { IGB_I2C->CR1 |= I2C_CR1_PE; }
   IGB_FAST_INLINE void disable() { IGB_I2C->CR1 &= ~I2C_CR1_PE; }
@@ -290,7 +290,7 @@ struct I2c {
   }
 
   IGB_FAST_INLINE void initDefault(uint8_t address = 1) {
-    const auto& i2c_info = STM32_PERIPH_INFO.i2c[static_cast<size_t>(type)];
+    const auto& i2c_info = STM32_PERIPH_INFO.i2c[to_idx(type)];
     i2c_info.bus.enableBusClock();
     i2c_info.bus.forceResetBusClock();
     i2c_info.bus.releaseResetBusClock();
@@ -324,7 +324,7 @@ struct I2c {
   }
 
   IGB_FAST_INLINE void init(auto&& conf) {
-    const auto& i2c_info = STM32_PERIPH_INFO.i2c[static_cast<size_t>(type)];
+    const auto& i2c_info = STM32_PERIPH_INFO.i2c[to_idx(type)];
     i2c_info.bus.enableBusClock();
     i2c_info.bus.forceResetBusClock();
     i2c_info.bus.releaseResetBusClock();
