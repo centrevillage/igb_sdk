@@ -327,11 +327,26 @@ struct Tim {
 //    MODIFY_REG(p_tim->OR, (as<uint32_t>(remap) >> 16U), (as<uint32_t>(remap) & 0x0000FFFFU));
 //  }
 
+  void enable(bool flag) {
+    if (flag) {
+      enable();
+    } else {
+      disable();
+    }
+  }
+
   void enable() {
     p_tim->CR1 |= TIM_CR1_CEN;
   }
   void disable() {
     p_tim->CR1 &= ~TIM_CR1_CEN;
+  }
+  void start() {
+    setCount(0);
+    enable();
+  }
+  void stop() {
+    disable();
   }
 
   void init(TimType type, auto&& conf) {
