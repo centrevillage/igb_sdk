@@ -30,7 +30,7 @@ struct SystickCtrl {
   static IGB_FAST_INLINE void setTimerInterval(uint32_t interval_) {
     _systick_state.interval = interval_;
     _systick_state._msec_scaling = (uint32_t)(((float)(SystemCoreClock) / 1000.0f) / (float)_systick_state.interval);
-    _systick_state._usec_scaling = (uint32_t)(((float)(SystemCoreClock) / 1000000.0f) / (float)_systick_state.interval);
+    _systick_state._usec_scaling = (uint32_t)((float)_systick_state.interval / ((float)(SystemCoreClock) / 1000000.0f));
     if (SysTick_Config(_systick_state.interval)) {
       /* Capture error */ 
       while (1);
@@ -43,7 +43,7 @@ struct SystickCtrl {
     return _systick_state.tick;
   }
   static IGB_FAST_INLINE uint32_t getCurrentMilliSec() {
-    return _systick_state.tick * _systick_state._msec_scaling;
+    return _systick_state.tick / _systick_state._msec_scaling;
   }
   static IGB_FAST_INLINE uint32_t getCurrentMicroSec() {
     return _systick_state.tick * _systick_state._usec_scaling;
