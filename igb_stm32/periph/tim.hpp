@@ -1,13 +1,21 @@
 #ifndef IGB_STM32_PERIPH_TIM_H
 #define IGB_STM32_PERIPH_TIM_H
 
+#include <tuple>
+
 #include <igb_stm32/base.hpp>
 #include <igb_stm32/periph/rcc.hpp>
 #include <igb_stm32/periph/nvic.hpp>
 #include <igb_util/cast.hpp>
+#include <igb_util/reg.hpp>
+#include <igb_util/macro.hpp>
 
 namespace igb {
 namespace stm32 {
+
+#define IGB_TIM ((TIM_TypeDef*)addr)
+#define IGB_TIM_REG_ADDR(member) (addr + offsetof(TIM_TypeDef, member))
+#define IGB_TIM_REG(member) ((TIM_TypeDef*)IGB_TIM_REG_ADDR(member))
 
 enum class TimState : uint32_t {
   update  = TIM_SR_UIF,
@@ -30,6 +38,7 @@ enum class TimCcCh : uint32_t {
   cc3,
   cc4,
 };
+
 
 enum class TimCounterMode : uint32_t {
   up           = 0,
@@ -168,14 +177,6 @@ enum class TimDmaBurstLen : uint32_t {
   l18 = (TIM_DCR_DBL_4 |  TIM_DCR_DBL_0),
 };
 
-// TODO: デバイス依存の記述になっているので一旦機能削除
-//enum class TimRemapInput : uint32_t { 
-//  TO_GPIO = TIM14_OR_RMP_MASK,
-//  TO_RTC_CLK = (TIM14_OR_TI1_RMP_0  | TIM14_OR_RMP_MASK),
-//  TO_HSE = (TIM14_OR_TI1_RMP_1  | TIM14_OR_RMP_MASK),
-//  TO_MCO = (TIM14_OR_TI1_RMP_0  | TIM14_OR_TI1_RMP_1  | TIM14_OR_RMP_MASK),
-//};
-
 struct TimConf {
   uint32_t prescale = 0;
   uint32_t period = 0;
@@ -185,173 +186,113 @@ struct TimConf {
   bool arr_preload = false;
   TimClockSrc clock_src = TimClockSrc::internal;
   TimTriggerOut trigger_out = TimTriggerOut::reset;
-  bool master_slave_mode = false;
+  bool enable_master_slave = false;
 
   bool enable_update_interrupt = false;
   uint16_t interrupt_priority = 1;
 };
 
+template<TimType tim_type>
 struct Tim {
-  TIM_TypeDef* p_tim;
+  constexpr static auto type = tim_type;
+  constexpr static auto info = STM32_PERIPH_INFO.tim[to_idx(type)];
+  constexpr static auto addr = STM32_PERIPH_INFO.tim[to_idx(type)].addr;
+  constexpr static auto addr_CR1 = IGB_TIM_REG_ADDR(CR1);
+  constexpr static auto addr_CR2 = IGB_TIM_REG_ADDR(CR2);
+  constexpr static auto addr_SMCR = IGB_TIM_REG_ADDR(SMCR);
+  constexpr static auto addr_DIER = IGB_TIM_REG_ADDR(DIER);
+  constexpr static auto addr_SR = IGB_TIM_REG_ADDR(SR);
+  constexpr static auto addr_EGR = IGB_TIM_REG_ADDR(EGR);
+  constexpr static auto addr_CCMR1 = IGB_TIM_REG_ADDR(CCMR1);
+  constexpr static auto addr_CCMR2 = IGB_TIM_REG_ADDR(CCMR2);
+  constexpr static auto addr_CCER = IGB_TIM_REG_ADDR(CCER);
+  constexpr static auto addr_CNT = IGB_TIM_REG_ADDR(CNT);
+  constexpr static auto addr_PSC = IGB_TIM_REG_ADDR(PSC);
+  constexpr static auto addr_ARR = IGB_TIM_REG_ADDR(ARR);
+  constexpr static auto addr_RCR = IGB_TIM_REG_ADDR(RCR);
+  constexpr static auto addr_CCR1 = IGB_TIM_REG_ADDR(CCR1);
+  constexpr static auto addr_CCR2 = IGB_TIM_REG_ADDR(CCR2);
+  constexpr static auto addr_CCR3 = IGB_TIM_REG_ADDR(CCR3);
+  constexpr static auto addr_CCR4 = IGB_TIM_REG_ADDR(CCR4);
+  constexpr static auto addr_BDTR = IGB_TIM_REG_ADDR(BDTR);
+  constexpr static auto addr_DCR  = IGB_TIM_REG_ADDR(DCR);
+  constexpr static auto addr_DMAR = IGB_TIM_REG_ADDR(DMAR);
+  constexpr static auto addr_OR   = IGB_TIM_REG_ADDR(OR);
 
-  void setPrescaler(uint32_t prescale) {
-    p_tim->PSC = prescale;
+  Reg<addr_PSC> prescaler; 
+  RegEnum<addr_CR1, (TIM_CR1_DIR | TIM_CR1_CMS), TimCounterMode> counterMode;
+  RegEnum<addr_CR1, TIM_CR1_CKD, TimClockDiv> clockDiv;
+  RegFlag<addr_CR1, TIM_CR1_ARPE> enableArrPreload;
+
+  std::tuple<
+    Reg<addr_CCR1>,
+    Reg<addr_CCR2>,
+    Reg<addr_CCR3>,
+    Reg<addr_CCR4>
+  > ccValues;
+
+  Reg<addr_ARR> autoReload;
+  Reg<addr_RCR> repetitionCounter;
+  RegEnum<addr_SMCR, TIM_SMCR_SMS | TIM_SMCR_ECE, TimClockSrc> clockSrc;
+  RegEnum<addr_CR2, TIM_CR2_MMS, TimTriggerOut> triggerOutput;
+  RegFlag<addr_SMCR, TIM_SMCR_MSM> enableMasterSlave;
+
+  RegEnum<addr_SMCR, TIM_SMCR_ETP, TimEtrConfPolarity> etrConfPolarity;
+  RegEnum<addr_SMCR, TIM_SMCR_ETPS, TimEtrConfPrescaler> etrConfPrescaler;
+  RegEnum<addr_SMCR, TIM_SMCR_ETF, TimEtrConfFilter> etrConfFilter;
+
+  Reg<addr_SR> reg_SR;
+
+  IGB_FAST_INLINE bool is(TimState state) {
+    return !!(reg_SR() & as<uint32_t>(state));
   }
 
-  void setCounterMode(TimCounterMode mode) {
-    MODIFY_REG(p_tim->CR1, (TIM_CR1_DIR | TIM_CR1_CMS), as<uint32_t>(mode));
+  IGB_FAST_INLINE void clear(TimState state) {
+    reg_SR(reg_SR() & ~(as<uint32_t>(state)));
   }
 
-  void setClockDiv(TimClockDiv div) {
-    MODIFY_REG(p_tim->CR1, TIM_CR1_CKD, as<uint32_t>(div));
+  Reg<addr_CNT> count;
+
+  Reg<addr_EGR> reg_EGR;
+
+  IGB_FAST_INLINE void generateEvent(TimEventGen event) {
+    reg_EGR(reg_EGR() | as<uint32_t>(event));
   }
 
-  void enableArrPreload() {
-    SET_BIT(p_tim->CR1, TIM_CR1_ARPE);
-  }
-
-  void disableArrPreload() {
-    CLEAR_BIT(p_tim->CR1, TIM_CR1_ARPE);
-  }
-
-  void setCcValue(TimCcCh ch, uint32_t value) {
-    __IO uint32_t* ptr = &(p_tim->CCR1) + as<uint32_t>(ch);
-    (*ptr) = value;
-  }
-
-  uint32_t getCcValue(TimCcCh ch) {
-    __IO uint32_t* ptr = &(p_tim->CCR1) + as<uint32_t>(ch);
-    return *ptr;
-  }
-
-  void setAutoreload(uint32_t value) {
-    p_tim->ARR = value;
-  }
-
-  void setRepetitionCounter(uint8_t value) {
-    p_tim->RCR = value;
-  }
-
-  void setClockSrc(TimClockSrc src) {
-    MODIFY_REG(p_tim->SMCR, TIM_SMCR_SMS | TIM_SMCR_ECE, as<uint32_t>(src));
-  }
-
-  void setTriggerOutput(TimTriggerOut out) {
-    MODIFY_REG(p_tim->CR2, TIM_CR2_MMS, as<uint32_t>(out));
-  }
-
-  void setMasterSlaveMode(bool is_master_slave) {
-    if (is_master_slave) {
-      p_tim->SMCR |= TIM_SMCR_MSM;
-    } else {
-      p_tim->SMCR &= ~TIM_SMCR_MSM;
-    }
-  }
-
-  void setEtrConf(TimEtrConfPolarity polarity, TimEtrConfPrescaler prescaler, TimEtrConfFilter filter) {
-    MODIFY_REG(p_tim->SMCR,
-        TIM_SMCR_ETP | TIM_SMCR_ETPS | TIM_SMCR_ETF,
-        as<uint32_t>(polarity) | as<uint32_t>(prescaler) | as<uint32_t>(filter));
-  }
-
-  bool is(TimState state) {
-    return !!(p_tim->SR & as<uint32_t>(state));
-  }
-
-  void clear(TimState state) {
-    p_tim->SR &= ~(as<uint32_t>(state));
-  }
-
-  void setCount(uint32_t count) {
-    p_tim->CNT = count;
-  }
-
-  uint32_t getCount() {
-    return p_tim->CNT;
-  }
-
-  void generateEvent(TimEventGen event) {
-    p_tim->EGR |= as<uint32_t>(event);
-  }
+  Reg<addr_DIER> reg_DIER;
 
   void enableIt(TimInterruptType interrupt) {
-    p_tim->DIER |= as<uint32_t>(interrupt);
+    reg_DIER(reg_DIER() | as<uint32_t>(interrupt));
   }
 
   void disableIt(TimInterruptType interrupt) {
-    p_tim->DIER &= ~(as<uint32_t>(interrupt));
+    reg_DIER(reg_DIER() & ~(as<uint32_t>(interrupt)));
   }
 
-  void setDeadtime(uint8_t dead_time) {
-    MODIFY_REG(p_tim->BDTR, TIM_BDTR_DTG, as<uint32_t>(dead_time));
-  }
+  RegValue<addr_BDTR, TIM_BDTR_DTG_Msk, TIM_BDTR_DTG_Pos> deadTime;
 
-  void enableBreak() {
-    p_tim->BDTR |= TIM_BDTR_BKE;
-    __IO uint32_t tmp = p_tim->BDTR;
-  }
+  RegFlag<addr_BDTR, TIM_BDTR_BKE> enableBreak;
+  RegEnum<addr_BDTR, TIM_BDTR_BKP_Msk, TimBreakPolarity> breakPolarity;
+  RegFlag<addr_BDTR, TIM_BDTR_OSSI> enableOffStateIdle;
+  RegFlag<addr_BDTR, TIM_BDTR_OSSR> enableOffStateRun;
+  RegFlag<addr_BDTR, TIM_BDTR_AOE> enableAutoOut;
+  RegFlag<addr_BDTR, TIM_BDTR_MOE> enableAllOut;
 
-  void disableBreak() {
-    p_tim->BDTR &= ~TIM_BDTR_BKE;
-    __IO uint32_t tmp = p_tim->BDTR;
-  }
+  RegEnum<addr_DCR, TIM_DCR_DBL_Msk, TimDmaBurstLen> dmaBurstLen;
+  RegEnum<addr_DCR, TIM_DCR_DBA_Msk, TimDmaBurstBaseAddr> dmaBurstBaseAddr;
 
-  void configBreak(TimBreakPolarity polarity) {
-    MODIFY_REG(p_tim->BDTR, TIM_BDTR_BKP, as<uint32_t>(polarity));
-    __IO uint32_t tmp = p_tim->BDTR;
-  }
+  RegFlag<addr_CR1, TIM_CR1_CEN> enable;
 
-  void setOffStates(bool off_state_idle, bool off_state_run) {
-    MODIFY_REG(p_tim->BDTR, TIM_BDTR_OSSI | TIM_BDTR_OSSR, (off_state_idle ? TIM_BDTR_OSSI : 0) | (off_state_run ? TIM_BDTR_OSSR : 0));
-  }
-
-  void enableAutoOut() {
-    p_tim->BDTR |= TIM_BDTR_AOE;
-  }
-  void disableAutoOut() {
-    p_tim->BDTR &= ~TIM_BDTR_AOE;
-  }
-
-  void enableAllOut() {
-    p_tim->BDTR |= TIM_BDTR_MOE;
-  }
-  void disableAllOut() {
-    p_tim->BDTR &= ~TIM_BDTR_MOE;
-  }
-
-  void configDmaBurst(TimDmaBurstBaseAddr addr, TimDmaBurstLen len) {
-    MODIFY_REG(p_tim->DCR, (TIM_DCR_DBL | TIM_DCR_DBA), (as<uint32_t>(addr) | as<uint32_t>(len)));
-  }
-
-//  void setRemap(TimRemapInput remap) {
-//    MODIFY_REG(p_tim->OR, (as<uint32_t>(remap) >> 16U), (as<uint32_t>(remap) & 0x0000FFFFU));
-//  }
-
-  void enable(bool flag) {
-    if (flag) {
-      enable();
-    } else {
-      disable();
-    }
-  }
-
-  void enable() {
-    p_tim->CR1 |= TIM_CR1_CEN;
-  }
-  void disable() {
-    p_tim->CR1 &= ~TIM_CR1_CEN;
-  }
   void start() {
-    setCount(0);
-    enable();
+    count(0);
+    enable(true);
   }
   void stop() {
-    disable();
+    enable(false);
   }
 
-  void init(TimType type, auto&& conf) {
+  void init(auto&& conf) {
     const auto& info = STM32_PERIPH_INFO.tim[to_idx(type)];
-    p_tim = info.p_tim;
     info.bus.enableBusClock();
 
     if (conf.enable_update_interrupt) {
@@ -359,45 +300,26 @@ struct Tim {
       NvicCtrl::enable(info.irqn);
       enableIt(TimInterruptType::update);
     }
-    setCount(0);
-    setPrescaler(conf.prescale);
-    setAutoreload(conf.period);
-    setCounterMode(conf.counter_mode);
-    setClockDiv(conf.clock_div);
-    setRepetitionCounter(conf.repetition_counter);
+    count(0);
+    prescaler(conf.prescale);
+    autoReload(conf.period);
+    counterMode(conf.counter_mode);
+    clockDiv(conf.clock_div);
+    repetitionCounter(conf.repetition_counter);
     if (conf.arr_preload) {
-      enableArrPreload();
+      enableArrPreload(true);
     } else {
-      disableArrPreload();
+      enableArrPreload(false);
     }
-    setClockSrc(conf.clock_src);
-    setTriggerOutput(conf.trigger_out);
-    setMasterSlaveMode(conf.master_slave_mode);
-  }
-
-  // TODO: コンパイル時の依存を減らすため、外部関数化＆外部ファイル化すべき？
-  static Tim newIntervalTimer(TimType type, uint16_t prescale, uint32_t period, uint16_t priority) {
-    const auto& info = STM32_PERIPH_INFO.tim[to_idx(type)];
-    info.bus.enableBusClock();
-
-    NvicCtrl::setPriority(info.irqn, priority);
-    NvicCtrl::enable(info.irqn);
-
-    auto timer = Tim { info.p_tim };
-    timer.enableIt(TimInterruptType::update);
-    timer.setPrescaler(prescale);
-    timer.setCounterMode(TimCounterMode::up);
-    timer.setAutoreload(period);
-    timer.setClockDiv(TimClockDiv::div1);
-    timer.setRepetitionCounter(0);
-    timer.disableArrPreload();
-    timer.setClockSrc(TimClockSrc::internal);
-    timer.setTriggerOutput(TimTriggerOut::reset);
-    timer.setMasterSlaveMode(false);
-
-    return timer;
+    clockSrc(conf.clock_src);
+    triggerOutput(conf.trigger_out);
+    enableMasterSlave(conf.enable_master_slave);
   }
 };
+
+#undef IGB_TIM_REG
+#undef IGB_TIM_REG_ADDR
+#undef IGB_TIM
 
 } // namespace stm32
 } // namespace igb
