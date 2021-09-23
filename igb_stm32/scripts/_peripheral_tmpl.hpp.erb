@@ -79,7 +79,7 @@ constexpr static GpioType extract_gpio_type(GpioPinType pin_type) {
     default:
       break;
   }
-  return static_cast<GpioType>(0); // never reach
+  return GpioType::gpioa; // never reach
 }
 
 constexpr static uint8_t extract_pin_idx(GpioPinType pin_type) {
@@ -202,7 +202,7 @@ constexpr static std::optional<PeriphType> as_periph_type(T type) {
 <%  next if !structs || structs.empty? %>
 <%  next if schema.dig(group_name.to_sym, :singleton) %>
 template<>
-inline std::optional<PeriphType> as_periph_type(<%= group_name.capitalize %>Type type) {
+constexpr std::optional<PeriphType> as_periph_type(<%= group_name.capitalize %>Type type) {
   switch (type) {
 <%  structs.each do |struct| %>
     case <%= group_name.capitalize %>Type::<%= struct[:periph].downcase %>:
