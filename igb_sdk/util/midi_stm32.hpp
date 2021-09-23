@@ -14,13 +14,13 @@
 namespace igb {
 namespace sdk {
 
-template<typename USART>
+template<typename UsartType>
 struct MidiStm32 {
   const std::optional<igb::stm32::GpioPinType> rx_pin_type = std::nullopt;
   const std::optional<igb::stm32::GpioPinType> tx_pin_type = std::nullopt;
   std::function<void(const MidiEvent& event)> on_receive;
 
-  USART usart;
+  UsartType usart;
   Midi midi;
 
   bool _midi_transfer_interrupt_enabled = false;
