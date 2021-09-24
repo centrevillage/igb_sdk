@@ -276,8 +276,8 @@ struct Spi {
       return (IGB_SPI->CR1 & SPI_CR1_HDDIR) | (IGB_SPI->CFG2 & SPI_CFG2_COMM);
     }
     IGB_FAST_INLINE void operator()(SpiTransDir dir) {
-      MODIFY_REG(IGB_SPI->CR1, SPI_CR1_HDDIR,  as<uint32_t>(dir) & SPI_CR1_HDDIR);
-      MODIFY_REG(IGB_SPI->CFG2, SPI_CFG2_COMM, as<uint32_t>(dir) & SPI_CFG2_COMM);
+      IGB_MODIFY_REG(IGB_SPI->CR1, SPI_CR1_HDDIR,  as<uint32_t>(dir) & SPI_CR1_HDDIR);
+      IGB_MODIFY_REG(IGB_SPI->CFG2, SPI_CFG2_COMM, as<uint32_t>(dir) & SPI_CFG2_COMM);
     }
   };
   SpiTransDirInfo transDir;
@@ -347,8 +347,8 @@ struct Spi {
       return (IGB_SPI->CR1 & SPI_CR1_SSM) | ((IGB_SPI->CR2 & SPI_CR2_SSOE) << 16U);
     };
     IGB_FAST_INLINE void operator()(SpiNssMode mode) {
-      MODIFY_REG(IGB_SPI->CR1, SPI_CR1_SSM,  as<uint32_t>(mode));
-      MODIFY_REG(IGB_SPI->CR2, SPI_CR2_SSOE, ((uint32_t)(as<uint32_t>(mode) >> 16U)));
+      IGB_MODIFY_REG(IGB_SPI->CR1, SPI_CR1_SSM,  as<uint32_t>(mode));
+      IGB_MODIFY_REG(IGB_SPI->CR2, SPI_CR2_SSOE, ((uint32_t)(as<uint32_t>(mode) >> 16U)));
     };
   };
   SpiNssModeInfo nssMode;
@@ -369,7 +369,7 @@ struct Spi {
   }
   
   IGB_FAST_INLINE void clear(SpiState state) {
-    CLEAR_BIT(IGB_SPI->SR, as<uint32_t>(state));
+    IGB_CLEAR_BIT(IGB_SPI->SR, as<uint32_t>(state));
   }
 
 #if defined(STM32H7)
@@ -396,7 +396,7 @@ struct Spi {
 
   IGB_FAST_INLINE void enable(InterruptType type) {
 #if defined(STM32H7)
-    SET_BIT(IGB_SPI->IER, as<uint32_t>(type));
+    IGB_SET_BIT(IGB_SPI->IER, as<uint32_t>(type));
 #else
     IGB_SPI->CR2 |= as<uint32_t>(type);
 #endif
@@ -404,7 +404,7 @@ struct Spi {
 
   IGB_FAST_INLINE void disable(InterruptType type) {
 #if defined(STM32H7)
-    CLEAR_BIT(IGB_SPI->IER, as<uint32_t>(type));
+    IGB_CLEAR_BIT(IGB_SPI->IER, as<uint32_t>(type));
 #else
     IGB_SPI->CR2 &= ~(as<uint32_t>(type));
 #endif
@@ -422,7 +422,7 @@ struct Spi {
 
   IGB_FAST_INLINE void enable(DmaReqType type) {
 #if defined(STM32H7)
-    SET_BIT(IGB_SPI->CFG1, as<uint32_t>(type));
+    IGB_SET_BIT(IGB_SPI->CFG1, as<uint32_t>(type));
 #else
     IGB_SPI->CR2 |= as<uint32_t>(type);
 #endif
@@ -430,7 +430,7 @@ struct Spi {
 
   IGB_FAST_INLINE void disable(DmaReqType type) {
 #if defined(STM32H7)
-    CLEAR_BIT(IGB_SPI->CFG1, as<uint32_t>(type));
+    IGB_CLEAR_BIT(IGB_SPI->CFG1, as<uint32_t>(type));
 #else
     IGB_SPI->CR2 &= ~(as<uint32_t>(type));
 #endif
@@ -448,10 +448,10 @@ struct Spi {
   IGB_FAST_INLINE void dmaParity(DmaParityTarget target, DmaParityType type) {
     switch (target) {
       case DmaParityTarget::tx:
-        MODIFY_REG(IGB_SPI->CR2, SPI_CR2_LDMATX, (as<uint32_t>(type) << SPI_CR2_LDMATX_Pos));
+        IGB_MODIFY_REG(IGB_SPI->CR2, SPI_CR2_LDMATX, (as<uint32_t>(type) << SPI_CR2_LDMATX_Pos));
         break;
       case DmaParityTarget::rx:
-        MODIFY_REG(IGB_SPI->CR2, SPI_CR2_LDMARX, (as<uint32_t>(type) << SPI_CR2_LDMARX_Pos));
+        IGB_MODIFY_REG(IGB_SPI->CR2, SPI_CR2_LDMARX, (as<uint32_t>(type) << SPI_CR2_LDMARX_Pos));
         break;
     }
   }
@@ -524,11 +524,11 @@ struct Spi {
     while (!is(SpiState::txPacketAbailable));
     sendU8(data);
     while (!is(SpiState::endOfTransfer));
-    SET_BIT(IGB_SPI->IFCR, SPI_IFCR_EOTC);
-    SET_BIT(IGB_SPI->IFCR, SPI_IFCR_TXTFC);
+    IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_EOTC);
+    IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_TXTFC);
     disable();
     IGB_SPI->IER &= (~(SPI_IT_EOT | SPI_IT_TXP | SPI_IT_RXP | SPI_IT_DXP | SPI_IT_UDR | SPI_IT_OVR | SPI_IT_FRE | SPI_IT_MODF));
-    CLEAR_BIT(IGB_SPI->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
+    IGB_CLEAR_BIT(IGB_SPI->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
 #else
     __IO uint16_t tmp = transferU8sync(data);
 #endif
@@ -545,11 +545,11 @@ struct Spi {
       sendU8(buffer[i]);
     }
     while (!is(SpiState::endOfTransfer));
-    SET_BIT(IGB_SPI->IFCR, SPI_IFCR_EOTC);
-    SET_BIT(IGB_SPI->IFCR, SPI_IFCR_TXTFC);
+    IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_EOTC);
+    IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_TXTFC);
     disable();
     IGB_SPI->IER &= (~(SPI_IT_EOT | SPI_IT_TXP | SPI_IT_RXP | SPI_IT_DXP | SPI_IT_UDR | SPI_IT_OVR | SPI_IT_FRE | SPI_IT_MODF));
-    CLEAR_BIT(IGB_SPI->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
+    IGB_CLEAR_BIT(IGB_SPI->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
 #else
     for (size_t i = 0; i < size; ++i) {
       sendU8sync(buffer[i]);
@@ -586,11 +586,11 @@ struct Spi {
     while (!is(SpiState::rxPacketAbailable));
     uint8_t result = receiveU8();
     while (!is(SpiState::endOfTransfer));
-    SET_BIT(IGB_SPI->IFCR, SPI_IFCR_EOTC);
-    SET_BIT(IGB_SPI->IFCR, SPI_IFCR_TXTFC);
+    IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_EOTC);
+    IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_TXTFC);
     disable();
     IGB_SPI->IER &= (~(SPI_IT_EOT | SPI_IT_TXP | SPI_IT_RXP | SPI_IT_DXP | SPI_IT_UDR | SPI_IT_OVR | SPI_IT_FRE | SPI_IT_MODF));
-    CLEAR_BIT(IGB_SPI->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
+    IGB_CLEAR_BIT(IGB_SPI->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
     return result;
 #else
     while (is(SpiState::busy));
@@ -628,7 +628,7 @@ struct Spi {
     crc(false);
     dataWidth(SpiDataWidth::_8bit);
 
-    SET_BIT(IGB_SPI->CR1, SPI_CR1_SSI); // avoid a MODF Error
+    IGB_SET_BIT(IGB_SPI->CR1, SPI_CR1_SSI); // avoid a MODF Error
 
     nssMode(SpiNssMode::soft);
     clockPolarity(SpiClockPolarity::low);
@@ -680,7 +680,7 @@ struct Spi {
     crc(false);
     dataWidth(SpiDataWidth::_8bit);
 
-    SET_BIT(IGB_SPI->CR1, SPI_CR1_SSI); // avoid a MODF Error
+    IGB_SET_BIT(IGB_SPI->CR1, SPI_CR1_SSI); // avoid a MODF Error
 
     nssMode(SpiNssMode::soft);
     clockPolarity(SpiClockPolarity::low);
@@ -689,13 +689,13 @@ struct Spi {
     mode(SpiMode::master);
     transDir(SpiTransDir::simplexTx);
 #if defined(SPI_I2SCFGR_I2SMOD)
-    CLEAR_BIT(IGB_SPI->I2SCFGR, SPI_I2SCFGR_I2SMOD);
+    IGB_CLEAR_BIT(IGB_SPI->I2SCFGR, SPI_I2SCFGR_I2SMOD);
 #endif
-    CLEAR_BIT(IGB_SPI->CR1, SPI_CR1_TCRCINI);
-    CLEAR_BIT(IGB_SPI->CR1, SPI_CR1_RCRCINI);
-    CLEAR_BIT(IGB_SPI->CFG2, SPI_CFG2_AFCNTR);
-    CLEAR_BIT(IGB_SPI->CFG2, SPI_CFG2_IOSWP);
-    MODIFY_REG(IGB_SPI->CFG2, 0xFFUL, 0x00UL);
+    IGB_CLEAR_BIT(IGB_SPI->CR1, SPI_CR1_TCRCINI);
+    IGB_CLEAR_BIT(IGB_SPI->CR1, SPI_CR1_RCRCINI);
+    IGB_CLEAR_BIT(IGB_SPI->CFG2, SPI_CFG2_AFCNTR);
+    IGB_CLEAR_BIT(IGB_SPI->CFG2, SPI_CFG2_IOSWP);
+    IGB_MODIFY_REG(IGB_SPI->CFG2, 0xFFUL, 0x00UL);
 #else
     baudratePrescaler(prescaler);
     initDefault();
@@ -720,7 +720,7 @@ struct Spi {
     crc(false);
     dataWidth(SpiDataWidth::_8bit);
 
-    SET_BIT(IGB_SPI->CR1, SPI_CR1_SSI); // avoid a MODF Error
+    IGB_SET_BIT(IGB_SPI->CR1, SPI_CR1_SSI); // avoid a MODF Error
 
     nssMode(SpiNssMode::hardOutput);
     clockPolarity(SpiClockPolarity::low);
@@ -729,13 +729,13 @@ struct Spi {
     mode(SpiMode::master);
     transDir(SpiTransDir::simplexTx);
 #if defined(SPI_I2SCFGR_I2SMOD)
-    CLEAR_BIT(IGB_SPI->I2SCFGR, SPI_I2SCFGR_I2SMOD);
+    IGB_CLEAR_BIT(IGB_SPI->I2SCFGR, SPI_I2SCFGR_I2SMOD);
 #endif
-    CLEAR_BIT(IGB_SPI->CR1, SPI_CR1_TCRCINI);
-    CLEAR_BIT(IGB_SPI->CR1, SPI_CR1_RCRCINI);
-    CLEAR_BIT(IGB_SPI->CFG2, SPI_CFG2_AFCNTR);
-    CLEAR_BIT(IGB_SPI->CFG2, SPI_CFG2_IOSWP);
-    MODIFY_REG(IGB_SPI->CFG2, 0xFFUL, 0x00UL);
+    IGB_CLEAR_BIT(IGB_SPI->CR1, SPI_CR1_TCRCINI);
+    IGB_CLEAR_BIT(IGB_SPI->CR1, SPI_CR1_RCRCINI);
+    IGB_CLEAR_BIT(IGB_SPI->CFG2, SPI_CFG2_AFCNTR);
+    IGB_CLEAR_BIT(IGB_SPI->CFG2, SPI_CFG2_IOSWP);
+    IGB_MODIFY_REG(IGB_SPI->CFG2, 0xFFUL, 0x00UL);
 #else
     baudratePrescaler(prescaler);
     initDefault();

@@ -40,19 +40,19 @@ struct GpioPort {
   GPIO_TypeDef* const p_gpio = STM32_PERIPH_INFO.gpio[to_idx(type)].p_gpio;
 
   IGB_FAST_INLINE void setMode(uint32_t pin_bit, GpioMode mode) {
-    MODIFY_REG(p_gpio->MODER, ((pin_bit * pin_bit) * GPIO_MODE_MASK), ((pin_bit * pin_bit) * static_cast<uint32_t>(mode)));
+    IGB_MODIFY_REG(p_gpio->MODER, ((pin_bit * pin_bit) * GPIO_MODE_MASK), ((pin_bit * pin_bit) * static_cast<uint32_t>(mode)));
   }
 
   IGB_FAST_INLINE void setOutputMode(uint32_t pin_bit, GpioOutputMode mode) {
-    MODIFY_REG(p_gpio->OTYPER, pin_bit, (pin_bit * static_cast<uint32_t>(mode)));
+    IGB_MODIFY_REG(p_gpio->OTYPER, pin_bit, (pin_bit * static_cast<uint32_t>(mode)));
   }
 
   IGB_FAST_INLINE void setPullMode(uint32_t pin_bit, GpioPullMode mode) {
-    MODIFY_REG(p_gpio->PUPDR, ((pin_bit * pin_bit) * GPIO_PULL_MODE_MASK), ((pin_bit * pin_bit) * static_cast<uint32_t>(mode)));
+    IGB_MODIFY_REG(p_gpio->PUPDR, ((pin_bit * pin_bit) * GPIO_PULL_MODE_MASK), ((pin_bit * pin_bit) * static_cast<uint32_t>(mode)));
   }
 
   IGB_FAST_INLINE void setSpeedMode(uint32_t pin_bit, GpioSpeedMode mode) {
-    MODIFY_REG(p_gpio->OSPEEDR, ((pin_bit * pin_bit) * GPIO_SPEED_MODE_MASK), ((pin_bit * pin_bit) * static_cast<uint32_t>(mode)));
+    IGB_MODIFY_REG(p_gpio->OSPEEDR, ((pin_bit * pin_bit) * GPIO_SPEED_MODE_MASK), ((pin_bit * pin_bit) * static_cast<uint32_t>(mode)));
   }
 
   IGB_FAST_INLINE void setAlternateFunc(uint32_t pin_bit, GpioAf af) {
@@ -60,17 +60,17 @@ struct GpioPort {
     uint32_t msb = (pin_bit >> 8) & 0x00FF;
 #if defined(GPIO_AFRL_AFSEL0)
     if (lsb) {
-      MODIFY_REG(p_gpio->AFR[0], ((((lsb * lsb) * lsb) * lsb) * GPIO_AFRL_AFSEL0), ((((lsb * lsb) * lsb) * lsb) * as<uint32_t>(af)));
+      IGB_MODIFY_REG(p_gpio->AFR[0], ((((lsb * lsb) * lsb) * lsb) * GPIO_AFRL_AFSEL0), ((((lsb * lsb) * lsb) * lsb) * as<uint32_t>(af)));
     }
     if (msb) {
-      MODIFY_REG(p_gpio->AFR[1], ((((msb * msb) * msb) * msb) * GPIO_AFRH_AFSEL8), ((((msb * msb) * msb) * msb) * as<uint32_t>(af)));
+      IGB_MODIFY_REG(p_gpio->AFR[1], ((((msb * msb) * msb) * msb) * GPIO_AFRH_AFSEL8), ((((msb * msb) * msb) * msb) * as<uint32_t>(af)));
     }
 #elif defined(GPIO_AFRL_AFRL0)
     if (lsb) {
-      MODIFY_REG(p_gpio->AFR[0], (GPIO_AFRL_AFRL0 << (POSITION_VAL(lsb) * 4U)), (as<uint32_t>(af) << (POSITION_VAL(lsb) * 4U)));
+      IGB_MODIFY_REG(p_gpio->AFR[0], (GPIO_AFRL_AFRL0 << (POSITION_VAL(lsb) * 4U)), (as<uint32_t>(af) << (POSITION_VAL(lsb) * 4U)));
     }
     if (msb) {
-      MODIFY_REG(p_gpio->AFR[1], (GPIO_AFRH_AFRH0 << (POSITION_VAL(msb) * 4U)), (as<uint32_t>(af) << (POSITION_VAL(msb) * 4U)));
+      IGB_MODIFY_REG(p_gpio->AFR[1], (GPIO_AFRH_AFRH0 << (POSITION_VAL(msb) * 4U)), (as<uint32_t>(af) << (POSITION_VAL(msb) * 4U)));
     }
 #else
   #error Unsupported MCU

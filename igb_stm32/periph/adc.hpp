@@ -457,11 +457,11 @@ struct Adc {
 
 
   IGB_FAST_INLINE void enable() {
-    MODIFY_REG(IGB_ADC->CR, ADC_CR_BITS_PROPERTY_RS, ADC_CR_ADEN);
+    IGB_MODIFY_REG(IGB_ADC->CR, ADC_CR_BITS_PROPERTY_RS, ADC_CR_ADEN);
   }
 
   IGB_FAST_INLINE void disable() {
-    MODIFY_REG(IGB_ADC->CR, ADC_CR_BITS_PROPERTY_RS, ADC_CR_ADDIS);
+    IGB_MODIFY_REG(IGB_ADC->CR, ADC_CR_BITS_PROPERTY_RS, ADC_CR_ADDIS);
   }
 
   IGB_FAST_INLINE bool is(AdcStatus status) {
@@ -483,16 +483,16 @@ struct Adc {
 
   IGB_FAST_INLINE void enableRegulator() {
     regulator(AdcRegulatorState::clear);
-    CLEAR_BIT(IGB_ADC->CR, ADC_CR_BITS_PROPERTY_RS);
+    IGB_CLEAR_BIT(IGB_ADC->CR, ADC_CR_BITS_PROPERTY_RS);
     regulator(AdcRegulatorState::enable);
   }
 
   IGB_FAST_INLINE void disableRegulator() {
-    CLEAR_BIT(IGB_ADC->CR, (ADC_CR_ADVREGEN | ADC_CR_BITS_PROPERTY_RS));
+    IGB_CLEAR_BIT(IGB_ADC->CR, (ADC_CR_ADVREGEN | ADC_CR_BITS_PROPERTY_RS));
   }
 
   IGB_FAST_INLINE void startCalibration(AdcCalibrationType type) {
-    MODIFY_REG(IGB_ADC->CR,
+    IGB_MODIFY_REG(IGB_ADC->CR,
                ADC_CR_ADCALDIF | ADC_CR_BITS_PROPERTY_RS,
                ADC_CR_ADCAL | (static_cast<uint32_t>(type) & ADC_CR_ADCALDIF));
   }

@@ -244,11 +244,11 @@ struct RccCtrl {
   }
 
   static IGB_FAST_INLINE void enableHSE() {
-    SET_BIT(RCC->CR, RCC_CR_HSEON);
+    IGB_SET_BIT(RCC->CR, RCC_CR_HSEON);
   }
 
   static IGB_FAST_INLINE void disableHSE() {
-    CLEAR_BIT(RCC->CR, RCC_CR_HSEON);
+    IGB_CLEAR_BIT(RCC->CR, RCC_CR_HSEON);
   }
   
   static IGB_FAST_INLINE bool isReadyHSE() {
@@ -256,11 +256,11 @@ struct RccCtrl {
   }
 
   static IGB_FAST_INLINE void enableHSI() {
-    SET_BIT(RCC->CR, RCC_CR_HSION);
+    IGB_SET_BIT(RCC->CR, RCC_CR_HSION);
   }
 
   static IGB_FAST_INLINE void disableHSI() {
-    CLEAR_BIT(RCC->CR, RCC_CR_HSION);
+    IGB_CLEAR_BIT(RCC->CR, RCC_CR_HSION);
   }
 
   static IGB_FAST_INLINE bool isReadyHSI() {
@@ -273,56 +273,56 @@ struct RccCtrl {
 
 #if defined(RCC_HSI48_SUPPORT)
   static IGB_FAST_INLINE void enableHSI48() {
-    SET_BIT(RCC->CR2, RCC_CR2_HSI48ON);
+    IGB_SET_BIT(RCC->CR2, RCC_CR2_HSI48ON);
   }
 
   static IGB_FAST_INLINE void disableHSI48() {
-    CLEAR_BIT(RCC->CR2, RCC_CR2_HSI48ON);
+    IGB_CLEAR_BIT(RCC->CR2, RCC_CR2_HSI48ON);
   }
 #endif
 
 #if defined(RCC_CR2_HSI14ON)
   static IGB_FAST_INLINE void enableHSI14() {
-    SET_BIT(RCC->CR2, RCC_CR2_HSI14ON);
+    IGB_SET_BIT(RCC->CR2, RCC_CR2_HSI14ON);
   }
 
   static IGB_FAST_INLINE void disableHSI14() {
-    CLEAR_BIT(RCC->CR2, RCC_CR2_HSI14ON);
+    IGB_CLEAR_BIT(RCC->CR2, RCC_CR2_HSI14ON);
   }
 #endif
 
 #if defined(RCC_BDCR_LSEON)
   static IGB_FAST_INLINE void enableLSE() {
-    SET_BIT(RCC->BDCR, RCC_BDCR_LSEON);
+    IGB_SET_BIT(RCC->BDCR, RCC_BDCR_LSEON);
   }
 
   static IGB_FAST_INLINE void disableLSE() {
-    CLEAR_BIT(RCC->BDCR, RCC_BDCR_LSEON);
+    IGB_CLEAR_BIT(RCC->BDCR, RCC_BDCR_LSEON);
   }
 #endif
 
 #if defined(RCC_BDCR_LSEBYP)
   static IGB_FAST_INLINE void enableLseBypass() {
-    SET_BIT(RCC->BDCR, RCC_BDCR_LSEBYP);
+    IGB_SET_BIT(RCC->BDCR, RCC_BDCR_LSEBYP);
   }
 
   static IGB_FAST_INLINE void disableLseBypass() {
-    CLEAR_BIT(RCC->BDCR, RCC_BDCR_LSEBYP);
+    IGB_CLEAR_BIT(RCC->BDCR, RCC_BDCR_LSEBYP);
   }
 #endif
 
 #if defined(RCC_CSR_LSION)
   static IGB_FAST_INLINE void enableLSI() {
-    SET_BIT(RCC->CSR, RCC_CSR_LSION);
+    IGB_SET_BIT(RCC->CSR, RCC_CSR_LSION);
   }
 
   static IGB_FAST_INLINE void disableLSI() {
-    CLEAR_BIT(RCC->CSR, RCC_CSR_LSION);
+    IGB_CLEAR_BIT(RCC->CSR, RCC_CSR_LSION);
   }
 #endif
 
   static IGB_FAST_INLINE void setSystemClockSrc(RccClockSrc clock_src) {
-    MODIFY_REG(RCC->CFGR, RCC_CFGR_SW, static_cast<uint32_t>(clock_src));
+    IGB_MODIFY_REG(RCC->CFGR, RCC_CFGR_SW, static_cast<uint32_t>(clock_src));
   }
 
   static IGB_FAST_INLINE RccClockSrcStatus getSystemClockSrcStatus() {
@@ -331,22 +331,22 @@ struct RccCtrl {
 
 #if defined(RCC_CFGR_HPRE)
   static IGB_FAST_INLINE void setPrescalerAHB(RccClockPrescalerAHB prescaler)  {
-    MODIFY_REG(RCC->CFGR, RCC_CFGR_HPRE, static_cast<uint32_t>(prescaler));
+    IGB_MODIFY_REG(RCC->CFGR, RCC_CFGR_HPRE, static_cast<uint32_t>(prescaler));
   }
 #endif
 
 #if defined(RCC_CFGR_PPRE)
   static IGB_FAST_INLINE void setPrescalerAPB1(RccClockPrescalerAPB1 prescaler) {
-    MODIFY_REG(RCC->CFGR, RCC_CFGR_PPRE, static_cast<uint32_t>(prescaler));
+    IGB_MODIFY_REG(RCC->CFGR, RCC_CFGR_PPRE, static_cast<uint32_t>(prescaler));
   }
 #elif defined(RCC_CFGR_PPRE1)
   static IGB_FAST_INLINE void setPrescalerAPB1(RccClockPrescalerAPB1 prescaler) {
-    MODIFY_REG(RCC->CFGR, RCC_CFGR_PPRE1, static_cast<uint32_t>(prescaler));
+    IGB_MODIFY_REG(RCC->CFGR, RCC_CFGR_PPRE1, static_cast<uint32_t>(prescaler));
   }
 #endif
 #if defined(RCC_CFGR_PPRE2)
   static IGB_FAST_INLINE void setPrescalerAPB2(RccClockPrescalerAPB2 prescaler) {
-    MODIFY_REG(RCC->CFGR, RCC_CFGR_PPRE2, static_cast<uint32_t>(prescaler));
+    IGB_MODIFY_REG(RCC->CFGR, RCC_CFGR_PPRE2, static_cast<uint32_t>(prescaler));
   }
 #endif
 
@@ -402,7 +402,7 @@ struct RccCtrl {
         break;
     }
 
-    MODIFY_REG(RCC->CFGR3, i2c_src, clock_src);
+    IGB_MODIFY_REG(RCC->CFGR3, i2c_src, clock_src);
   }
 #endif
 
@@ -473,14 +473,14 @@ struct RccCtrl {
 #if defined(STM32F3)
 #if defined(RCC_CFGR_ADCPRE)
   static IGB_FAST_INLINE void setAdcClockSrc(AdcType type, AdcClockDiv div = AdcClockDiv::div2) {
-    MODIFY_REG(RCC->CFGR, RCC_CFGR_ADCPRE, static_cast<uint32_t>(div));
+    IGB_MODIFY_REG(RCC->CFGR, RCC_CFGR_ADCPRE, static_cast<uint32_t>(div));
   }
 #elif defined(RCC_CFGR2_ADC1PRES)
   static IGB_FAST_INLINE void setAdcClockSrc(AdcType type, AdcClockSrc src = AdcClockSrc::ahb, AdcClockDiv div = AdcClockDiv::div1) {
     if (src == AdcClockSrc::ahb) {
-      MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADC1PRES, RCC_CFGR2_ADC1PRES_NO);
+      IGB_MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADC1PRES, RCC_CFGR2_ADC1PRES_NO);
     } else if (src == AdcClockSrc::pll) {
-      MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADC1PRES, static_cast<uint32_t>(div));
+      IGB_MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADC1PRES, static_cast<uint32_t>(div));
     }
   }
 #elif defined(RCC_CFGR2_ADCPRE12) || defined(RCC_CFGR2_ADCPRE34)
@@ -488,13 +488,13 @@ struct RccCtrl {
 #if defined(RCC_CFGR2_ADCPRE34)
     if (type == AdcType::adc1 || type == AdcType::adc2) {
       if (src == AdcClockSrc::ahb) {
-        MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADCPRE12, 0);
+        IGB_MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADCPRE12, 0);
       } else {
-        MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADCPRE12, static_cast<uint32_t>(div));
+        IGB_MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADCPRE12, static_cast<uint32_t>(div));
       }
     } else {
       if (src == AdcClockSrc::ahb) {
-        MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADCPRE34, 0);
+        IGB_MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADCPRE34, 0);
       } else {
         uint32_t _div = 0;
         switch (div) {
@@ -537,15 +537,15 @@ struct RccCtrl {
           default:
             break;
         }
-        MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADCPRE34, _div);
+        IGB_MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADCPRE34, _div);
       }
     }
-    //MODIFY_REG(RCC->CFGR2, (ADCxSource >> 16U), (ADCxSource & 0x0000FFFFU));
+    //IGB_MODIFY_REG(RCC->CFGR2, (ADCxSource >> 16U), (ADCxSource & 0x0000FFFFU));
 #else
     if (src == AdcClockSrc::ahb) {
-      MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADCPRE12, 0);
+      IGB_MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADCPRE12, 0);
     } else {
-      MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADCPRE12, static_cast<uint32_t>(div));
+      IGB_MODIFY_REG(RCC->CFGR2, RCC_CFGR2_ADCPRE12, static_cast<uint32_t>(div));
     }
 #endif /* RCC_CFGR2_ADCPRE34 */
   }
@@ -555,11 +555,11 @@ struct RccCtrl {
 
 #if defined(RCC_CR_PLLON)
   static IGB_FAST_INLINE void enablePLL() {
-    SET_BIT(RCC->CR, RCC_CR_PLLON);
+    IGB_SET_BIT(RCC->CR, RCC_CR_PLLON);
   }
 
   static IGB_FAST_INLINE void disablePLL() {
-    CLEAR_BIT(RCC->CR, RCC_CR_PLLON);
+    IGB_CLEAR_BIT(RCC->CR, RCC_CR_PLLON);
   }
 
   static IGB_FAST_INLINE bool isReadyPLL() {
@@ -570,16 +570,16 @@ struct RccCtrl {
 #if defined(STM32F0) || defined(STM32F3)
 #if defined(RCC_PLLSRC_PREDIV1_SUPPORT)
   static IGB_FAST_INLINE void configPllSystemClockDomain(RccPllClockSrc clock_src, RccPllMul mul, RccPllDiv div) {
-    MODIFY_REG(RCC->CFGR, RCC_CFGR_PLLSRC | RCC_CFGR_PLLMUL, static_cast<uint32_t>(clock_src) | static_cast<uint32_t>(mul));
-    MODIFY_REG(RCC->CFGR2, RCC_CFGR2_PREDIV, static_cast<uint32_t>(div));
+    IGB_MODIFY_REG(RCC->CFGR, RCC_CFGR_PLLSRC | RCC_CFGR_PLLMUL, static_cast<uint32_t>(clock_src) | static_cast<uint32_t>(mul));
+    IGB_MODIFY_REG(RCC->CFGR2, RCC_CFGR2_PREDIV, static_cast<uint32_t>(div));
   }
 #else
   static IGB_FAST_INLINE void configPllSystemClockDomain(RccPllClockSrc clock_src, RccPllMul mul, RccPllDiv div) {
-    MODIFY_REG(RCC->CFGR, RCC_CFGR_PLLSRC | RCC_CFGR_PLLMUL, (static_cast<uint32_t>(clock_src) & RCC_CFGR_PLLSRC) | static_cast<uint32_t>(mul));
+    IGB_MODIFY_REG(RCC->CFGR, RCC_CFGR_PLLSRC | RCC_CFGR_PLLMUL, (static_cast<uint32_t>(clock_src) & RCC_CFGR_PLLSRC) | static_cast<uint32_t>(mul));
     if (clock_src == RccPllClockSrc::internal) {
-      MODIFY_REG(RCC->CFGR2, RCC_CFGR2_PREDIV, 0);
+      IGB_MODIFY_REG(RCC->CFGR2, RCC_CFGR2_PREDIV, 0);
     } else {
-      MODIFY_REG(RCC->CFGR2, RCC_CFGR2_PREDIV, (static_cast<uint32_t>(div) & RCC_CFGR2_PREDIV));
+      IGB_MODIFY_REG(RCC->CFGR2, RCC_CFGR2_PREDIV, (static_cast<uint32_t>(div) & RCC_CFGR2_PREDIV));
     }
   }
 #endif // RCC_PLLSRC_PREDIV1_SUPPORT

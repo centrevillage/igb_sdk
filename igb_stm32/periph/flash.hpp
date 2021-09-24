@@ -24,7 +24,7 @@ enum class FlashLatency {
 
 struct FlashCtrl {
   static IGB_FAST_INLINE void setLatency(FlashLatency latency) {
-    MODIFY_REG(FLASH->ACR, FLASH_ACR_LATENCY, static_cast<uint32_t>(latency));
+    IGB_MODIFY_REG(FLASH->ACR, FLASH_ACR_LATENCY, static_cast<uint32_t>(latency));
   }
 
   static IGB_FAST_INLINE FlashLatency getLatency() {
@@ -33,11 +33,11 @@ struct FlashCtrl {
 
 #if defined(STM32F0) || defined(STM32F3)
   static IGB_FAST_INLINE void enablePrefetch() {
-    SET_BIT(FLASH->ACR, FLASH_ACR_PRFTBE);
+    IGB_SET_BIT(FLASH->ACR, FLASH_ACR_PRFTBE);
   }
 
   static IGB_FAST_INLINE void disablePrefetch() {
-    CLEAR_BIT(FLASH->ACR, FLASH_ACR_PRFTBE);
+    IGB_CLEAR_BIT(FLASH->ACR, FLASH_ACR_PRFTBE);
   }
 
   static IGB_FAST_INLINE bool isPrefetchEnabled() {
