@@ -65,17 +65,17 @@ struct DRegFlag {
 
   IGB_FAST_INLINE void enable() {
     if (invert_logic) {
-      (*IGB_ACC_DYNAMIC_REG_PTR) &= ~bit_mask;
+      (*IGB_ACC_DYNAMIC_REG_PTR) = (*IGB_ACC_DYNAMIC_REG_PTR) & ~bit_mask;
     } else {
-      (*IGB_ACC_DYNAMIC_REG_PTR) |= bit_mask;
+      (*IGB_ACC_DYNAMIC_REG_PTR) = (*IGB_ACC_DYNAMIC_REG_PTR) | bit_mask;
     }
   }
 
   IGB_FAST_INLINE void disable() {
     if (invert_logic) {
-      (*IGB_ACC_DYNAMIC_REG_PTR) |= bit_mask;
+      (*IGB_ACC_DYNAMIC_REG_PTR) = (*IGB_ACC_DYNAMIC_REG_PTR) | bit_mask;
     } else {
-      (*IGB_ACC_DYNAMIC_REG_PTR) &= ~bit_mask;
+      (*IGB_ACC_DYNAMIC_REG_PTR) = (*IGB_ACC_DYNAMIC_REG_PTR) & ~bit_mask;
     }
   }
 

@@ -149,8 +149,8 @@ struct TscCtrl {
   }
 
   static IGB_FAST_INLINE void start() {
-    info.p_tsc->ICR |= TSC_ICR_EOAIC | TSC_ICR_MCEIC; // request clearing MCEF and EOAF flags 
-    info.p_tsc->CR |= TSC_CR_START;
+    info.p_tsc->ICR = info.p_tsc->ICR | TSC_ICR_EOAIC | TSC_ICR_MCEIC; // request clearing MCEF and EOAF flags 
+    info.p_tsc->CR = info.p_tsc->CR | TSC_CR_START;
   }
 
   static IGB_FAST_INLINE void analogSwitch(TscChannelBit bit) {
@@ -158,7 +158,7 @@ struct TscCtrl {
   }
 
   static IGB_FAST_INLINE void samplingCap(TscChannel io) {
-    info.p_tsc->IOSCR |= 1UL << static_cast<uint32_t>(io);
+    info.p_tsc->IOSCR = info.p_tsc->IOSCR | (1UL << static_cast<uint32_t>(io));
   }
 
   static IGB_FAST_INLINE void samplingCap(TscChannelBit bit) {
@@ -174,7 +174,7 @@ struct TscCtrl {
   }
 
   static IGB_FAST_INLINE void enableHysteresisCtrl(TscChannel io) {
-    info.p_tsc->IOHCR |= 1UL << static_cast<uint32_t>(io);
+    info.p_tsc->IOHCR = info.p_tsc->IOHCR | (1UL << static_cast<uint32_t>(io));
   }
 
   static IGB_FAST_INLINE void clearHisteresisCtrl() {
@@ -186,11 +186,11 @@ struct TscCtrl {
   }
 
   static IGB_FAST_INLINE void enableGroup(TscGroup group) {
-    info.p_tsc->IOGCSR |= 1UL << static_cast<uint32_t>(group);
+    info.p_tsc->IOGCSR = info.p_tsc->IOGCSR | (1UL << static_cast<uint32_t>(group));
   }
 
   static IGB_FAST_INLINE void disableGroup(TscGroup group) {
-    info.p_tsc->IOGCSR &= ~(1UL << static_cast<uint32_t>(group));
+    info.p_tsc->IOGCSR = info.p_tsc->IOGCSR & ~(1UL << static_cast<uint32_t>(group));
   }
 
   static IGB_FAST_INLINE void groupCtrl(TscGroupBit bit) {
@@ -198,7 +198,7 @@ struct TscCtrl {
   }
 
   static IGB_FAST_INLINE void enableChannel(TscChannel ch) {
-    info.p_tsc->IOCCR |= 1UL << static_cast<uint32_t>(ch);
+    info.p_tsc->IOCCR = info.p_tsc->IOCCR | (1UL << static_cast<uint32_t>(ch));
   }
 
   static IGB_FAST_INLINE void channelCtrl(TscChannelBit bit) {

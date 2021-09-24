@@ -346,7 +346,7 @@ struct Usart {
   }
 
   IGB_FAST_INLINE static void clear(UsartState state) {
-    IGB_USART->ICR |= static_cast<uint32_t>(state);
+    IGB_USART->ICR = IGB_USART->ICR | static_cast<uint32_t>(state);
   }
 
   Reg<addr_RDR> rxData;

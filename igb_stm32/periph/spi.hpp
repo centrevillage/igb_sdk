@@ -261,8 +261,8 @@ struct Spi {
   constexpr static auto sck_pin = SCK_PIN;
   constexpr static auto addr = STM32_PERIPH_INFO.spi[to_idx(type)].addr;
 
-  IGB_FAST_INLINE void enable() { IGB_SPI->CR1 |= SPI_CR1_SPE; }
-  IGB_FAST_INLINE void disable() { IGB_SPI->CR1 &= ~SPI_CR1_SPE; }
+  IGB_FAST_INLINE void enable() { IGB_SPI->CR1 = IGB_SPI->CR1 | SPI_CR1_SPE; }
+  IGB_FAST_INLINE void disable() { IGB_SPI->CR1 = IGB_SPI->CR1 & ~SPI_CR1_SPE; }
 
 #if defined(STM32H7)
   RegEnum<IGB_SPI_REG_ADDR(CFG2), SPI_CFG2_MASTER, SpiMode> mode;
@@ -398,7 +398,7 @@ struct Spi {
 #if defined(STM32H7)
     IGB_SET_BIT(IGB_SPI->IER, as<uint32_t>(type));
 #else
-    IGB_SPI->CR2 |= as<uint32_t>(type);
+    IGB_SPI->CR2 = IGB_SPI->CR2 | as<uint32_t>(type);
 #endif
   }
 
@@ -406,7 +406,7 @@ struct Spi {
 #if defined(STM32H7)
     IGB_CLEAR_BIT(IGB_SPI->IER, as<uint32_t>(type));
 #else
-    IGB_SPI->CR2 &= ~(as<uint32_t>(type));
+    IGB_SPI->CR2 = IGB_SPI->CR2 & ~(as<uint32_t>(type));
 #endif
   }
 
@@ -424,7 +424,7 @@ struct Spi {
 #if defined(STM32H7)
     IGB_SET_BIT(IGB_SPI->CFG1, as<uint32_t>(type));
 #else
-    IGB_SPI->CR2 |= as<uint32_t>(type);
+    IGB_SPI->CR2 = IGB_SPI->CR2 | as<uint32_t>(type);
 #endif
   }
 
@@ -432,7 +432,7 @@ struct Spi {
 #if defined(STM32H7)
     IGB_CLEAR_BIT(IGB_SPI->CFG1, as<uint32_t>(type));
 #else
-    IGB_SPI->CR2 &= ~(as<uint32_t>(type));
+    IGB_SPI->CR2 = IGB_SPI->CR2 & ~(as<uint32_t>(type));
 #endif
   }
 
@@ -527,7 +527,7 @@ struct Spi {
     IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_EOTC);
     IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_TXTFC);
     disable();
-    IGB_SPI->IER &= (~(SPI_IT_EOT | SPI_IT_TXP | SPI_IT_RXP | SPI_IT_DXP | SPI_IT_UDR | SPI_IT_OVR | SPI_IT_FRE | SPI_IT_MODF));
+    IGB_SPI->IER = IGB_SPI->IER & (~(SPI_IT_EOT | SPI_IT_TXP | SPI_IT_RXP | SPI_IT_DXP | SPI_IT_UDR | SPI_IT_OVR | SPI_IT_FRE | SPI_IT_MODF));
     IGB_CLEAR_BIT(IGB_SPI->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
 #else
     __IO uint16_t tmp = transferU8sync(data);
@@ -548,7 +548,7 @@ struct Spi {
     IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_EOTC);
     IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_TXTFC);
     disable();
-    IGB_SPI->IER &= (~(SPI_IT_EOT | SPI_IT_TXP | SPI_IT_RXP | SPI_IT_DXP | SPI_IT_UDR | SPI_IT_OVR | SPI_IT_FRE | SPI_IT_MODF));
+    IGB_SPI->IER = IGB_SPI->IER & (~(SPI_IT_EOT | SPI_IT_TXP | SPI_IT_RXP | SPI_IT_DXP | SPI_IT_UDR | SPI_IT_OVR | SPI_IT_FRE | SPI_IT_MODF));
     IGB_CLEAR_BIT(IGB_SPI->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
 #else
     for (size_t i = 0; i < size; ++i) {
@@ -589,15 +589,18 @@ struct Spi {
     IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_EOTC);
     IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_TXTFC);
     disable();
-    IGB_SPI->IER &= (~(SPI_IT_EOT | SPI_IT_TXP | SPI_IT_RXP | SPI_IT_DXP | SPI_IT_UDR | SPI_IT_OVR | SPI_IT_FRE | SPI_IT_MODF));
+    IGB_SPI->IER = IGB_SPI->IER & (~(SPI_IT_EOT | SPI_IT_TXP | SPI_IT_RXP | SPI_IT_DXP | SPI_IT_UDR | SPI_IT_OVR | SPI_IT_FRE | SPI_IT_MODF));
     IGB_CLEAR_BIT(IGB_SPI->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
     return result;
 #else
     while (is(SpiState::busy));
     while (!is(SpiState::txBufEmpty));
+
     sendU8(data);
+
     while (!is(SpiState::rxBufNotEmpty));
-     return receiveU8();
+
+    return receiveU8();
 #endif
   }
 
@@ -608,7 +611,6 @@ struct Spi {
     auto result = get_af_idx(periph_type.value(), pin_type);
     if (!result) { return; }
 
-    GpioType gpio_type = extract_gpio_type(pin_type);
     GpioPin pin = GpioPin::newPin(pin_type);
     pin.setMode(GpioMode::alternate);
     pin.setPullMode(GpioPullMode::no);

@@ -474,11 +474,11 @@ struct Adc {
   }
 
   IGB_FAST_INLINE void enableIt(AdcInterruptType interrupt) {
-    IGB_ADC->IER |= static_cast<uint32_t>(interrupt);
+    IGB_ADC->IER = IGB_ADC->IER | static_cast<uint32_t>(interrupt);
   }
 
   IGB_FAST_INLINE void disableIt(AdcInterruptType interrupt) {
-    IGB_ADC->IER &= ~(static_cast<uint32_t>(interrupt));
+    IGB_ADC->IER = IGB_ADC->IER & ~(static_cast<uint32_t>(interrupt));
   }
 
   IGB_FAST_INLINE void enableRegulator() {
@@ -729,7 +729,7 @@ struct Adc {
     if (conf.enable_interrupt) {
       NvicCtrl::setPriority(info.irqn, conf.interrupt_priority);
       NvicCtrl::enable(info.irqn);
-      IGB_ADC->IER |= conf.interrupt_bits;
+      IGB_ADC->IER = IGB_ADC->IER | conf.interrupt_bits;
     }
 
     (

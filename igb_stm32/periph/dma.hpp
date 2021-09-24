@@ -92,11 +92,11 @@ struct DmaChannel {
   DRegFlag<DMA_CCR_EN_Msk> enable {IGB_DMA_CH_REG_ADDR(CCR)};
 
   IGB_FAST_INLINE void enableIt(DmaInterrupt interrupt) {
-    p_dma_channel->CCR |= static_cast<uint32_t>(interrupt);
+    p_dma_channel->CCR = p_dma_channel->CCR | static_cast<uint32_t>(interrupt);
   }
 
   IGB_FAST_INLINE void disableIt(DmaInterrupt interrupt) {
-    p_dma_channel->CCR &= ~(static_cast<uint32_t>(interrupt));
+    p_dma_channel->CCR = p_dma_channel->CCR & ~(static_cast<uint32_t>(interrupt));
   }
 
   DRegEnum<DMA_CCR_DIR_Msk, DmaTransDir> direction {IGB_DMA_CH_REG_ADDR(CCR)};
@@ -153,7 +153,7 @@ struct Dma {
   IGB_FAST_INLINE void clear(DmaChannelType ch_type, DmaStatus status) {
     const auto ch_idx = static_cast<uint32_t>(ch_type);
     const auto status_idx = static_cast<uint32_t>(status);
-    IGB_DMA->IFCR |= (status_idx << (ch_idx * 4));
+    IGB_DMA->IFCR = IGB_DMA->IFCR | (status_idx << (ch_idx * 4));
   }
 
   IGB_FAST_INLINE void enableNvic(DmaChannelType ch_type, uint32_t priority = 1) {

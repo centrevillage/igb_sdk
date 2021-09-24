@@ -49,7 +49,9 @@ struct SystickCtrl {
     return _systick_state.tick * _systick_state._usec_scaling;
   }
   static IGB_FAST_INLINE uint32_t receiveTick() {
-    return _systick_state.tick++;
+    //return _systick_state.tick++;
+    _systick_state.tick = _systick_state.tick + 1;
+    return _systick_state.tick;
   }
 };
 //volatile SystickCtrl::State SystickCtrl::state;

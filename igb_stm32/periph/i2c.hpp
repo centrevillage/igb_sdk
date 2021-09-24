@@ -143,8 +143,8 @@ struct I2c {
   constexpr static auto sda_pin = SDA_PIN;
   constexpr static auto addr = STM32_PERIPH_INFO.i2c[to_idx(type)].addr;
 
-  IGB_FAST_INLINE void enable() { IGB_I2C->CR1 |= I2C_CR1_PE; }
-  IGB_FAST_INLINE void disable() { IGB_I2C->CR1 &= ~I2C_CR1_PE; }
+  IGB_FAST_INLINE void enable() { IGB_I2C->CR1 = IGB_I2C->CR1 | I2C_CR1_PE; }
+  IGB_FAST_INLINE void disable() { IGB_I2C->CR1 = IGB_I2C->CR1 & ~I2C_CR1_PE; }
   RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_ANFOFF, true>          analogFilter;
   RegValue<IGB_I2C_REG_ADDR(CR1), I2C_CR1_DNF, I2C_CR1_DNF_Pos> digitalFilter;
   RegFlag<IGB_I2C_REG_ADDR(CR1), I2C_CR1_TXDMAEN>               dmaTx;
@@ -199,14 +199,14 @@ struct I2c {
 
   IGB_FAST_INLINE void clear(I2cStatus status) {
     if (status == I2cStatus::txDataEmpty) {
-      IGB_I2C->ISR |= I2C_ISR_TXE;
+      IGB_I2C->ISR = IGB_I2C->ISR | I2C_ISR_TXE;
     } else {
       IGB_I2C->ICR = static_cast<uint32_t>(status);
     }
   }
 
   IGB_FAST_INLINE void clear(I2cInterruptType interrupt) {
-    IGB_I2C->ICR |= static_cast<uint32_t>(interrupt);
+    IGB_I2C->ICR = IGB_I2C->ICR | static_cast<uint32_t>(interrupt);
   }
 
   RegEnum<IGB_I2C_REG_ADDR(CR2), I2C_CR2_RELOAD | I2C_CR2_AUTOEND, I2cReloadEndType>  reloadEndMode;
@@ -279,7 +279,6 @@ struct I2c {
     auto result = get_af_idx(periph_type.value(), pin_type);
     if (!result) { return; }
 
-    GpioType gpio_type = extract_gpio_type(pin_type);
     GpioPin pin = GpioPin::newPin(pin_type);
     pin.setMode(GpioMode::alternate);
     pin.setPullMode(GpioPullMode::up);

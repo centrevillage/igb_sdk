@@ -466,6 +466,11 @@ struct RccCtrl {
         }
         break;
 #endif
+      default:
+        break;
+    }
+    if (usart_src) {
+      IGB_MODIFY_REG(RCC->CFGR3, usart_src, clock_src);
     }
   }
 #endif
