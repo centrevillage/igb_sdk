@@ -188,7 +188,14 @@ struct TimConf {
   TimTriggerOut trigger_out = TimTriggerOut::reset;
   bool enable_master_slave = false;
 
-  bool enable_update_interrupt = false;
+  bool enable_it_update= false;
+  bool enable_it_cc1 = false;
+  bool enable_it_cc2 = false;
+  bool enable_it_cc3 = false;
+  bool enable_it_cc4 = false;
+  bool enable_it_com = false;
+  bool enable_it_trigger = false;
+  bool enable_it_break = false;
   uint16_t interrupt_priority = 1;
 };
 
@@ -217,19 +224,63 @@ struct Tim {
   constexpr static auto addr_BDTR = IGB_TIM_REG_ADDR(BDTR);
   constexpr static auto addr_DCR  = IGB_TIM_REG_ADDR(DCR);
   constexpr static auto addr_DMAR = IGB_TIM_REG_ADDR(DMAR);
-  constexpr static auto addr_OR   = IGB_TIM_REG_ADDR(OR);
+  //constexpr static auto addr_OR   = IGB_TIM_REG_ADDR(OR);
 
   Reg<addr_PSC> prescaler; 
   RegEnum<addr_CR1, (TIM_CR1_DIR | TIM_CR1_CMS), TimCounterMode> counterMode;
   RegEnum<addr_CR1, TIM_CR1_CKD, TimClockDiv> clockDiv;
   RegFlag<addr_CR1, TIM_CR1_ARPE> enableArrPreload;
 
+  Reg<addr_CCR1> cc1Value;
+  Reg<addr_CCR2> cc2Value;
+  Reg<addr_CCR3> cc3Value;
+  Reg<addr_CCR4> cc4Value;
+
+  // optional tuple interface
   std::tuple<
     Reg<addr_CCR1>,
     Reg<addr_CCR2>,
     Reg<addr_CCR3>,
     Reg<addr_CCR4>
   > ccValues;
+  // for dynamic access
+  constexpr uint32_t getCcValue(TimCcCh ch) {
+    switch (ch) {
+      case TimCcCh::cc1:
+        return cc1Value();
+        break;
+      case TimCcCh::cc2:
+        return cc2Value();
+        break;
+      case TimCcCh::cc3:
+        return cc3Value();
+        break;
+      case TimCcCh::cc4:
+        return cc4Value();
+        break;
+      defalut:
+        break;
+    }
+    return 0; // never reach
+  };
+  constexpr uint32_t setCcValue(TimCcCh ch, uint32_t v) { // in mostly cases, v is not constant  so this method isn't evaluated on compile-time
+    switch (ch) {
+      case TimCcCh::cc1:
+        cc1Value(v);
+        break;
+      case TimCcCh::cc2:
+        cc2Value(v);
+        break;
+      case TimCcCh::cc3:
+        cc3Value(v);
+        break;
+      case TimCcCh::cc4:
+        cc4Value(v);
+        break;
+      defalut:
+        break;
+    }
+  };
 
   Reg<addr_ARR> autoReload;
   Reg<addr_RCR> repetitionCounter;
@@ -259,7 +310,23 @@ struct Tim {
     reg_EGR(reg_EGR() | as<uint32_t>(event));
   }
 
+  // TODO
+  Reg<addr_CCMR1> reg_CCMR1; 
+  Reg<addr_CCMR2> reg_CCMR2; 
+  Reg<addr_CCER> reg_CCER; 
+
+
+
   Reg<addr_DIER> reg_DIER;
+
+  RegFlag<addr_DIER, TIM_DIER_UIE>   enableItUpdate;
+  RegFlag<addr_DIER, TIM_DIER_CC1IE> enableItCc1;
+  RegFlag<addr_DIER, TIM_DIER_CC2IE> enableItCc2;
+  RegFlag<addr_DIER, TIM_DIER_CC3IE> enableItCc3;
+  RegFlag<addr_DIER, TIM_DIER_CC4IE> enableItCc4;
+  RegFlag<addr_DIER, TIM_DIER_COMIE> enableItCom;
+  RegFlag<addr_DIER, TIM_DIER_TIE>   enableItTrigger;
+  RegFlag<addr_DIER, TIM_DIER_BIE>   enableItBreak;;
 
   void enableIt(TimInterruptType interrupt) {
     reg_DIER(reg_DIER() | as<uint32_t>(interrupt));
@@ -281,6 +348,8 @@ struct Tim {
   RegEnum<addr_DCR, TIM_DCR_DBL_Msk, TimDmaBurstLen> dmaBurstLen;
   RegEnum<addr_DCR, TIM_DCR_DBA_Msk, TimDmaBurstBaseAddr> dmaBurstBaseAddr;
 
+  Reg<addr_DMAR> reg_DMAR;
+
   RegFlag<addr_CR1, TIM_CR1_CEN> enable;
 
   void start() {
@@ -295,10 +364,21 @@ struct Tim {
     const auto& info = STM32_PERIPH_INFO.tim[to_idx(type)];
     info.bus.enableBusClock();
 
-    if (conf.enable_update_interrupt) {
+    auto it_bits = (
+      enableItUpdate.val(conf.enable_it_update) |
+      enableItCc1.val(conf.enable_it_cc1) |
+      enableItCc2.val(conf.enable_it_cc2) |
+      enableItCc3.val(conf.enable_it_cc3) |
+      enableItCc4.val(conf.enable_it_cc4) |
+      enableItCom.val(conf.enable_it_com) |
+      enableItTrigger.val(conf.enable_it_trigger) |
+      enableItBreak.val(conf.enable_it_break)
+    );
+
+    if (it_bits.value()) {
       NvicCtrl::setPriority(info.irqn, conf.interrupt_priority);
       NvicCtrl::enable(info.irqn);
-      enableIt(TimInterruptType::update);
+      it_bits.update();
     }
     count(0);
     prescaler(conf.prescale);
