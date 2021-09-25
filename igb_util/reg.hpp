@@ -46,6 +46,13 @@ struct RegFragment {
   IGB_FAST_INLINE void update() {
     (*IGB_ACC_REG_PTR) = ((*IGB_ACC_REG_PTR) & (~bit_mask)) | (v & bit_mask);
   }
+
+  uint32_t mask() const noexcept {
+    return bit_mask;
+  }
+  uint32_t value() const noexcept {
+    return v;
+  }
 };
 
 template<uint32_t reg_addr, const uint32_t bit_mask>
