@@ -175,12 +175,8 @@ struct HardCcTimerStm32 {
   }
 
   // call me on TIMx_Handler
-  // if you are concerned for the performance, just call ccxHandler you need.
   IGB_FAST_INLINE void irqHandler() { // specialized api
     cc1Handler();
-    cc2Handler();
-    cc3Handler();
-    cc4Handler();
   }
 };
 
