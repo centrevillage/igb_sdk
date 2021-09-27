@@ -86,6 +86,13 @@ struct HardCcTimerStm32 {
   };
   std::array<CcState, 4> _cc_states;
 
+  constexpr IGB_FAST_INLINE static float secToTick(float interval_sec) {
+    return interval_sec * (float)tim_base_clock;
+  }
+  constexpr IGB_FAST_INLINE static float tickToSec(float tick) {
+    return tick / (float)tim_base_clock;
+  }
+
   void init(float cc1_interval_sec, auto&& update_func) { // general timer api
     _tim.count(0);
     setIntervalSec(cc1_interval_sec);
@@ -115,11 +122,11 @@ struct HardCcTimerStm32 {
   }
 
   IGB_FAST_INLINE void setIntervalSec(float interval_sec) { // general timer api
-    const float interval_tick_f = interval_sec * (float)tim_base_clock;
+    const float interval_tick_f = secToTick(interval_sec);
     setIntervalTick(interval_tick_f);
   }
   IGB_FAST_INLINE void setIntervalSec(uint8_t cc_idx, float interval_sec) { // specialized timer api
-    const float interval_tick_f = interval_sec * (float)tim_base_clock;
+    const float interval_tick_f = secToTick(interval_sec);
     setIntervalTick(cc_idx, interval_tick_f);
   }
   IGB_FAST_INLINE void setSubTimerIntervalSec(uint8_t sub_timer_idx, float interval_sec) { // specialized timer api
@@ -135,7 +142,7 @@ struct HardCcTimerStm32 {
   }
   IGB_FAST_INLINE float getIntervalSec(uint8_t cc_idx = 0) const { // general timer api
     auto& state = _cc_states[cc_idx];
-    return std::round((float)state.interval_tick / (float)tim_base_clock);
+    return std::round(tickToSec((float)state.interval_tick));
   }
   IGB_FAST_INLINE float getIntervalTick(uint8_t cc_idx = 0) const { // general timer api
     auto& state = _cc_states[cc_idx];
