@@ -11,6 +11,7 @@ namespace sdk {
 
 template<typename Tim32Cls /* 32bit tim class (TIM2 etc) */, uint8_t priority, uint32_t tim_base_clock>
 struct HardCcTimerStm32 {
+  constexpr static uint32_t sub_timer_count = 3;
   constexpr static uint32_t adjust_tbl[32] = {
 // #!ruby
 //def gen_basic_euclid(k, n)
@@ -102,9 +103,29 @@ struct HardCcTimerStm32 {
     }
   }
 
+  void initSubTimer(uint8_t sub_timer_idx, float interval_sec, auto&& update_func) { // specialized timer api
+    if (sub_timer_idx < sub_timer_count) {
+      const auto cc_idx = sub_timer_idx + 1;
+      auto& state = _cc_states[cc_idx];
+      setIntervalSec(cc_idx, interval_sec);
+      state.on_capture = update_func;
+      state.active = false;
+      enableCh(cc_idx);
+    }
+  }
+
   IGB_FAST_INLINE void setIntervalSec(float interval_sec) { // general timer api
     const float interval_tick_f = interval_sec * (float)tim_base_clock;
     setIntervalTick(interval_tick_f);
+  }
+  IGB_FAST_INLINE void setIntervalSec(uint8_t cc_idx, float interval_sec) { // specialized timer api
+    const float interval_tick_f = interval_sec * (float)tim_base_clock;
+    setIntervalTick(cc_idx, interval_tick_f);
+  }
+  IGB_FAST_INLINE void setSubTimerIntervalSec(uint8_t sub_timer_idx, float interval_sec) { // specialized timer api
+    if (sub_timer_idx < sub_timer_count) {
+      setIntervalSec(sub_timer_idx+1, interval_sec);
+    }
   }
   IGB_FAST_INLINE void setIntervalTick(uint32_t interval_tick) { // general timer api
     setIntervalTick(0, interval_tick);
@@ -120,17 +141,52 @@ struct HardCcTimerStm32 {
     auto& state = _cc_states[cc_idx];
     return state.interval_tick_f;
   }
+  IGB_FAST_INLINE float getSubTimerIntervalSec(uint8_t sub_timer_idx) const { // general timer api
+    if (sub_timer_idx < sub_timer_count) {
+      return getIntervalSec(sub_timer_idx+1);
+    }
+    return 0.0f;
+  }
+  IGB_FAST_INLINE float getSubTimerIntervalTick(uint8_t sub_timer_idx) const { // general timer api
+    if (sub_timer_idx < sub_timer_count) {
+      return getIntervalTick(sub_timer_idx+1);
+    }
+    return 0.0f;
+  }
 
   IGB_FAST_INLINE void start() { // general timer api
-    auto& state = _cc_states[0];
+    _startTimer(0);
+  }
+
+  IGB_FAST_INLINE void startSubTimer(uint8_t sub_timer_idx) { // specialized timer api
+    if (sub_timer_idx < sub_timer_count) {
+      const auto cc_idx = sub_timer_idx + 1;
+      _startTimer(cc_idx);
+    }
+  }
+
+  IGB_FAST_INLINE void stopSubTimer(uint8_t sub_timer_idx) { // specialized timer api
+    if (sub_timer_idx < sub_timer_count) {
+      const auto cc_idx = sub_timer_idx + 1;
+      _stopTimer(cc_idx);
+    }
+  }
+
+  IGB_FAST_INLINE void _startTimer(uint8_t cc_idx) {
+    auto& state = _cc_states[cc_idx];
     uint32_t cc_value = _tim.count() + state.interval_tick;
-    _tim.cc1Value(cc_value);
+    _setCcValue(cc_idx, cc_value);
     state.active = true;
     state.cc_value = cc_value;
   }
 
+
   IGB_FAST_INLINE void stop() { // general timer api
-    auto& state = _cc_states[0];
+    _stopTimer(0);
+  }
+
+  IGB_FAST_INLINE void _stopTimer(uint8_t cc_idx) { // general timer api
+    auto& state = _cc_states[cc_idx];
     state.active = false;
   }
 
@@ -197,8 +253,32 @@ struct HardCcTimerStm32 {
     }
   }
 
+  IGB_FAST_INLINE void setSubTimerIntervalTick(uint8_t sub_timer_idx, float interval_tick_f) { // specialized timer api
+    setIntervalTick(sub_timer_idx+1, interval_tick_f);
+  }
+  IGB_FAST_INLINE void setSubTimerIntervalTick(uint8_t sub_timer_idx, uint32_t interval_tick) { // specialized timer api
+    setIntervalTick(sub_timer_idx+1, interval_tick);
+  }
+
   IGB_FAST_INLINE uint32_t tick() { // specialized api
     return _tim.count();
+  }
+
+  IGB_FAST_INLINE void _setCcValue(uint8_t cc_idx, uint32_t value) {
+    switch (cc_idx) {
+      case 0:
+        _tim.cc1Value(value);
+        break;
+      case 1:
+        _tim.cc2Value(value);
+        break;
+      case 2:
+        _tim.cc3Value(value);
+        break;
+      case 3:
+        _tim.cc4Value(value);
+        break;
+    }
   }
 
   IGB_FAST_INLINE void cc1Handler() { // specialized api
@@ -253,6 +333,9 @@ struct HardCcTimerStm32 {
   // call me on TIMx_Handler
   IGB_FAST_INLINE void irqHandler() { // specialized api
     cc1Handler();
+    cc2Handler();
+    cc3Handler();
+    cc4Handler();
   }
 };
 
