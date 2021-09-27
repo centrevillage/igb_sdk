@@ -285,9 +285,9 @@ struct HardCcTimerStm32 {
     if (_tim.is(igb::stm32::TimState::cc1)) {
       auto& state = _cc_states[0];
       if (state.active) {
+        state.on_capture();
         state.nextCc();
         _tim.cc1Value(state.cc_value);
-        state.on_capture();
       }
 
       _tim.clear(igb::stm32::TimState::cc1);
@@ -297,9 +297,9 @@ struct HardCcTimerStm32 {
     if (_tim.is(igb::stm32::TimState::cc2)) {
       auto& state = _cc_states[1];
       if (state.active) {
+        state.on_capture();
         state.nextCc();
         _tim.cc2Value(state.cc_value);
-        state.on_capture();
       }
 
       _tim.clear(igb::stm32::TimState::cc2);
@@ -309,9 +309,9 @@ struct HardCcTimerStm32 {
     if (_tim.is(igb::stm32::TimState::cc3)) {
       auto& state = _cc_states[2];
       if (state.active) {
+        state.on_capture();
         state.nextCc();
         _tim.cc3Value(state.cc_value);
-        state.on_capture();
       }
 
       _tim.clear(igb::stm32::TimState::cc3);
@@ -321,9 +321,9 @@ struct HardCcTimerStm32 {
     if (_tim.is(igb::stm32::TimState::cc4)) {
       auto& state = _cc_states[3];
       if (state.active) {
+        state.on_capture();
         state.nextCc();
         _tim.cc4Value(state.cc_value);
-        state.on_capture();
       }
 
       _tim.clear(igb::stm32::TimState::cc4);
