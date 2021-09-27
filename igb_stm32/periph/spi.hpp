@@ -530,7 +530,7 @@ struct Spi {
     IGB_SPI->IER = IGB_SPI->IER & (~(SPI_IT_EOT | SPI_IT_TXP | SPI_IT_RXP | SPI_IT_DXP | SPI_IT_UDR | SPI_IT_OVR | SPI_IT_FRE | SPI_IT_MODF));
     IGB_CLEAR_BIT(IGB_SPI->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
 #else
-    __IO uint16_t tmp = transferU8sync(data);
+    __IO uint16_t tmp IGB_UNUSED = transferU8sync(data);
 #endif
   }
 

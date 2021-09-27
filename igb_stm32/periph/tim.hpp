@@ -263,7 +263,7 @@ struct Tim {
     }
     return 0; // never reach
   };
-  constexpr uint32_t setCcValue(TimCcCh ch, uint32_t v) { // in mostly cases, v is not constant  so this method isn't evaluated on compile-time
+  constexpr void setCcValue(TimCcCh ch, uint32_t v) { // in mostly cases, v is not constant  so this method isn't evaluated on compile-time
     switch (ch) {
       case TimCcCh::cc1:
         cc1Value(v);

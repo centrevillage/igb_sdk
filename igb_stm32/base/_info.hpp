@@ -5,19 +5,19 @@ struct PeriphBusInfo {
   inline void enableBusClock() const {
     auto p_enr = STM32_BUS_TO_ENR_ADDRESS[ static_cast<uint32_t>(bus_type) ];
     (*p_enr) = (*p_enr) | periph_bit;
-    __IO auto tmp = (*p_enr); // delay until clock enabled
+    __IO auto tmp IGB_UNUSED = (*p_enr); // delay until clock enabled
   }
 
   inline void forceResetBusClock() const {
     auto p_rstr = STM32_BUS_TO_RSTR_ADDRESS[ static_cast<uint32_t>(bus_type) ];
     (*p_rstr) = (*p_rstr) | periph_bit;
-    __IO auto tmp = (*p_rstr); // delay until clock enabled
+    __IO auto tmp IGB_UNUSED = (*p_rstr); // delay until clock enabled
   }
 
   inline void releaseResetBusClock() const {
     auto p_rstr = STM32_BUS_TO_RSTR_ADDRESS[ static_cast<uint32_t>(bus_type) ];
     (*p_rstr) = (*p_rstr) & ~periph_bit;
-    __IO auto tmp = (*p_rstr); // delay until clock enabled
+    __IO auto tmp IGB_UNUSED = (*p_rstr); // delay until clock enabled
   }
 };
 

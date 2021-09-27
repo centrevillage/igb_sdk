@@ -81,7 +81,7 @@ struct GpioPort {
     WRITE_REG(p_gpio->LCKR, GPIO_LCKR_LCKK | pin_bit);
     WRITE_REG(p_gpio->LCKR, pin_bit);
     WRITE_REG(p_gpio->LCKR, GPIO_LCKR_LCKK | pin_bit);
-    __IO uint32_t temp = READ_REG(p_gpio->LCKR);
+    __IO uint32_t temp IGB_UNUSED = READ_REG(p_gpio->LCKR);
   }
 
   IGB_FAST_INLINE void on(uint32_t bits) {
