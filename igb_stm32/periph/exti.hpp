@@ -159,10 +159,16 @@ constexpr uint32_t to_bits(ExtiLine line) {
   return (1UL << to_idx(line));
 }
 
-enum class ExtiTrigType {
+enum class ExtiTrigType : uint8_t {
   falling = 0,
   rising,
   falling_and_rising
+};
+
+enum class ExtiMode : uint8_t {
+  interrupt = 0,
+  event,
+  interrupt_and_event
 };
 
 struct ExtiConf {
@@ -232,23 +238,49 @@ struct ExtiCtrl {
   }
 
   IGB_FAST_INLINE static void clearItState(ExtiLine line) {
-    reg_IMR(reg_PR() | to_bits(line));
+    reg_PR(reg_PR() | to_bits(line));
   }
 
   IGB_FAST_INLINE static bool isIt(ExtiLine line) {
     return reg_PR() & to_bits(line);
   }
 
-  IGB_FAST_INLINE static void enableLine(ExtiLine line, ExtiTrigType trig_type, uint8_t priority) {
+  IGB_FAST_INLINE static void enableLine(ExtiLine line, ExtiTrigType trig_type, ExtiMode mode, uint8_t priority) {
     enableIrqn(line, priority);
-    if (trig_type != ExtiTrigType::falling) {
-      enableRisingTrig(line);
+
+    switch (trig_type) {
+      case ExtiTrigType::falling:
+        disableRisingTrig(line);
+        enableFallingTrig(line);
+        break;
+      case ExtiTrigType::rising:
+        disableFallingTrig(line);
+        enableRisingTrig(line);
+        break;
+      case ExtiTrigType::falling_and_rising:
+        enableFallingTrig(line);
+        enableRisingTrig(line);
+        break;
+      default:
+        break;
     }
-    if (trig_type != ExtiTrigType::rising) {
-      enableFallingTrig(line);
+
+    switch (mode) {
+      case ExtiMode::interrupt:
+        disableEvent(line);
+        enableIt(line);
+        break;
+      case ExtiMode::event:
+        disableIt(line);
+        enableEvent(line);
+        break;
+      case ExtiMode::interrupt_and_event:
+        enableEvent(line);
+        enableIt(line);
+        break;
+      default:
+        break;
     }
-    enableEvent(line);
-    enableIt(line);
   }
 
   IGB_FAST_INLINE static void disableLine(ExtiLine line) {
