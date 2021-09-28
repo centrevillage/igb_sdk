@@ -36,10 +36,6 @@
 #define STM32_PERIPH_USART2_EXISTS 1
 #define STM32_PERIPH_USART3_EXISTS 1
 #define STM32_PERIPHGRP_SPI_EXISTS 1
-#define STM32_PERIPH_SPI2_EXISTS 1
-#define STM32_PERIPH_I2S2EXT_EXISTS 1
-#define STM32_PERIPH_I2S3EXT_EXISTS 1
-#define STM32_PERIPH_SPI3_EXISTS 1
 #define STM32_PERIPH_SPI1_EXISTS 1
 #define STM32_PERIPHGRP_EXTI_EXISTS 1
 #define STM32_PERIPH_EXTI_EXISTS 1
@@ -47,8 +43,6 @@
 #define STM32_PERIPH_PWR_EXISTS 1
 #define STM32_PERIPHGRP_I2C_EXISTS 1
 #define STM32_PERIPH_I2C1_EXISTS 1
-#define STM32_PERIPH_I2C2_EXISTS 1
-#define STM32_PERIPH_I2C3_EXISTS 1
 #define STM32_PERIPHGRP_IWDG_EXISTS 1
 #define STM32_PERIPH_IWDG_EXISTS 1
 #define STM32_PERIPHGRP_WWDG_EXISTS 1
@@ -103,6 +97,7 @@ enum class PeriphGroupType : uint16_t {
   tim,
   usart,
   spi,
+  exti,
   i2c,
   dac,
   adc,
@@ -129,6 +124,7 @@ enum class PeriphType : uint16_t {
   usart2,
   usart3,
   spi1,
+  exti,
   i2c1,
   dac1,
   dac2,
@@ -463,7 +459,7 @@ constexpr static GpioType extract_gpio_type(GpioPinType pin_type) {
     default:
       break;
   }
-  return static_cast<GpioType>(0); // never reach
+  return GpioType::gpioa; // never reach
 }
 
 constexpr static uint8_t extract_pin_idx(GpioPinType pin_type) {
@@ -860,6 +856,29 @@ constexpr struct PeriphInfo {
       .p_spi = SPI1,
       .addr = SPI1_BASE,
       .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 12},
+    },
+  };
+  const ExtiInfo exti {
+    .periph_type = PeriphType::exti,
+    .p_exti = EXTI,
+    .addr = EXTI_BASE,
+    .line_irqns = {
+      EXTI0_IRQn,
+      EXTI1_IRQn,
+      EXTI2_TSC_IRQn,
+      EXTI3_IRQn,
+      EXTI4_IRQn,
+      EXTI9_5_IRQn,
+      EXTI9_5_IRQn,
+      EXTI9_5_IRQn,
+      EXTI9_5_IRQn,
+      EXTI9_5_IRQn,
+      EXTI15_10_IRQn,
+      EXTI15_10_IRQn,
+      EXTI15_10_IRQn,
+      EXTI15_10_IRQn,
+      EXTI15_10_IRQn,
+      EXTI15_10_IRQn,
     },
   };
   const std::array<I2cInfo, 1> i2c {
@@ -1504,7 +1523,7 @@ constexpr static std::optional<PeriphType> as_periph_type(T type) {
 }
 
 template<>
-inline std::optional<PeriphType> as_periph_type(GpioType type) {
+constexpr std::optional<PeriphType> as_periph_type(GpioType type) {
   switch (type) {
     case GpioType::gpioa:
       return PeriphType::gpioa;
@@ -1520,7 +1539,7 @@ inline std::optional<PeriphType> as_periph_type(GpioType type) {
   return std::nullopt;
 }
 template<>
-inline std::optional<PeriphType> as_periph_type(DmaType type) {
+constexpr std::optional<PeriphType> as_periph_type(DmaType type) {
   switch (type) {
     case DmaType::dma1:
       return PeriphType::dma1;
@@ -1528,7 +1547,7 @@ inline std::optional<PeriphType> as_periph_type(DmaType type) {
   return std::nullopt;
 }
 template<>
-inline std::optional<PeriphType> as_periph_type(TimType type) {
+constexpr std::optional<PeriphType> as_periph_type(TimType type) {
   switch (type) {
     case TimType::tim1:
       return PeriphType::tim1;
@@ -1550,7 +1569,7 @@ inline std::optional<PeriphType> as_periph_type(TimType type) {
   return std::nullopt;
 }
 template<>
-inline std::optional<PeriphType> as_periph_type(UsartType type) {
+constexpr std::optional<PeriphType> as_periph_type(UsartType type) {
   switch (type) {
     case UsartType::usart1:
       return PeriphType::usart1;
@@ -1562,7 +1581,7 @@ inline std::optional<PeriphType> as_periph_type(UsartType type) {
   return std::nullopt;
 }
 template<>
-inline std::optional<PeriphType> as_periph_type(SpiType type) {
+constexpr std::optional<PeriphType> as_periph_type(SpiType type) {
   switch (type) {
     case SpiType::spi1:
       return PeriphType::spi1;
@@ -1570,7 +1589,7 @@ inline std::optional<PeriphType> as_periph_type(SpiType type) {
   return std::nullopt;
 }
 template<>
-inline std::optional<PeriphType> as_periph_type(I2cType type) {
+constexpr std::optional<PeriphType> as_periph_type(I2cType type) {
   switch (type) {
     case I2cType::i2c1:
       return PeriphType::i2c1;
@@ -1578,7 +1597,7 @@ inline std::optional<PeriphType> as_periph_type(I2cType type) {
   return std::nullopt;
 }
 template<>
-inline std::optional<PeriphType> as_periph_type(DacType type) {
+constexpr std::optional<PeriphType> as_periph_type(DacType type) {
   switch (type) {
     case DacType::dac1:
       return PeriphType::dac1;
@@ -1588,7 +1607,7 @@ inline std::optional<PeriphType> as_periph_type(DacType type) {
   return std::nullopt;
 }
 template<>
-inline std::optional<PeriphType> as_periph_type(AdcType type) {
+constexpr std::optional<PeriphType> as_periph_type(AdcType type) {
   switch (type) {
     case AdcType::adc1:
       return PeriphType::adc1;

@@ -323,6 +323,9 @@ class CppSrcGenerator
         when :DMA
           struct[:attrs][:p_dma][:value] = peripheral_name
           struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
+        when :EXTI
+          struct[:attrs][:p_exti][:value] = peripheral_name
+          struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
         else
           next
         end
@@ -390,6 +393,25 @@ class CppSrcGenerator
   def fetch_tsc_irqn_name(peripheral_name)
     interrupts = @svd_parser.search_interrupts(/(\A|_)#{peripheral_name}(_|\z)/)
     regulate_irqn_name(interrupts.keys.first.to_s)
+  end
+
+  def fetch_exti_irqn_name(peripheral_name, line)
+    name = @svd_parser.search_interrupts(/(\A|_)#{peripheral_name}#{line}(_|\z)/).keys.first
+    unless name
+      # maybe range pattern? (EXTI9_5_IRQ etc)
+      range_names = @svd_parser.search_interrupts(/(\A|_)#{peripheral_name}\d+_\d+(_|\z)/).keys
+      range_names.each do |range_name|
+        # extract range idx
+        si, ei = range_name.scan(/(\A|_)#{peripheral_name}(\d+)_(\d+)(\z|_)/).map{|m| [m[1], m[2]]}.first.map(&:to_i)
+        si, ei = ei, si if si > ei # swap
+        if (si .. ei).include?(line.to_i)
+          name = range_name
+          break
+        end
+      end
+    end
+    return name unless name
+    regulate_irqn_name(name)
   end
 
   def gen_af_info_structs

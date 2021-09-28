@@ -128,6 +128,13 @@ constexpr struct PeriphInfo {
 <%    if bus = structs.first[:bus] %>
     .bus = PeriphBusInfo { BusType::<%= bus[:name].downcase %>, (uint32_t)1 << <%= bus[:bit_offset] %>},
 <%    end  %>
+<%    if group_name.to_sym == :EXTI %>
+    .line_irqns = {
+<%      (0..15).each do |i| %>
+      <%= fetch_exti_irqn_name(group_name, i) %>,
+<%      end %>
+    },
+<%    end  %>
   };
 <%  else %>
   const std::array<<%= schema[group_name.to_sym][:name] %>, <%= structs.size %>> <%= group_name.downcase %> {
@@ -150,6 +157,12 @@ constexpr struct PeriphInfo {
           .addr = <%= dma_ch_exists ? "#{struct[:periph]}_Channel#{i}_BASE" : '0' %>,
           .irqn = <%= fetch_dma_irqn_name(struct[:periph], i) || '(IRQn_Type)0' %>
         },
+<%        end %>
+      },
+<%      elsif  group_name.to_sym == :EXTI %>
+      .line_irqns = {
+<%        (0..15).each do |i| %>
+        <%= fetch_exti_irqn_name(group_name, i) %>,
 <%        end %>
       },
 <%      end  %>

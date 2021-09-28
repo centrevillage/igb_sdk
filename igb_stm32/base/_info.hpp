@@ -134,3 +134,13 @@ struct DmaInfo {
   const std::array<DmaChannelInfo, 8> channels;
 };
 #endif
+
+#ifdef STM32_PERIPHGRP_EXTI_EXISTS
+struct ExtiInfo {
+  const PeriphType      periph_type;
+  EXTI_TypeDef* const   p_exti;
+  const uint32_t        addr;
+  const PeriphBusInfo   bus;
+  const std::array<IRQn_Type, 16> line_irqns;
+};
+#endif

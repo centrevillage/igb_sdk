@@ -182,6 +182,22 @@ module CppStructSchema
           }
         }
       },
+      EXTI: {
+        name: 'ExtiInfo',
+        singleton: true,
+        attrs: {
+          p_exti: {
+            value: nil,
+            type: 'EXTI_TypeDef*',
+            required: true
+          },
+          addr: {
+            value: nil,
+            type: 'uint32_t',
+            required: true
+          }
+        }
+      },
       # 下記は未サポート
       #FLASH: {
       #  name: 'FLASHCtrl',
@@ -189,16 +205,6 @@ module CppStructSchema
       #    p_flash: {
       #      value: nil,
       #      type: 'FLASH_TypeDef*',
-      #      required: true
-      #    }
-      #  }
-      #},
-      #EXTI: {
-      #  name: 'EXTICtrl',
-      #  attrs: {
-      #    p_exti: {
-      #      value: nil,
-      #      type: 'EXTI_TypeDef*',
       #      required: true
       #    }
       #  }
