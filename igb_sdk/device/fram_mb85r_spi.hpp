@@ -3,6 +3,7 @@
 
 #include <igb_sdk/base.hpp>
 #include <functional>
+#include <igb_util/macro.hpp>
 
 namespace igb {
 namespace sdk {
@@ -96,7 +97,7 @@ struct FramMb85rSPI {
   }
 
   inline void _writeByte(uint8_t byte) {
-    volatile uint8_t tmp = spi.transferU8sync(byte);
+    volatile uint8_t tmp IGB_UNUSED = spi.transferU8sync(byte);
   }
 
   inline uint8_t _readByte() {

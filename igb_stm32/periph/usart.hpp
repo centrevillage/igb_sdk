@@ -358,7 +358,6 @@ struct Usart {
     auto result = get_af_idx(periph_type.value(), pin_type);
     if (!result) { return; }
 
-    GpioType gpio_type = extract_gpio_type(pin_type);
     GpioPin pin = GpioPin::newPin(pin_type);
 
     pin.enable();

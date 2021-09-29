@@ -2,7 +2,7 @@
 
 namespace igb {
 
-uint32_t euclid_tbl_32[32] = {
+const uint32_t euclid_tbl_32[32] = {
 // #!ruby
 //def gen_basic_euclid(k, n)
 //  if k > n

@@ -5,7 +5,7 @@
 
 namespace igb {
 
-extern uint32_t euclid_tbl_32[32];
+extern const uint32_t euclid_tbl_32[32];
 
 }
 
