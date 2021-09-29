@@ -29,20 +29,20 @@ struct MidiStm32 {
     midi.addEvent(event);
   }
 
-  void initUsart(uint32_t usart_clock_freq) {
+  void initUsart(uint32_t usart_clock_freq, uint8_t interrupt_priority = 1) {
     usart.init(
       igb::stm32::UsartConf {
         .rx_pin_type = rx_pin_type,
         .tx_pin_type = tx_pin_type,
         .enable_rx = rx_pin_type ? true : false,
         .enable_tx = tx_pin_type ? true : false,
-        .enable_it_rx_not_empty = rx_pin_type ? true : false,
-        //.enable_it_tx_empty = tx_pin_type ? true : false,
         .enable_parity = false,
         .data_width = igb::stm32::UsartDataWidth::_8bit,
         .base_clock_freq = usart_clock_freq,
         .baudrate = 31250,
-        .interrupt_priority = 0
+        .enable_it_rx_not_empty = rx_pin_type ? true : false,
+        //.enable_it_tx_empty = tx_pin_type ? true : false,
+        .interrupt_priority = interrupt_priority
       }
     );
   }

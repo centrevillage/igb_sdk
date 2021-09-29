@@ -147,19 +147,6 @@ struct UsartConf {
   bool enable_rx = false;
   bool enable_tx = false;
 
-  bool enable_it_idle = false;
-  bool enable_it_rx_not_empty = false;
-  bool enable_it_tx_complete = false;
-  bool enable_it_tx_empty = false;
-  bool enable_it_parity_error = false;
-  bool enable_it_character_match = false;
-  bool enable_it_rx_timeout = false;
-  bool enable_it_end_of_block = false;
-  bool enable_it_line_break = false;
-  bool enable_it_error = false;
-  bool enable_it_cts = false;
-  bool enable_it_wakeup = false;
-
   bool enable_parity = false;
   UsartParity parity_select = UsartParity::even;
   UsartWakeupType wakeup_type = UsartWakeupType::idleLine;
@@ -219,6 +206,19 @@ struct UsartConf {
   bool request_enter_mute_mode = false;
   bool request_rx_data_flush = false;
   bool request_tx_data_flush = false;
+
+  bool enable_it_idle = false;
+  bool enable_it_rx_not_empty = false;
+  bool enable_it_tx_complete = false;
+  bool enable_it_tx_empty = false;
+  bool enable_it_parity_error = false;
+  bool enable_it_character_match = false;
+  bool enable_it_rx_timeout = false;
+  bool enable_it_end_of_block = false;
+  bool enable_it_line_break = false;
+  bool enable_it_error = false;
+  bool enable_it_cts = false;
+  bool enable_it_wakeup = false;
 
   uint8_t interrupt_priority = 1;
 };
@@ -307,26 +307,22 @@ struct Usart {
   RegFlag<addr_CR3, USART_CR3_CTSIE> enableItCts;
   RegFlag<addr_CR3, USART_CR3_WUFIE> enableItWakeup;
 
-  Reg<addr_BRR> brr;
+  Reg<addr_BRR> reg_BRR;
 
-  void setBaudrate(uint32_t base_freq, uint32_t baudrate, UsartOverSampling over_sampling) {
-    uint32_t divider = 0;
-    uint32_t tmpreg = 0;
-    if (over_sampling == UsartOverSampling::x8) {
-      divider = (uint32_t)((2 * base_freq) / baudrate);
-      tmpreg  = (uint32_t)((2 * base_freq) % baudrate);
-    } else { // x16
-      divider = (uint32_t)(base_freq / baudrate);
-      tmpreg  = (uint32_t)(base_freq % baudrate);
+  IGB_FAST_INLINE void setBaudrate(uint32_t base_freq, uint32_t baudrate, UsartOverSampling over_sampling) {
+    switch (over_sampling) {
+      case UsartOverSampling::x16:
+        reg_BRR((uint16_t)(base_freq + (baudrate / 2) / baudrate));
+        break;
+      case UsartOverSampling::x8:
+        {
+          const uint16_t div = ((base_freq * 2) + (baudrate / 2)) / baudrate;
+          reg_BRR((div & 0xFFF0) | ((div & 0x000F) >> 1));
+        }
+        break;
+      defaut:
+        break;
     }
-    if (tmpreg >= baudrate / 2) {
-      divider++;
-    } 
-    if (over_sampling == UsartOverSampling::x8) {
-      tmpreg = (divider & (uint16_t)0x000F) >> 1;
-      divider = (divider & (uint16_t)0xFFF0) | tmpreg;
-    }
-    brr(divider);
   }
 
   RegValue<addr_GTPR, USART_GTPR_PSC_Msk, USART_GTPR_PSC_Pos> irdaPrescaler;
@@ -375,6 +371,7 @@ struct Usart {
 
   IGB_FAST_INLINE void init(auto&& conf) {
     enableBusClock();
+    enable(false);
 
     if (conf.enable_tx && conf.tx_pin_type) {
       prepareGpio(conf.tx_pin_type.value());
@@ -403,6 +400,8 @@ struct Usart {
       NvicCtrl::setPriority(info.irqn, conf.interrupt_priority);
       NvicCtrl::enable(info.irqn);
     }
+
+    setBaudrate(conf.base_clock_freq, conf.baudrate, conf.over_sampling);
 
     (
      enableWakeup.val(conf.enable_wakeup) |
@@ -440,7 +439,6 @@ struct Usart {
      invertTxPolarity.val(conf.invert_tx_polarity) |
      invertDataPolarity.val(conf.invert_data_polarity) |
      bitOrder.val(conf.bit_order) |
-     enableAutoBaudrate.val(conf.enable_auto_baudrate) |
      autoBaudrateMode.val(conf.auto_baudrate_mode) |
      enableRxTimeout.val(conf.enable_rx_timeout) |
      address.val(conf.address) |
@@ -469,10 +467,6 @@ struct Usart {
      enableItWakeup.val(conf.enable_it_wakeup)
     ).update();
 
-    if (!conf.enable_auto_baudrate) {
-      setBaudrate(conf.base_clock_freq, conf.baudrate, conf.over_sampling);
-    }
-
     (
      irdaPrescaler.val(conf.irda_prescaler) | 
      irdaPrescaler.val(conf.smartcard_guard_time)
@@ -482,6 +476,8 @@ struct Usart {
      rxTimeout.val(conf.rx_timeout) |
      blockLength.val(conf.block_length)
     ).update();
+
+    enableAutoBaudrate(conf.enable_auto_baudrate);
 
     (
      requestAutoBaudrate.val(conf.request_auto_baudrate) |
