@@ -15,7 +15,7 @@ struct SeqSyncableClock {
   constexpr static uint32_t sub_timer_interval_tick = (uint32_t)TimerCls::secToTick(1.0f);
   constexpr static uint8_t sub_timer_idx = 0;
 
-  std::function<void(void)> on_update_step = [](){};
+  std::function<void(void)> on_update = [](){};
 
   uint16_t step_per_beat = 4;
   float _interval_tick = TimerCls::secToTick(bpmToIntervalSec(120.0f));
@@ -23,7 +23,7 @@ struct SeqSyncableClock {
   struct IntConf {
     float bpm = 120.0f;
     uint16_t step_per_beat = 4;
-    std::function<void(void)> on_update_step = [](){};
+    std::function<void(void)> on_update = [](){};
   };
   struct ExtConf {
     uint16_t clock_per_beat = 4;
@@ -68,7 +68,7 @@ struct SeqSyncableClock {
 
     _interval_tick = TimerCls::secToTick(bpmToIntervalSec(intConf.bpm));
     changeStepPerBeat(intConf.step_per_beat);
-    on_update_step = intConf.on_update_step;
+    on_update = intConf.on_update;
 
     _timer.init(_interval_tick, [this](){onUpdateIntTimer();});
 
@@ -111,7 +111,7 @@ struct SeqSyncableClock {
     resetClocks();
     if (isIntActive()) {
       _timer.setIntervalTick(_interval_tick);
-      on_update_step();
+      on_update();
       _timer.start();
     }
     _is_start = true;
@@ -149,7 +149,7 @@ struct SeqSyncableClock {
       _timer.stop();
       state.ipl_count = state.ipl_count_max;
       state.clk_count = state.clk_count_max;
-      on_update_step();
+      on_update();
       if (state.is_first_clock_arrived) {
         _timer.setIntervalTick(state.expected_interval_tick);
       } else {
@@ -195,7 +195,7 @@ struct SeqSyncableClock {
       }
       _timer.setIntervalTick(state.expected_interval_tick);
     }
-    on_update_step();
+    on_update();
   }
 
   void checkTimeout() {
