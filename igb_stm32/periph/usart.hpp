@@ -312,7 +312,7 @@ struct Usart {
   IGB_FAST_INLINE void setBaudrate(uint32_t base_freq, uint32_t baudrate, UsartOverSampling over_sampling) {
     switch (over_sampling) {
       case UsartOverSampling::x16:
-        reg_BRR((uint16_t)(base_freq + (baudrate / 2) / baudrate));
+        reg_BRR((uint16_t)((base_freq + (baudrate / 2)) / baudrate));
         break;
       case UsartOverSampling::x8:
         {
@@ -363,7 +363,7 @@ struct Usart {
 
     pin.enable();
     pin.setMode(GpioMode::alternate);
-    pin.setPullMode(GpioPullMode::up);
+    pin.setPullMode(GpioPullMode::no);
     pin.setSpeedMode(GpioSpeedMode::high);
     pin.setOutputMode(GpioOutputMode::pushpull);
     pin.setAlternateFunc(result.value());
