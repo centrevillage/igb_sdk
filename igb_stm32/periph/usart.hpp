@@ -320,7 +320,7 @@ struct Usart {
           reg_BRR((div & 0xFFF0) | ((div & 0x000F) >> 1));
         }
         break;
-      defaut:
+      default:
         break;
     }
   }
