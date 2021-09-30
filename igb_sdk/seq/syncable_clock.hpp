@@ -66,8 +66,8 @@ struct SeqSyncableClock {
   void init(auto&& intConf, auto&&... confs) {
     initExtConf(0, confs...);
 
-    _interval_tick = TimerCls::secToTick(bpmToIntervalSec(intConf.bpm));
     changeStepPerBeat(intConf.step_per_beat);
+    _interval_tick = TimerCls::secToTick(bpmToIntervalSec(intConf.bpm));
     on_update = intConf.on_update;
 
     _timer.init(_interval_tick, [this](){onUpdateIntTimer();});
