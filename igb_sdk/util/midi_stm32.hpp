@@ -23,8 +23,6 @@ struct MidiStm32 {
   usart_t usart;
   Midi midi;
 
-  bool _midi_transfer_interrupt_enabled = false;
-
   IGB_FAST_INLINE void send(auto&& event) {
     midi.addEvent(event);
   }
@@ -58,10 +56,8 @@ struct MidiStm32 {
       on_receive(event.value());
     }
 
-    if (!_midi_transfer_interrupt_enabled) {
-      if (usart.is(igb::stm32::UsartState::txEmpty)) {
-        txHandler();
-      }
+    if (usart.is(igb::stm32::UsartState::txEmpty)) {
+      txHandler();
     }
 
     return event;
@@ -75,15 +71,6 @@ struct MidiStm32 {
     std::optional<uint8_t> send_byte = midi.tx_buffer.get();
     if (send_byte) {
       usart.txData(send_byte.value());
-      if (!_midi_transfer_interrupt_enabled) {
-        usart.enableItTxEmpty(true);
-        _midi_transfer_interrupt_enabled = true;
-      }
-    } else {
-      if (_midi_transfer_interrupt_enabled) {
-        usart.enableItTxEmpty(false);
-        _midi_transfer_interrupt_enabled = false;
-      }
     }
   }
 
@@ -91,12 +78,6 @@ struct MidiStm32 {
   IGB_FAST_INLINE void irqHandler() {
     if (usart.is(igb::stm32::UsartState::rxNotEmpty)) {
       rxHandler();
-      // usart.clear(UsartState::rxNotEmpty);
-      return;
-    }
-    if (usart.is(igb::stm32::UsartState::txEmpty)) {
-      txHandler();
-      // usart.clear(UsartState::txEmpty);
       return;
     }
 
