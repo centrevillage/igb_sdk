@@ -61,6 +61,18 @@ public:
   N get() const noexcept {
     return bit;
   }
+
+  bool has(T group) const noexcept {
+    return bit & (1UL << static_cast<N>(group));
+  }
+
+  void add(T group) noexcept {
+    bit = bit | (1UL << static_cast<N>(group));
+  }
+
+  void clear(T group) noexcept {
+    bit = bit & ~(1UL << static_cast<N>(group));
+  }
 };
 
 }
