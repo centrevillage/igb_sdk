@@ -41,6 +41,52 @@ enum class MidiStatus : uint8_t {
   chPressure = IGB_MIDI_CH_PRESSURE,
   polyKeyPressure = IGB_MIDI_POLY_KEY_PRESSURE
 };
+constexpr uint8_t to_idx(MidiStatus status) {
+  switch (status) {
+    case MidiStatus::noteOn:
+      return IGB_MIDI_NOTE_ON;
+      break;
+    case MidiStatus::noteOff:
+      return IGB_MIDI_NOTE_OFF;
+      break;
+    case MidiStatus::clock:
+      return IGB_MIDI_CLOCK;
+      break;
+    case MidiStatus::start:
+      return IGB_MIDI_START;
+      break;
+    case MidiStatus::stop:
+      return IGB_MIDI_STOP;
+      break;
+    case MidiStatus::reset:
+      return IGB_MIDI_RESET;
+      break;
+    case MidiStatus::cc:
+      return IGB_MIDI_CC;
+      break;
+    case MidiStatus::progChg:
+      return IGB_MIDI_PROG_CHG;
+      break;
+    case MidiStatus::sysExStart:
+      return IGB_MIDI_SYS_EX_START;
+      break;
+    case MidiStatus::sysExEnd:
+      return IGB_MIDI_SYS_EX_END;
+      break;
+    case MidiStatus::pitchbend:
+      return IGB_MIDI_PITCHBEND;
+      break;
+    case MidiStatus::chPressure:
+      return IGB_MIDI_CH_PRESSURE;
+      break;
+    case MidiStatus::polyKeyPressure:
+      return IGB_MIDI_POLY_KEY_PRESSURE;
+      break;
+    default:
+      break;
+  }
+  return 0;
+};
 
 struct MidiEvent {
   constexpr static uint8_t noData = 255;
