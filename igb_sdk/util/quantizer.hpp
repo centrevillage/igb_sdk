@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <algorithm>
+#include <array>
 
 namespace igb {
 namespace sdk {
@@ -11,7 +12,7 @@ struct ScaleQuantizer {
   uint8_t max_octave = 10;
 
   uint16_t _scale_bit = 0x0FFF;
-  int8_t _scale_map[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  std::array<int8_t, 12> _scale_map = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   int16_t _max_note = max_octave * 12 - 1;
   int16_t _min_note = 0;
 
@@ -51,14 +52,17 @@ struct ScaleQuantizer {
     uint8_t found_127 = 1;
     while (found_127) {
       found_127 = 0;
+
       for (uint8_t i=0;i<12;++i) {
         if (_scale_map[i] != 127) {
           uint8_t left = (i+11)%12;
           uint8_t right = (i+1)%12;
           if (_scale_map[left] == 127) {
             _scale_map[left] = _scale_map[i]+1;
-          } else if (_scale_map[right] == 127) {
+          }
+          if (_scale_map[right] == 127) {
             _scale_map[right] = _scale_map[i]-1;
+            ++i;
           }
         } else {
           found_127 = 1;
