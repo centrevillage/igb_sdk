@@ -6,11 +6,11 @@
 
 namespace igb {
 
-template<typename DataType, size_t data_size>
+template<typename DataType, uint32_t data_size>
 struct RingBuf {
   DataType _data[data_size]; 
-  size_t _read_idx = 0;
-  size_t _end_idx = 0;
+  uint32_t _read_idx = 0;
+  uint32_t _end_idx = 0;
 
   IGB_FAST_INLINE void add(DataType value) {
     _data[_end_idx] = value;
@@ -31,8 +31,8 @@ struct RingBuf {
     _end_idx = 0;
   }
 
-  IGB_FAST_INLINE size_t size() {
-    size_t s = _end_idx - _read_idx;
+  IGB_FAST_INLINE uint32_t size() const {
+    int s = _end_idx - _read_idx;
     if (s < 0) {
       return data_size - _read_idx + _end_idx;
     }
@@ -64,7 +64,7 @@ struct RingBuf256 {
     _end_idx = 0;
   }
 
-  IGB_FAST_INLINE uint8_t size() {
+  IGB_FAST_INLINE uint8_t size() const {
     return _end_idx - _read_idx;
   }
 };

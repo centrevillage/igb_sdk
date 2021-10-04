@@ -37,7 +37,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 add_subdirectory(../../igb_util igb_util)
 add_subdirectory(../lib/Catch2 Catch2)
 
-add_executable(igb_util_test src/test_bitmagic.cpp)
+add_executable(igb_util_test src/test_bitmagic.cpp src/test_ring_buf.cpp)
 target_link_libraries(igb_util_test PRIVATE igb_util Catch2::Catch2WithMain)
 
 #target_include_directories(igb_util PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../..)
