@@ -38,3 +38,12 @@
 *.lst
 *.swp
 *.swo
+
+test/igb_util/build/*
+!test/igb_util/build/.keep
+test/igb_stm32/build/*
+!test/igb_stm32/build/.keep
+test/igb_sdk/build/*
+!test/igb_sdk/build/.keep
+test/igb_daisy/build/*
+!test/igb_daisy/build/.keep
