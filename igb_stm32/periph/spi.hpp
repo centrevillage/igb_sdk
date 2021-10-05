@@ -474,14 +474,17 @@ struct Spi {
 #endif
   }
 
-  IGB_FAST_INLINE uint8_t receiveU8sync() {
+  IGB_FAST_INLINE uint8_t receiveU8sync(auto&& wait_func) {
 #if defined(STM32H7)
-    while (!is(SpiState::rxPacketAbailable));
+    while (!is(SpiState::rxPacketAbailable)) { wait_func(); }
     return receiveU8();
 #else
-    while (!is(SpiState::rxBufNotEmpty));
+    while (!is(SpiState::rxBufNotEmpty)) { wait_func(); }
     return receiveU8();
 #endif
+  }
+  IGB_FAST_INLINE uint8_t receiveU8sync() {
+    return receiveU8sync([](){});
   }
 
   IGB_FAST_INLINE uint16_t receiveU16() {
@@ -492,14 +495,17 @@ struct Spi {
 #endif
   }
 
-  IGB_FAST_INLINE uint8_t receiveU16sync() {
+  IGB_FAST_INLINE uint8_t receiveU16sync(auto&& wait_func) {
 #if defined(STM32H7)
-    while (!is(SpiState::rxPacketAbailable));
+    while (!is(SpiState::rxPacketAbailable)) { wait_func(); }
     return receiveU16();
 #else
-    while (!is(SpiState::rxBufNotEmpty));
+    while (!is(SpiState::rxBufNotEmpty)) { wait_func(); }
     return receiveU16();
 #endif
+  }
+  IGB_FAST_INLINE uint8_t receiveU16sync() {
+    return receiveU16sync([](){});
   }
 
   IGB_FAST_INLINE void sendU8(uint8_t data) {
@@ -515,36 +521,39 @@ struct Spi {
 #endif
   }
 
-  IGB_FAST_INLINE void sendU8sync(uint8_t data) {
+  IGB_FAST_INLINE void sendU8sync(uint8_t data, auto&& wait_func) {
 #if defined(STM32H7)
     disable();
     transferSize(1);
     enable();
     startMasterTransfer(true);
-    while (!is(SpiState::txPacketAbailable));
+    while (!is(SpiState::txPacketAbailable)) { wait_func(); }
     sendU8(data);
-    while (!is(SpiState::endOfTransfer));
+    while (!is(SpiState::endOfTransfer)) { wait_func(); }
     IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_EOTC);
     IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_TXTFC);
     disable();
     IGB_SPI->IER = IGB_SPI->IER & (~(SPI_IT_EOT | SPI_IT_TXP | SPI_IT_RXP | SPI_IT_DXP | SPI_IT_UDR | SPI_IT_OVR | SPI_IT_FRE | SPI_IT_MODF));
     IGB_CLEAR_BIT(IGB_SPI->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
 #else
-    __IO uint16_t tmp IGB_UNUSED = transferU8sync(data);
+    __IO uint16_t tmp IGB_UNUSED = transferU8sync(data, wait_func);
 #endif
   }
+  IGB_FAST_INLINE void sendU8sync(uint8_t data) {
+    sendU8sync(data, [](){});
+  }
 
-  IGB_FAST_INLINE void sendBufU8sync(uint8_t* buffer, size_t size) {
+  IGB_FAST_INLINE void sendBufU8sync(uint8_t* buffer, size_t size, auto&& wait_func) {
 #if defined(STM32H7)
     disable();
     transferSize(size);
     enable();
     startMasterTransfer(true);
     for (size_t i = 0; i < size; ++i) {
-      while (!is(SpiState::txPacketAbailable));
+      while (!is(SpiState::txPacketAbailable)) { wait_func(); }
       sendU8(buffer[i]);
     }
-    while (!is(SpiState::endOfTransfer));
+    while (!is(SpiState::endOfTransfer)) { wait_func(); }
     IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_EOTC);
     IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_TXTFC);
     disable();
@@ -552,9 +561,12 @@ struct Spi {
     IGB_CLEAR_BIT(IGB_SPI->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
 #else
     for (size_t i = 0; i < size; ++i) {
-      sendU8sync(buffer[i]);
+      sendU8sync(buffer[i], wait_func);
     }
 #endif
+  }
+  IGB_FAST_INLINE void sendBufU8sync(uint8_t* buffer, size_t size) {
+    sendBufU8sync(buffer, size, [](){});
   }
 
   IGB_FAST_INLINE void sendU16(uint16_t data) {
@@ -575,17 +587,17 @@ struct Spi {
 #endif /* defined(STM32H7) */
   }
 
-  IGB_FAST_INLINE uint8_t transferU8sync(uint8_t data) {
+  IGB_FAST_INLINE uint8_t transferU8sync(uint8_t data, auto&& wait_func) {
 #if defined(STM32H7)
     disable();
     transferSize(1);
     enable();
     startMasterTransfer(true);
-    while (!is(SpiState::txPacketAbailable));
+    while (!is(SpiState::txPacketAbailable)) { wait_func(); }
     sendU8(data);
-    while (!is(SpiState::rxPacketAbailable));
+    while (!is(SpiState::rxPacketAbailable)) { wait_func(); }
     uint8_t result = receiveU8();
-    while (!is(SpiState::endOfTransfer));
+    while (!is(SpiState::endOfTransfer)) { wait_func(); }
     IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_EOTC);
     IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_TXTFC);
     disable();
@@ -593,15 +605,18 @@ struct Spi {
     IGB_CLEAR_BIT(IGB_SPI->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
     return result;
 #else
-    while (is(SpiState::busy));
-    while (!is(SpiState::txBufEmpty));
+    while (is(SpiState::busy)) { wait_func(); }
+    while (!is(SpiState::txBufEmpty))  { wait_func(); }
 
     sendU8(data);
 
-    while (!is(SpiState::rxBufNotEmpty));
+    while (!is(SpiState::rxBufNotEmpty)) { wait_func(); }
 
     return receiveU8();
 #endif
+  }
+  IGB_FAST_INLINE uint8_t transferU8sync(uint8_t data) {
+    return transferU8sync(data, [](){});
   }
 
   IGB_FAST_INLINE void prepareGpio(GpioPinType pin_type) {
