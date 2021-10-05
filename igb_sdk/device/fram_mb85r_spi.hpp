@@ -4,14 +4,17 @@
 #include <igb_sdk/base.hpp>
 #include <functional>
 #include <igb_util/macro.hpp>
+#include <igb_util/null_functor.hpp>
 
 namespace igb {
 namespace sdk {
 
-template<typename SPI_TYPE, typename GPIO_PIN_TYPE>
+template<typename SPI_TYPE, typename GPIO_PIN_TYPE, typename WAIT_FUNC = NullFunctor>
 struct FramMb85rSPI {
   SPI_TYPE spi;
   GPIO_PIN_TYPE cs_pin;
+
+  WAIT_FUNC _wait_func;
 
   const size_t block_size = 32;
 
@@ -97,11 +100,11 @@ struct FramMb85rSPI {
   }
 
   inline void _writeByte(uint8_t byte) {
-    volatile uint8_t tmp IGB_UNUSED = spi.transferU8sync(byte);
+    volatile uint8_t tmp IGB_UNUSED = spi.transferU8sync(byte, _wait_func);
   }
 
   inline uint8_t _readByte() {
-    return spi.transferU8sync(0);
+    return spi.transferU8sync(0, _wait_func);
   }
 
   inline void _processRead() {
