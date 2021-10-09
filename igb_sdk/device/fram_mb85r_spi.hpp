@@ -32,8 +32,8 @@ struct FramMb85rSPI {
   uint32_t _ram_address = 0;
   // 関数ポインタでなくstd::functionの方が扱いやすいが、パフォーマンス低下が気になるので・・・
   // 将来的にはfunction_refとかに置き換えたい
-  void (*_ram_callback)(void) = nullptr;
-  //std::function<void(void)> _ram_callback = nullptr;
+  //void (*_ram_callback)(void) = nullptr;
+  std::function<void(void)> _ram_callback = nullptr;
 
   //0000 0110 Set Write Enable Latch
   constexpr static uint8_t FRAM_CMD_WREN = 0x06;
@@ -54,8 +54,8 @@ struct FramMb85rSPI {
     cs_pin.high();
   }
 
-  inline void requestRead(uint8_t* buf, uint32_t buf_size, uint32_t read_address, void (*callback)(void)) {
-  //void requestRead(uint8_t* buf, uint32_t buf_size, uint32_t read_address, std::function<void(void)> callback) {
+  //inline void requestRead(uint8_t* buf, uint32_t buf_size, uint32_t read_address, void (*callback)(void)) {
+  void requestRead(uint8_t* buf, uint32_t buf_size, uint32_t read_address, auto&& callback) {
     if (_ram_access_state == AccessState::none) {
       _ram_target_buf = buf;
       _ram_address = read_address;
@@ -67,8 +67,8 @@ struct FramMb85rSPI {
     }
   }
 
-  inline void requestWrite(uint8_t* buf, uint32_t buf_size, uint32_t write_address, void (*callback)(void)) {
-  //void requestWrite(uint8_t* buf, uint32_t buf_size, uint32_t write_address, std::function<void(void)> callback) {
+  //inline void requestWrite(uint8_t* buf, uint32_t buf_size, uint32_t write_address, void (*callback)(void)) {
+  void requestWrite(uint8_t* buf, uint32_t buf_size, uint32_t write_address, auto&& callback) {
     if (_ram_access_state == AccessState::none) {
       _ram_target_buf = buf;
       _ram_address = write_address;
