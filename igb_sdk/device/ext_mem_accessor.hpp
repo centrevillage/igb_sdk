@@ -1,6 +1,7 @@
 #ifndef IGB_SDK_DEVICE_EXT_MEM_ACCESSOR_H
 #define IGB_SDK_DEVICE_EXT_MEM_ACCESSOR_H
 
+#include <functional>
 #include <igb_util/ring_buf.hpp>
 
 namespace igb {
@@ -19,7 +20,7 @@ struct ExtMemAccessor {
     uint8_t* buf;
     uint32_t buf_size;
     uint32_t mem_address;
-    void (*callback)(void) = nullptr;
+    std::function<void(void)> callback = nullptr;
   };
 
   RingBuf<ReqInfo, 64> requests;
