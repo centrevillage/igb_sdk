@@ -10,7 +10,7 @@
 namespace igb {
 namespace sdk {
 
-template<typename ADC_TYPE, uint8_t ADC_RESOLUTION, typename GPIO_PIN_TYPE, size_t gpio_pin_count, size_t buffer_size = 4>
+template<typename ADC_TYPE, uint8_t ADC_RESOLUTION, typename GPIO_PIN_TYPE, size_t gpio_pin_count, size_t buffer_size = 1>
 struct MultiplexedAdc {
   static constexpr uint8_t address_size = (1 << gpio_pin_count);
 
@@ -42,7 +42,8 @@ struct MultiplexedAdc {
       const float prev_v = _buf[((buffer_idx + buffer_size - 1) % buffer_size)][process_idx];
       _buf[buffer_idx][process_idx] = (prev_v * (1.0f - filter_coeff)) + (v * filter_coeff);
     } else {
-      _buf[buffer_idx][process_idx] = v;
+      const float prev_v = _buf[buffer_idx][process_idx];
+      _buf[buffer_idx][process_idx] = (prev_v * (1.0f - filter_coeff)) + (v * filter_coeff);
     }
 //    if (on_update) {
 //      on_update(process_idx, getValue(process_idx), getValueFloat(process_idx));
