@@ -17,7 +17,7 @@ struct MultiplexedAdc {
   ADC_TYPE adc;
   std::array<GPIO_PIN_TYPE, gpio_pin_count> gpios;
   std::function<void(uint8_t, uint32_t, float)> on_update;
-  float threshold = 1.4f;
+  float threshold = 0.4f;
   float filter_coeff = 0.1f;
 
   std::array<std::array<float, address_size>, buffer_size> _buf;
@@ -77,8 +77,9 @@ struct MultiplexedAdc {
       for (uint8_t j = 0; j < buffer_size; ++j) {
         new_value += _buf[j][i];
       }
-      new_value = (new_value + (float)buffer_size / 2.0f) / (float)buffer_size;
-      if (std::abs((_values[i] - new_value)) > threshold) {
+      new_value = new_value / (float)buffer_size;
+      const auto old_value = _values[i];
+      if (new_value > (old_value + 1.0f) || new_value < (old_value - threshold)) {
         _values[i] = (float)((int32_t)new_value);
         if (on_update) {
           on_update(i, getValue(i), getValueFloat(i));

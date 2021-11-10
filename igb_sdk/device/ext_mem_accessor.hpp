@@ -33,6 +33,10 @@ struct ExtMemAccessor {
     requests.add(info);
   }
 
+  inline bool isProcessing() const {
+    return memory.isProcessing();
+  }
+
   void process() {
     if (!memory.isProcessing()) {
       const auto next_request = requests.get();

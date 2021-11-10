@@ -95,7 +95,7 @@ struct FramMb85rSPI {
     }
   }
 
-  inline bool isProcessing() {
+  inline bool isProcessing() const {
     return _ram_access_state != AccessState::none;
   }
 
