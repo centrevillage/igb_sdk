@@ -79,7 +79,7 @@ struct MultiplexedAdc {
       }
       new_value = new_value / (float)buffer_size;
       const auto old_value = _values[i];
-      if (new_value > (old_value + 1.0f) || new_value < (old_value - threshold)) {
+      if (new_value > (old_value + 1.0f + threshold) || new_value < (old_value - threshold)) {
         _values[i] = (float)((int32_t)new_value);
         if (on_update) {
           on_update(i, getValue(i), getValueFloat(i));
