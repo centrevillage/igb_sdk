@@ -15,12 +15,12 @@ struct DefaultButtonBuffer {
   // return true if "on" state changed
   bool add(bool on_) {
     uint8_t new_data = (_data << 1) | (on_ ? 1 : 0);
-    if (!isOnData(_data) && isOnData(new_data)) {
+    if (!on && isOnData(new_data)) {
       on = true;
       _data = new_data;
       return true;
     }
-    if (!isOffData(_data) && isOffData(new_data)) {
+    if (on && isOffData(new_data)) {
       on = false;
       _data = new_data;
       return true;

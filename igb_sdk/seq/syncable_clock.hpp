@@ -70,6 +70,7 @@ struct SeqSyncableClock {
     _interval_tick = TimerCls::secToTick(bpmToIntervalSec(intConf.bpm));
     on_update = intConf.on_update;
 
+    // TODO: sec で渡すべきところで tick で渡しているのでバグ？
     _timer.init(_interval_tick, [this](){onUpdateIntTimer();});
 
     _timer.initSubTimer(sub_timer_idx, sub_timer_interval_tick, [this](){checkTimeout();});
@@ -136,11 +137,12 @@ struct SeqSyncableClock {
   }
 
   inline void receiveExtClock(uint8_t idx) {
+    const uint32_t t = _timer.tick();
     auto& state = _extClockStates[idx];
     if (_selected_ext_clock_idx == idx) {
       updateSelectedExtClockState(state);
     }
-    expectInterval(state, _timer.tick());
+    expectInterval(state, t);
   }
 
   inline void updateSelectedExtClockState(auto& state) {
