@@ -226,22 +226,9 @@ struct SeqSyncableClock {
       step_per_beat = new_step_per_beat;
       for (auto& state : _extClockStates) {
         const auto clock_per_beat = state.conf.clock_per_beat;
-        const auto mod1 = step_per_beat % clock_per_beat;
-        const auto mod2 = clock_per_beat % step_per_beat;
-
-        if (mod1 && mod2) { // sync interval is one bar
-          state.clk_count_max = clock_per_beat - 1;
-          state.ipl_count_max = step_per_beat - 1;
-        } else if (mod1) {  // sync interval is one step
-          state.clk_count_max = (clock_per_beat / step_per_beat) - 1;
-          state.ipl_count_max = 0;
-        } else if (mod2) {  // sync interval is one clock
-          state.clk_count_max = 0;
-          state.ipl_count_max = step_per_beat - 1;
-        } else {            // step_per_beat == clock_per_beat
-          state.clk_count_max = 0;
-          state.ipl_count_max = 0;
-        }
+        const auto gcd_num = std::gcd(new_step_per_beat, clock_per_beat);
+        state.clk_count_max = (clock_per_beat / gcd_num) - 1;
+        state.ipl_count_max = (new_step_per_beat / gcd_num) - 1;
       }
     }
   }
