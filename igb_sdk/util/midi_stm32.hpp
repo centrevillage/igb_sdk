@@ -21,7 +21,7 @@ struct MidiStm32 {
   std::function<void(const MidiEvent& event)> on_receive;
   std::function<void(void)> on_sysex_start;
   std::function<void(void)> on_sysex_end;
-  std::function<void(uint8_t)> on_receive_sys_ex;
+  std::function<void(uint8_t)> on_sysex_receive;
   
   uint8_t is_sysex_mode = false;
 
@@ -70,8 +70,8 @@ struct MidiStm32 {
   }
 
   IGB_FAST_INLINE void _receiveSysEx(uint8_t data) {
-    if (on_receive_sys_ex) {
-      on_receive_sys_ex(data);
+    if (on_sysex_receive) {
+      on_sysex_receive(data);
     }
   }
 
