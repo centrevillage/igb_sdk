@@ -19,6 +19,11 @@ struct MidiStm32 {
   const std::optional<igb::stm32::GpioPinType> rx_pin_type = std::nullopt;
   const std::optional<igb::stm32::GpioPinType> tx_pin_type = std::nullopt;
   std::function<void(const MidiEvent& event)> on_receive;
+  std::function<void(void)> on_sysex_start;
+  std::function<void(void)> on_sysex_end;
+  std::function<void(uint8_t)> on_receive_sys_ex;
+  
+  uint8_t is_sysex_mode = false;
 
   usart_t usart;
   Midi midi;
@@ -50,10 +55,55 @@ struct MidiStm32 {
     initUsart(usart_clock_freq);
   }
 
+  IGB_FAST_INLINE void _startSysEx() {
+    is_sysex_mode = true;
+    if (on_sysex_start) {
+      on_sysex_start();
+    }
+  }
+
+  IGB_FAST_INLINE void _endSysEx() {
+    is_sysex_mode = false;
+    if (on_sysex_end) {
+      on_sysex_end();
+    }
+  }
+
+  IGB_FAST_INLINE void _receiveSysEx(uint8_t data) {
+    if (on_receive_sys_ex) {
+      on_receive_sys_ex(data);
+    }
+  }
+
   IGB_FAST_INLINE std::optional<MidiEvent> process() {
-    std::optional<MidiEvent> event = midi.getEvent();
-    if (on_receive && event) {
-      on_receive(event.value());
+    std::optional<MidiEvent> event = std::nullopt;
+    if (is_sysex_mode) {
+      std::optional<uint8_t> tmp = std::nullopt;
+      while ((tmp = midi.rx_buffer.get())) {
+        uint8_t recv_byte = tmp.value();
+        if (recv_byte & 0x80) {
+          _endSysEx();
+          if (recv_byte == IGB_MIDI_SYS_EX_START) {
+            _startSysEx();
+          }
+        } else {
+          // sysex data
+          _receiveSysEx(recv_byte);
+        }
+      }
+    } else {
+      event = midi.getEvent();
+      if (event) {
+        auto v = event.value();
+        if (v.status == IGB_MIDI_SYS_EX_START) {
+          _startSysEx();
+        } else if (v.status == IGB_MIDI_SYS_EX_END) {
+          _endSysEx();
+        } else if (on_receive) {
+          _endSysEx();
+          on_receive(v);
+        }
+      }
     }
 
     if (usart.is(igb::stm32::UsartState::txEmpty)) {

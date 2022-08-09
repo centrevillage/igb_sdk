@@ -123,7 +123,6 @@ struct Midi {
     }
   }
 
-  // TODO: processing sysex
   std::optional<MidiEvent> getEvent() {
     std::optional<uint8_t> tmp = std::nullopt;
     while ((tmp = rx_buffer.get())) {
@@ -137,9 +136,9 @@ struct Midi {
           case IGB_MIDI_STOP:
           case IGB_MIDI_CLOCK:
           case IGB_MIDI_RESET:
-            return MidiEvent { .status = recv_byte };
           case IGB_MIDI_SYS_EX_START:
-            // TODO:
+          case IGB_MIDI_SYS_EX_END:
+            return MidiEvent { .status = recv_byte };
             break;
           default:
             if ((recv_byte & 0xF0) != 0xF0) {
