@@ -28,7 +28,7 @@ struct FlashCtrl {
   }
 
   static IGB_FAST_INLINE FlashLatency getLatency() {
-    return static_cast<FlashLatency>(READ_BIT(FLASH->ACR, FLASH_ACR_LATENCY));
+    return static_cast<FlashLatency>(IGB_READ_BIT(FLASH->ACR, FLASH_ACR_LATENCY));
   }
 
 #if defined(STM32F0) || defined(STM32F3)
@@ -41,7 +41,22 @@ struct FlashCtrl {
   }
 
   static IGB_FAST_INLINE bool isPrefetchEnabled() {
-    return (READ_BIT(FLASH->ACR, FLASH_ACR_PRFTBS) == (FLASH_ACR_PRFTBS));
+    return (IGB_READ_BIT(FLASH->ACR, FLASH_ACR_PRFTBS) == (FLASH_ACR_PRFTBS));
+  }
+
+  static IGB_FAST_INLINE bool isLock() {
+    return IGB_READ_BIT(FLASH->CR, FLASH_CR_LOCK);
+  }
+
+  static IGB_FAST_INLINE void unlock() {
+    if (isLock()) {
+      IGB_WRITE_REG(FLASH->KEYR, FLASH_KEY1);
+      IGB_WRITE_REG(FLASH->KEYR, FLASH_KEY2);
+    }
+  }
+
+  static IGB_FAST_INLINE void lock() {
+    IGB_SET_BIT(FLASH->CR, FLASH_CR_LOCK);
   }
 #endif
 };
