@@ -31,6 +31,10 @@ struct FlashCtrl {
     return static_cast<FlashLatency>(IGB_READ_BIT(FLASH->ACR, FLASH_ACR_LATENCY));
   }
 
+  static IGB_FAST_INLINE bool isBusy() {
+    return FLASH->SR & 0x1UL;
+  }
+
 #if defined(STM32F0) || defined(STM32F3)
   static IGB_FAST_INLINE void enablePrefetch() {
     IGB_SET_BIT(FLASH->ACR, FLASH_ACR_PRFTBE);
@@ -57,6 +61,30 @@ struct FlashCtrl {
 
   static IGB_FAST_INLINE void lock() {
     IGB_SET_BIT(FLASH->CR, FLASH_CR_LOCK);
+  }
+
+  static IGB_FAST_INLINE void erasePage(uint32_t addr) {
+    while (isBusy()) {}
+
+    FLASH->CR = FLASH->CR | FLASH_CR_PER;
+    FLASH->AR = addr; 
+    FLASH->CR = FLASH->CR | FLASH_CR_STRT;
+
+    while (isBusy()) {}
+
+    FLASH->CR = FLASH->CR & ~FLASH_CR_PER;
+  }
+
+  static IGB_FAST_INLINE void programU16(uint32_t addr, uint16_t data) {
+    while (isBusy()) {}
+
+    FLASH->CR = FLASH->CR | FLASH_CR_PG;
+
+    *(__IO uint16_t*)addr = data;
+
+    while (isBusy()) {}
+
+    FLASH->CR = FLASH->CR & ~FLASH_CR_PG;
   }
 #endif
 };
