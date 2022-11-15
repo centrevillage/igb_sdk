@@ -243,6 +243,10 @@ struct RccCtrl {
     periph_bus_info.enableBusClock();
   }
 
+  static IGB_FAST_INLINE void disableBusClock(const auto& periph_bus_info) {
+    periph_bus_info.disableBusClock();
+  }
+
   static IGB_FAST_INLINE void enableHSE() {
     IGB_SET_BIT(RCC->CR, RCC_CR_HSEON);
   }
