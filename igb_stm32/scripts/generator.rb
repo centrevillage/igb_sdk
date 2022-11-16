@@ -57,7 +57,7 @@ class SVDParser
     group_name = fix_ambiguous_group_name(group_name)
 
     #debug "[#{group_name}] #{peripheral_name}"
-    
+
     group_name = group_name.to_sym
     peripheral_name = peripheral_name.to_sym
 
@@ -107,6 +107,8 @@ class SVDParser
       'ADC1'
     when 'DAC'
       'DAC1'
+    when /\ASYSCFG_/
+      'SYSCFG'
     else
       name
     end
@@ -116,6 +118,8 @@ class SVDParser
     case name.to_s
     when 'TIMs'
       'TIM'
+    when /\ASYSCFG_/
+      'SYSCFG'
     else
       name
     end
@@ -325,6 +329,9 @@ class CppSrcGenerator
           struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
         when :EXTI
           struct[:attrs][:p_exti][:value] = peripheral_name
+          struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
+        when :SYSCFG
+          struct[:attrs][:p_syscfg][:value] = peripheral_name
           struct[:attrs][:addr][:value] = "#{peripheral_name}_BASE"
         else
           next

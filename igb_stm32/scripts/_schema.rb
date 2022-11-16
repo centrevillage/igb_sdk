@@ -198,6 +198,23 @@ module CppStructSchema
           }
         }
       },
+      SYSCFG: {
+        name: 'SysCfgInfo',
+        singleton: true,
+        attrs: {
+          p_syscfg: {
+            value: nil,
+            type: 'SYSCFG_TypeDef*',
+            required: true
+          },
+          addr: {
+            value: nil,
+            type: 'uint32_t',
+            required: true
+          }
+        }
+      },
+
       # 下記は未サポート
       #FLASH: {
       #  name: 'FLASHCtrl',
@@ -262,7 +279,6 @@ module CppStructSchema
       #SPDIFRX: {},
       #LPTIM: {},
       #LPUART: {},
-      #SYSCFG: {},
       #DLYB: {},
       #Flash: {},
       #AXI: {},

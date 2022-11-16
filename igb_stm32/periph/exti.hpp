@@ -223,14 +223,14 @@ struct ExtiCtrl {
     reg_RTSR(reg_RTSR() | to_bits(line));
   }
   IGB_FAST_INLINE static void disableRisingTrig(ExtiLine line) {
-    reg_RTSR(reg_RTSR() | to_bits(line));
+    reg_RTSR(reg_RTSR() & ~to_bits(line));
   }
 
   IGB_FAST_INLINE static void enableFallingTrig(ExtiLine line) {
     reg_FTSR(reg_FTSR() | to_bits(line));
   }
   IGB_FAST_INLINE static void disableFallingTrig(ExtiLine line) {
-    reg_FTSR(reg_FTSR() | to_bits(line));
+    reg_FTSR(reg_FTSR() & ~to_bits(line));
   }
 
   IGB_FAST_INLINE static void softwareTrigger(ExtiLine line) {
@@ -246,8 +246,6 @@ struct ExtiCtrl {
   }
 
   IGB_FAST_INLINE static void enableLine(ExtiLine line, ExtiTrigType trig_type, ExtiMode mode, uint8_t priority) {
-    enableIrqn(line, priority);
-
     switch (trig_type) {
       case ExtiTrigType::falling:
         disableRisingTrig(line);
@@ -281,6 +279,8 @@ struct ExtiCtrl {
       default:
         break;
     }
+
+    enableIrqn(line, priority);
   }
 
   IGB_FAST_INLINE static void disableLine(ExtiLine line) {

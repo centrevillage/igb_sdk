@@ -68,8 +68,8 @@
 #define STM32_PERIPH_ADC2_EXISTS 1
 #define STM32_PERIPH_ADC3_EXISTS 1
 #define STM32_PERIPH_ADC4_EXISTS 1
-#define STM32_PERIPHGRP_SYSCFG_COMP_OPAMP_EXISTS 1
-#define STM32_PERIPH_SYSCFG_COMP_OPAMP_EXISTS 1
+#define STM32_PERIPHGRP_SYSCFG_EXISTS 1
+#define STM32_PERIPH_SYSCFG_EXISTS 1
 #define STM32_PERIPHGRP_FMC_EXISTS 1
 #define STM32_PERIPH_FMC_EXISTS 1
 #define STM32_PERIPHGRP_NVIC_EXISTS 1
@@ -102,6 +102,7 @@ enum class PeriphGroupType : uint16_t {
   i2c,
   dac,
   adc,
+  syscfg,
 };
 
 enum class PeriphType : uint16_t {
@@ -138,6 +139,7 @@ enum class PeriphType : uint16_t {
   adc2,
   adc3,
   adc4,
+  syscfg,
 };
 
 enum class GpioType : uint8_t {
@@ -1129,6 +1131,12 @@ constexpr struct PeriphInfo {
       .irqn = ADC4_IRQn,
       .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 29},
     },
+  };
+  const SysCfgInfo syscfg {
+    .periph_type = PeriphType::syscfg,
+    .p_syscfg = SYSCFG,
+    .addr = SYSCFG_BASE,
+    .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 0},
   };
 } STM32_PERIPH_INFO;
 

@@ -303,6 +303,8 @@ struct FastGpioPin {
   }
 
   IGB_FAST_INLINE void enableExti(ExtiTrigType trig_type, ExtiMode mode, uint8_t priority) {
+    SysCfg::enableBusClock();
+
     switch (pin_idx) {
       case 0:
         SysCfg::exti0GpioPort(port_type);

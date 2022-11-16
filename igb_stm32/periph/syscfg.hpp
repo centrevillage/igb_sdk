@@ -14,6 +14,7 @@ namespace stm32 {
 #define IGB_SYSCFG_REG(member) ((SYSCFG_TypeDef*)IGB_SYSCFG_REG_ADDR(member))
 
 struct SysCfg {
+  constexpr static auto info = STM32_PERIPH_INFO.syscfg;
   constexpr static auto addr = SYSCFG_BASE;
 // TODO: other series
 #if defined(STM32F3)
@@ -53,6 +54,14 @@ struct SysCfg {
   static RegEnum<addr_EXTICR4, SYSCFG_EXTICR4_EXTI13_Msk, GpioType, SYSCFG_EXTICR4_EXTI13_Pos> exti13GpioPort;
   static RegEnum<addr_EXTICR4, SYSCFG_EXTICR4_EXTI14_Msk, GpioType, SYSCFG_EXTICR4_EXTI14_Pos> exti14GpioPort;
   static RegEnum<addr_EXTICR4, SYSCFG_EXTICR4_EXTI15_Msk, GpioType, SYSCFG_EXTICR4_EXTI15_Pos> exti15GpioPort;
+
+  IGB_FAST_INLINE static void enableBusClock() { 
+    info.bus.enableBusClock();
+  }
+
+  IGB_FAST_INLINE static void disableBusClock() { 
+    info.bus.disableBusClock();
+  }
 };
 
 }
