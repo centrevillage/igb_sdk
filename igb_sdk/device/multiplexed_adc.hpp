@@ -58,6 +58,7 @@ struct MultiplexedAdc {
       }
     } else {
       _buf[process_idx] = (prev_v * (1.0f - filter_coeff)) + (v * filter_coeff);
+      _change_counts[process_idx] = 0;
     }
   }
   
