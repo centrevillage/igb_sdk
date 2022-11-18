@@ -10,7 +10,7 @@
 namespace igb {
 namespace sdk {
 
-template<typename ADC_TYPE, uint8_t ADC_RESOLUTION, typename GPIO_PIN_TYPE, size_t gpio_pin_count, size_t buffer_size = 1>
+template<typename ADC_TYPE, uint8_t ADC_RESOLUTION, typename GPIO_PIN_TYPE, size_t gpio_pin_count>
 struct MultiplexedAdc {
   static constexpr uint8_t address_size = (1 << gpio_pin_count);
 
@@ -19,15 +19,21 @@ struct MultiplexedAdc {
   std::function<void(uint8_t, uint32_t, float)> on_update;
   float threshold = 0.4f;
   float filter_coeff = 0.1f;
+  uint8_t chattering_count = 2;
+  float chattering_threshold = 2.0f;
 
-  std::array<std::array<float, address_size>, buffer_size> _buf;
+  std::array<float, address_size> _buf;
   std::array<float, address_size> _values;
+  std::array<uint8_t, address_size> _change_counts; // to prevent chattering
   bool _is_conversioning = false;
   uint8_t process_idx = 0;
-  uint8_t buffer_idx = 0;
 
   constexpr uint32_t resolutionBits(uint32_t resolution) {
     return (1UL << (uint32_t)resolution) - 1;
+  }
+
+  constexpr bool isOverThreshold(float old_value, float new_value, float threshold_offset) {
+    return new_value > (old_value + 1.0f + threshold_offset) || new_value < (old_value - threshold_offset);
   }
 
   IGB_FAST_INLINE void prepare() {
@@ -38,49 +44,44 @@ struct MultiplexedAdc {
 
   IGB_FAST_INLINE void complete(uint32_t value) {
     const float v = (float)value;
-    if (buffer_size > 1) {
-      const float prev_v = _buf[((buffer_idx + buffer_size - 1) % buffer_size)][process_idx];
-      _buf[buffer_idx][process_idx] = (prev_v * (1.0f - filter_coeff)) + (v * filter_coeff);
+    const float prev_v = _buf[process_idx];
+    if (isOverThreshold(prev_v, v, chattering_threshold)) {
+      if (_change_counts[process_idx] >= chattering_count) {
+        float fc = filter_coeff * (float)(chattering_count + 1);
+        if (fc > 1.0f) {
+          fc = 1.0f;
+        }
+        _buf[process_idx] = (prev_v * (1.0f - fc)) + (v * fc);
+        _change_counts[process_idx] = 0;
+      } else {
+        ++_change_counts[process_idx];
+      }
     } else {
-      const float prev_v = _buf[buffer_idx][process_idx];
-      _buf[buffer_idx][process_idx] = (prev_v * (1.0f - filter_coeff)) + (v * filter_coeff);
+      _buf[process_idx] = (prev_v * (1.0f - filter_coeff)) + (v * filter_coeff);
     }
-//    if (on_update) {
-//      on_update(process_idx, getValue(process_idx), getValueFloat(process_idx));
-//    }
   }
   
   IGB_FAST_INLINE void next() {
     process_idx = (process_idx + 1) % address_size;
     if (process_idx == 0) {
-      buffer_idx = (buffer_idx + 1) % buffer_size;
-      if (buffer_idx == 0) {
-        // complete all
-        update();
-      }
+      // complete all
+      update();
     }
   }
 
   IGB_FAST_INLINE bool nextWithoutUpdate() {
     process_idx = (process_idx + 1) % address_size;
     if (process_idx == 0) {
-      buffer_idx = (buffer_idx + 1) % buffer_size;
-      if (buffer_idx == 0) {
-        return true; // need to update
-      }
+      return true; // need to update
     }
     return false;
   }
 
   IGB_FAST_INLINE void update() {
     for (uint8_t i = 0; i < address_size; ++i) {
-      float new_value = 0;
-      for (uint8_t j = 0; j < buffer_size; ++j) {
-        new_value += _buf[j][i];
-      }
-      new_value = new_value / (float)buffer_size;
+      float new_value = _buf[i];
       const auto old_value = _values[i];
-      if (new_value > (old_value + 1.0f + threshold) || new_value < (old_value - threshold)) {
+      if (isOverThreshold(old_value, new_value, threshold)) {
         _values[i] = (float)((int32_t)new_value);
         if (on_update) {
           on_update(i, getValue(i), getValueFloat(i));
