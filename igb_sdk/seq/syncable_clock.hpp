@@ -3,6 +3,8 @@
 
 #include <functional>
 #include <numeric>
+#include <tuple>
+#include <igb_util/for_each.hpp>
 
 namespace igb {
 namespace sdk {
@@ -12,7 +14,8 @@ template<typename TimerCls, uint32_t ext_clocks_size = 2>
 struct SeqSyncableClock {
   constexpr static uint32_t timeout_tick = (uint32_t)TimerCls::secToTick(10.0f);
   static_assert(TimerCls::sub_timer_count > 0, "sub_timer_count must greater than 0");
-  constexpr static uint32_t sub_timer_interval_tick = (uint32_t)TimerCls::secToTick(1.0f);
+  constexpr static float sub_timer_interval_sec = 1.0f;
+  constexpr static uint32_t sub_timer_interval_tick = (uint32_t)TimerCls::secToTick(sub_timer_interval_sec);
   constexpr static uint8_t sub_timer_idx = 0;
 
   std::function<void(void)> on_update = [](){};
@@ -64,29 +67,22 @@ struct SeqSyncableClock {
   bool _is_active_internal = true;
   bool _is_start = false;
 
-  void init(float _bpm, auto&& intConf, auto&&... confs) {
-    initExtConf(0, confs...);
+  void init(float _bpm, auto&& intConf, auto&& extConfs) {
+    for_each_tuple(extConfs, [this](auto&& idx, auto&& value) {
+      _initExtConf(idx, value);
+    });
 
     bpm = _bpm;
 
     changeStepPerBeat(intConf.step_per_beat);
-    _interval_tick = TimerCls::secToTick(bpmToIntervalSec(bpm));
+    float interval_sec = bpmToIntervalSec(bpm);
+    _interval_tick = TimerCls::secToTick(interval_sec);
     on_update = intConf.on_update;
-
-    // TODO: sec で渡すべきところで tick で渡しているのでバグ？
-    _timer.init(_interval_tick, [this](){onUpdateIntTimer();});
-
-    _timer.initSubTimer(sub_timer_idx, sub_timer_interval_tick, [this](){checkTimeout();});
+    _timer.init(interval_sec, [this](){onUpdateIntTimer();});
+    _timer.initSubTimer(sub_timer_idx, sub_timer_interval_sec, [this](){checkTimeout();});
     _timer.startSubTimer(sub_timer_idx);
   }
 
-  inline void initExtConf(uint8_t idx) {}
-  inline void initExtConf(uint8_t idx, auto&& first, auto&&... rest) {
-    if (idx < ext_clocks_size) { 
-      _initExtConf(idx, first);
-      initExtConf(idx+1, rest...);
-    }
-  }
   inline void _initExtConf(uint8_t idx, auto&& conf) {
     _extClockStates[idx].clock_per_beat = conf.clock_per_beat;
     _extClockStates[idx].filter_coeff = conf.filter_coeff;
