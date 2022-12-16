@@ -17,11 +17,11 @@ struct SeqSyncableClock {
 
   std::function<void(void)> on_update = [](){};
 
+  float bpm = 120.0f;
   uint16_t step_per_beat = 4;
   float _interval_tick = TimerCls::secToTick(bpmToIntervalSec(120.0f));
 
   struct IntConf {
-    float bpm = 120.0f;
     uint16_t step_per_beat = 4;
     std::function<void(void)> on_update = [](){};
   };
@@ -43,7 +43,8 @@ struct SeqSyncableClock {
   };
 
   struct ExtState {
-    ExtConf conf;
+    uint16_t clock_per_beat = 4;
+    float filter_coeff = 0.0f;
 
     // for int&ext clock sync
     bool is_first_clock_arrived = false;
@@ -63,11 +64,13 @@ struct SeqSyncableClock {
   bool _is_active_internal = true;
   bool _is_start = false;
 
-  void init(auto&& intConf, auto&&... confs) {
+  void init(float _bpm, auto&& intConf, auto&&... confs) {
     initExtConf(0, confs...);
 
+    bpm = _bpm;
+
     changeStepPerBeat(intConf.step_per_beat);
-    _interval_tick = TimerCls::secToTick(bpmToIntervalSec(intConf.bpm));
+    _interval_tick = TimerCls::secToTick(bpmToIntervalSec(bpm));
     on_update = intConf.on_update;
 
     // TODO: sec で渡すべきところで tick で渡しているのでバグ？
@@ -85,7 +88,8 @@ struct SeqSyncableClock {
     }
   }
   inline void _initExtConf(uint8_t idx, auto&& conf) {
-    _extClockStates[idx].conf = conf;
+    _extClockStates[idx].clock_per_beat = conf.clock_per_beat;
+    _extClockStates[idx].filter_coeff = conf.filter_coeff;
   }
 
   inline bool isIntActive() const {
@@ -171,10 +175,10 @@ struct SeqSyncableClock {
     } else {
       const uint32_t diff_tick = (new_tick - state.prev_tick);
       if (diff_tick < timeout_tick) {
-        const float bar_tick = (float)diff_tick * (float)state.conf.clock_per_beat;
+        const float bar_tick = (float)diff_tick * (float)state.clock_per_beat;
         const float interval_tick = bar_tick / (float)step_per_beat;
         if (state.expected_interval_tick > 0.0f) { 
-          const auto filter_coeff = state.conf.filter_coeff;
+          const auto filter_coeff = state.filter_coeff;
           state.expected_interval_tick = (state.expected_interval_tick * filter_coeff) + ((float)interval_tick * (1.0f - filter_coeff));
         } else {
           state.expected_interval_tick = interval_tick;
@@ -211,6 +215,13 @@ struct SeqSyncableClock {
     }
   }
 
+  inline void _updateCompletionCount(auto& extClockState) {
+    uint8_t clock_per_beat = extClockState.clock_per_beat;
+    const auto gcd_num = std::gcd(step_per_beat, clock_per_beat);
+    extClockState.clk_count_max = (clock_per_beat / gcd_num) - 1;
+    extClockState.ipl_count_max = (step_per_beat / gcd_num) - 1;
+  }
+
   // step_per_beat == clock_per_beat の時は補完不要なので ipl_count_max == 0
   // clock_per_beat % step_per_beat == 0 の時も補完不要なので ipl_count_max == 0、しかし clk_count_max != 0 の場合がありうる（clock divideが必要)
   // 上記のどちらでもない場合、少なくとも1bar単位では外部/内部クロックタイミングが一致する
@@ -225,16 +236,22 @@ struct SeqSyncableClock {
     if (new_step_per_beat > 0) {
       step_per_beat = new_step_per_beat;
       for (auto& state : _extClockStates) {
-        const auto clock_per_beat = state.conf.clock_per_beat;
-        const auto gcd_num = std::gcd(new_step_per_beat, clock_per_beat);
-        state.clk_count_max = (clock_per_beat / gcd_num) - 1;
-        state.ipl_count_max = (new_step_per_beat / gcd_num) - 1;
+        _updateCompletionCount(state);
       }
     }
   }
 
-  constexpr float bpmToIntervalSec(float bpm) {
-    const float sec_per_beat = 60.0f / bpm;
+  inline void changeClockPerBeat(uint8_t new_clock_per_beat) {
+    if (new_clock_per_beat > 0) {
+      for (auto& state : _extClockStates) {
+        state.clock_per_beat = new_clock_per_beat;
+        _updateCompletionCount(state);
+      }
+    }
+  }
+
+  constexpr float bpmToIntervalSec(float _bpm) {
+    const float sec_per_beat = 60.0f / _bpm;
     const float sec_per_step = sec_per_beat / (float)step_per_beat;
     return sec_per_step;
   }
