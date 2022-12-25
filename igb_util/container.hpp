@@ -14,7 +14,7 @@ public:
   static N construct() { return 0; }
   static N construct(const T group, const auto... groups) { return (1UL << static_cast<N>(group)) | construct(groups...); }
 
-  BitStruct(const auto... groups) : bit(construct(groups...)) { // groups = TscGroup
+  BitStruct(const auto... groups) : bit(construct(groups...)) {
   }
 
   BitStruct operator = (const BitStruct s) noexcept {
