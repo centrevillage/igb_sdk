@@ -15,6 +15,7 @@ typedef enum {
   IGB_MIDI_NOTE_OFF = 0x80,
   IGB_MIDI_CLOCK = 0xF8,
   IGB_MIDI_START = 0xFA,
+  IGB_MIDI_CONTINUE = 0xFB,
   IGB_MIDI_STOP = 0xFC,
   IGB_MIDI_RESET = 0xFF,
   IGB_MIDI_CC = 0xB0,
@@ -31,6 +32,7 @@ enum class MidiStatus : uint8_t {
   noteOff = IGB_MIDI_NOTE_OFF,
   clock = IGB_MIDI_CLOCK,
   start = IGB_MIDI_START,
+  _continue = IGB_MIDI_CONTINUE,
   stop = IGB_MIDI_STOP,
   reset = IGB_MIDI_RESET,
   cc = IGB_MIDI_CC,
@@ -54,6 +56,9 @@ constexpr uint8_t to_idx(MidiStatus status) {
       break;
     case MidiStatus::start:
       return IGB_MIDI_START;
+      break;
+    case MidiStatus::_continue:
+      return IGB_MIDI_CONTINUE;
       break;
     case MidiStatus::stop:
       return IGB_MIDI_STOP;
