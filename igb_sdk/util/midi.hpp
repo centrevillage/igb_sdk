@@ -25,6 +25,11 @@ typedef enum {
   IGB_MIDI_PITCHBEND = 0xE0,
   IGB_MIDI_CH_PRESSURE = 0xD0,
   IGB_MIDI_POLY_KEY_PRESSURE= 0xA0,
+  IGB_MIDI_TIME_CODE = 0xF1,
+  IGB_MIDI_SONG_POSITION = 0xF2,
+  IGB_MIDI_SONG_SELECT = 0xF3,
+  IGB_MIDI_TUNE = 0xF6,
+  IGB_MIDI_ACTIVE_SENSE = 0xFE,
 } MidiStatusByte;
 
 enum class MidiStatus : uint8_t {
@@ -41,7 +46,12 @@ enum class MidiStatus : uint8_t {
   sysExEnd = IGB_MIDI_SYS_EX_END,
   pitchbend = IGB_MIDI_PITCHBEND,
   chPressure = IGB_MIDI_CH_PRESSURE,
-  polyKeyPressure = IGB_MIDI_POLY_KEY_PRESSURE
+  polyKeyPressure = IGB_MIDI_POLY_KEY_PRESSURE,
+  timeCode = IGB_MIDI_TIME_CODE,
+  songPosition = IGB_MIDI_SONG_POSITION,
+  songSelect = IGB_MIDI_SONG_SELECT,
+  tune = IGB_MIDI_TUNE,
+  activeSense = IGB_MIDI_ACTIVE_SENSE,
 };
 constexpr uint8_t to_idx(MidiStatus status) {
   switch (status) {
@@ -86,6 +96,21 @@ constexpr uint8_t to_idx(MidiStatus status) {
       break;
     case MidiStatus::polyKeyPressure:
       return IGB_MIDI_POLY_KEY_PRESSURE;
+      break;
+    case MidiStatus::timeCode:
+      return IGB_MIDI_TIME_CODE;
+      break;
+    case MidiStatus::songPosition:
+      return IGB_MIDI_SONG_POSITION;
+      break;
+    case MidiStatus::songSelect:
+      return IGB_MIDI_SONG_SELECT;
+      break;
+    case MidiStatus::tune:
+      return IGB_MIDI_TUNE;
+      break;
+    case MidiStatus::activeSense:
+      return IGB_MIDI_ACTIVE_SENSE;
       break;
     default:
       break;
@@ -138,17 +163,25 @@ struct Midi {
         // status byte
         switch (recv_byte) {
           case IGB_MIDI_START:
+          case IGB_MIDI_CONTINUE:
           case IGB_MIDI_STOP:
           case IGB_MIDI_CLOCK:
           case IGB_MIDI_RESET:
           case IGB_MIDI_SYS_EX_START:
           case IGB_MIDI_SYS_EX_END:
+          case IGB_MIDI_TUNE:
+          case IGB_MIDI_ACTIVE_SENSE:
+            // 1 byte message
             return MidiEvent { .status = recv_byte };
             break;
+          case 0xF4:
+          case 0xF5:
+          case 0xF9:
+          case 0xFD:
+            // undefined
+            break;
           default:
-            if ((recv_byte & 0xF0) != 0xF0) {
-              event.status = recv_byte;
-            }
+            event.status = recv_byte;
             break;
         }
       } else {
@@ -161,9 +194,12 @@ struct Midi {
         if (event.data2 != MidiEvent::noData) {
           return event;
         } else {
+          // 2 byte message?
           switch(event.status) {
             case IGB_MIDI_PROG_CHG:
             case IGB_MIDI_CH_PRESSURE:
+            case IGB_MIDI_TIME_CODE:
+            case IGB_MIDI_SONG_SELECT:
               return event;
             default:
               break;
