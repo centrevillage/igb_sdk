@@ -17,6 +17,15 @@ struct RingBuf {
     _end_idx = (_end_idx + 1) % data_size;
   }
 
+  IGB_FAST_INLINE const DataType& peekLast(uint32_t idx_from_last) const {
+    uint32_t peek_idx = (_end_idx + data_size - (idx_from_last + 1)) % data_size;
+    return _data[peek_idx];
+  }
+
+  IGB_FAST_INLINE const DataType& peekNext() const {
+    return _data[_read_idx];
+  }
+
   IGB_FAST_INLINE std::optional<DataType> get() {
     std::optional<DataType> v = std::nullopt;
     if (_read_idx != _end_idx) {
