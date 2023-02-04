@@ -1,6 +1,8 @@
 #ifndef IGB_UTIL_RANDOM_H
 #define IGB_UTIL_RANDOM_H
 
+#include <cstdint>
+
 namespace igb {
 
 struct RandomXorshift {
