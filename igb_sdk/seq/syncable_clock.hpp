@@ -26,6 +26,7 @@ struct SeqSyncableClock {
   struct SrcConf {
     uint16_t clock_per_beat = 4;
     float filter_coeff = 0.0f; // 0 == filter off, 0 .. 1.0f == filter on
+    bool internal = false;
   };
   constexpr static SrcConf midi_clock_conf = SrcConf {
     .clock_per_beat = 24,
@@ -55,9 +56,15 @@ struct SeqSyncableClock {
     uint16_t clk_count_max = 0;
     uint16_t ipl_count = 0;
     uint16_t ipl_count_max = 0;
+    float clock_to_step_coeff = 0.0f;
 
     // for bpm detection
-    float expected_interval_tick = 0.0f; // 0 == not expected
+    //float expected_interval_tick = 0.0f; // 0 == not expected
+    //float expected_beat_interval_tick = 0.0f; // 0 == not expected
+
+    inline float expectedIntervalTick(uint32_t expected_clock_interval_tick) {
+      return (float)expected_clock_interval_tick * (float)clock_to_step_coeff;
+    }
 
     inline void resetCounts() {
       clk_count = 0;
@@ -69,6 +76,7 @@ struct SeqSyncableClock {
       const auto gcd_num = std::gcd(step_per_beat, cpb);
       clk_count_max = (cpb / gcd_num) - 1;
       ipl_count_max = (step_per_beat / gcd_num) - 1;
+      clock_to_step_coeff = (float)(cpb) / (float)step_per_beat;
     }
 
     inline void changeStepPerBeat(uint16_t new_step_per_beat) {
@@ -96,6 +104,7 @@ struct SeqSyncableClock {
   struct ExtSrcState {
     bool is_first_clock_arrived = false;
     uint32_t prev_tick = 0;
+    uint32_t expected_clock_interval_tick = 0; // 0 == not expected
   };
 
   TimerCls _timer;
@@ -103,20 +112,30 @@ struct SeqSyncableClock {
   std::array<SrcConf, src_clocks_size> _src_confs;
   ExtSrcState _ext_src_state;
   uint8_t _selected_src_clock_idx = 0;
-  uint8_t _selected_int_clock_idx = 255;
+  uint8_t _selected_int_clock_idx = 0;
+  bool _int_active = false;
   bool _is_start = false;
 
   void init(float _bpm, auto&& clockConfs, auto&& srcConfs) {
+    bpm = _bpm;
+    _timer.init();
     for_each_tuple(srcConfs, [this](auto&& idx, auto&& value) {
       _initSrcConf(idx, value);
     });
-    bpm = _bpm;
-    _timer.init();
     for_each_tuple(clockConfs, [this](auto&& idx, auto&& value) {
       _initClockConf(idx, value);
     });
-    _initIntClock();
     _timer.enable();
+  }
+
+  inline void setBpm(float _bpm) {
+    bpm = _bpm;
+    float interval_sec = bpmToIntervalSec(bpm, _src_confs[_selected_int_clock_idx].clock_per_beat);
+    setIntIntervalSec(interval_sec);
+  }
+
+  inline float getBpm() {
+    return bpm;
   }
 
   inline void _initClockConf(uint8_t idx, auto&& conf) {
@@ -130,29 +149,35 @@ struct SeqSyncableClock {
   }
 
   inline void _initIntClock() {
-    if (_selected_int_clock_idx == 255) { return; }
+    if (_selected_int_clock_idx >= src_clocks_size) { return; }
     float interval_sec = bpmToIntervalSec(bpm, _src_confs[_selected_int_clock_idx].clock_per_beat);
-    int_interval_tick = TimerCls::secToTick(interval_sec);
-    _timer.setIntervalTick(int_clock_cc_idx, int_interval_tick);
+    setIntIntervalSec(interval_sec);
     _timer.setupTimer(int_clock_cc_idx, interval_sec, [this](){ receiveClock(_selected_int_clock_idx); });
   }
 
   inline void _initSrcConf(uint8_t idx, auto&& conf) {
     _src_confs[idx] = conf;
+    if (conf.internal) {
+      selectIntClock(idx);
+    }
   }
 
   inline std::optional<uint8_t> getActiveSrcClockIdx() const {
     return _selected_src_clock_idx;
   }
-  inline void enableIntClock(uint8_t idx) {
+
+  inline void selectIntClock(uint8_t idx) {
     _selected_int_clock_idx = idx;
     _initIntClock();
   }
+  inline void enableIntClock() {
+    _int_active = true;
+  }
   inline void disableIntClock() {
-    _selected_int_clock_idx = 255;
+    _int_active = false;
   }
   inline bool isIntClockEnabled() {
-    return _selected_int_clock_idx != 255;
+    return _int_active;
   }
   inline void selectSrcClockIdx(uint8_t idx) {
     for (auto& state : _clockStates) {
@@ -171,7 +196,7 @@ struct SeqSyncableClock {
     resetClocks();
     if (isIntClockEnabled()) {
       for (auto& state : _clockStates) {
-        state.on_update();
+        //state.on_update();
         state.interval_tick = int_interval_tick * (float)(_src_confs[_selected_int_clock_idx].clock_per_beat) / (float)state.step_per_beat;
       }
       _timer.setIntervalTick(int_clock_cc_idx, int_interval_tick);
@@ -184,12 +209,12 @@ struct SeqSyncableClock {
     if (!_is_start) {
       return;
     }
-    if (isIntClockEnabled()) {
+    //if (isIntClockEnabled()) {
       _timer.stop(int_clock_cc_idx);
       for (uint8_t i = 0; i < out_clocks_size; ++i) {
         _timer.stop(i);
       }
-    }
+    //}
     _is_start = false;
     resetClocks();
   }
@@ -200,11 +225,22 @@ struct SeqSyncableClock {
     }
   }
 
+  inline ClockState& clockState(uint8_t clock_idx) { return _clockStates[clock_idx]; }
+
+  inline void resetCounts(uint8_t clock_idx) {
+    _clockStates[clock_idx].resetCounts();
+  }
+
   inline void receiveClock(uint8_t idx) {
     if (_selected_src_clock_idx != idx) {
       return;
     }
     const uint32_t t = _timer.tick();
+
+    if (_ext_src_state.is_first_clock_arrived) {
+      const uint32_t diff_tick = (t - _ext_src_state.prev_tick);
+      expectClockInterval(diff_tick);
+    }
 
     for (uint8_t i = 0; i < out_clocks_size; ++i) {
       updateClockState(i);
@@ -212,28 +248,24 @@ struct SeqSyncableClock {
 
     if (!_ext_src_state.is_first_clock_arrived) {
       _ext_src_state.is_first_clock_arrived = true;
-    } else {
-      const uint32_t diff_tick = (t - _ext_src_state.prev_tick);
-      for (uint8_t i = 0; i < out_clocks_size; ++i) {
-        expectInterval(i, diff_tick);
-      }
     }
     _ext_src_state.prev_tick = t;
   }
 
   inline void updateClockState(uint8_t idx) {
+    if (!_is_start) { return; }
     auto& state = _clockStates[idx];
-    if (_is_start && state.clk_count == 0) {
+    if (_ext_src_state.is_first_clock_arrived) {
+      float t = state.expectedIntervalTick(_ext_src_state.expected_clock_interval_tick);
+      state.interval_tick = t;
+      _timer.setIntervalTick(idx, state.interval_tick * 0.99f); // NOTE: the magic number 0,99 is to prevent ext&int clock collision
+    }
+    if (state.clk_count == 0) {
       // sync int&ext clock
       _timer.stop(idx);
+      state.on_update();
       state.ipl_count = state.ipl_count_max;
       state.clk_count = state.clk_count_max;
-      state.on_update();
-      if (_ext_src_state.is_first_clock_arrived) {
-        _timer.setIntervalTick(idx, state.expected_interval_tick);
-      } else {
-        _timer.setIntervalTick(idx, state.interval_tick);
-      }
       if (state.ipl_count != 0) {
         _timer.start(idx);
       }
@@ -242,16 +274,13 @@ struct SeqSyncableClock {
     }
   }
 
-  inline void expectInterval(uint8_t idx, uint32_t diff_tick) {
-    auto& state = _clockStates[idx];
+  inline void expectClockInterval(uint32_t diff_tick) {
     if (diff_tick < timeout_tick) {
-      const float bar_tick = (float)diff_tick * (float)state.clock_per_beat;
-      const float interval_tick = bar_tick / (float)state.step_per_beat;
-      if (state.expected_interval_tick > 0.0f) { 
-        const auto filter_coeff = state.filter_coeff;
-        state.expected_interval_tick = (state.expected_interval_tick * filter_coeff) + ((float)interval_tick * (1.0f - filter_coeff));
+      const auto filter_coeff = _src_confs[_selected_src_clock_idx].filter_coeff;
+      if (_ext_src_state.expected_clock_interval_tick > 0 || filter_coeff > 0.0f) { 
+        _ext_src_state.expected_clock_interval_tick = (_ext_src_state.expected_clock_interval_tick * filter_coeff) + ((float)diff_tick * (1.0f - filter_coeff));
       } else {
-        state.expected_interval_tick = interval_tick;
+        _ext_src_state.expected_clock_interval_tick = diff_tick;
       }
     }
   }
@@ -260,12 +289,11 @@ struct SeqSyncableClock {
     auto& state = _clockStates[clock_idx];
     if (state.ipl_count > 0) {
       state.ipl_count--;
+      state.on_update();
     } 
     if (state.ipl_count == 0) {
       _timer.stop(clock_idx); 
     }
-    _timer.setIntervalTick(clock_idx, state.expected_interval_tick);
-    state.on_update();
   }
 
   void checkTimeout() {

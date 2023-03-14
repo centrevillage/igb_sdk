@@ -124,6 +124,12 @@ struct MidiStm32 {
     }
   }
 
+  // for high pripority data (clock etc...)
+  IGB_FAST_INLINE void sendDataDirect(uint8_t data) {
+    while (!usart.is(igb::stm32::UsartState::txEmpty)) {} // wait
+    usart.txData(data);
+  }
+
   // Call this in USARTx_IRQHandler
   IGB_FAST_INLINE void irqHandler() {
     if (usart.is(igb::stm32::UsartState::rxNotEmpty)) {
