@@ -197,6 +197,7 @@ struct TimConf {
   bool enable_it_trigger = false;
   bool enable_it_break = false;
   uint16_t interrupt_priority = 1;
+  bool enable_it = false;
 };
 
 template<TimType tim_type>
@@ -375,7 +376,7 @@ struct Tim {
       enableItBreak.val(conf.enable_it_break)
     );
 
-    if (it_bits.value()) {
+    if (it_bits.value() || conf.enable_it) {
       NvicCtrl::setPriority(info.irqn, conf.interrupt_priority);
       NvicCtrl::enable(info.irqn);
       it_bits.update();

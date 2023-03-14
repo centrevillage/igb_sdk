@@ -10,47 +10,47 @@ namespace igb {
 namespace sdk {
 
 // TimerCls = HardTimerStm32, etc...
-template<typename TimerCls, uint32_t ext_clocks_size = 2>
+template<typename TimerCls, uint32_t out_clocks_size = 1, uint32_t src_clocks_size = 2>
 struct SeqSyncableClock {
   constexpr static uint32_t timeout_tick = (uint32_t)TimerCls::secToTick(10.0f);
-  static_assert(TimerCls::sub_timer_count > 0, "sub_timer_count must greater than 0");
-  constexpr static float sub_timer_interval_sec = 1.0f;
-  constexpr static uint32_t sub_timer_interval_tick = (uint32_t)TimerCls::secToTick(sub_timer_interval_sec);
-  constexpr static uint8_t sub_timer_idx = 0;
-
-  std::function<void(void)> on_update = [](){};
+  static_assert(TimerCls::cc_ch_count >= (out_clocks_size + 1), "cc ch size is not sufficient.");
+  constexpr static uint32_t int_clock_cc_idx = TimerCls::cc_ch_count - 1;
 
   float bpm = 120.0f;
-  uint16_t step_per_beat = 4;
-  float _interval_tick = TimerCls::secToTick(bpmToIntervalSec(120.0f));
+  float int_interval_tick = 0.0f;
 
-  struct IntConf {
+  struct ClockConf {
     uint16_t step_per_beat = 4;
     std::function<void(void)> on_update = [](){};
   };
-  struct ExtConf {
+  struct SrcConf {
     uint16_t clock_per_beat = 4;
     float filter_coeff = 0.0f; // 0 == filter off, 0 .. 1.0f == filter on
   };
-  constexpr static ExtConf midi_clock_conf = ExtConf {
+  constexpr static SrcConf midi_clock_conf = SrcConf {
     .clock_per_beat = 24,
     .filter_coeff = 0.9f
   };
-  constexpr static ExtConf trig_clock_conf = ExtConf {
+  constexpr static SrcConf trig_clock_conf = SrcConf {
     .clock_per_beat = 4,
     .filter_coeff = 0.0f
   };
-  constexpr static ExtConf tap_clock_conf = ExtConf {
+  constexpr static SrcConf tap_clock_conf = SrcConf {
     .clock_per_beat = 1,
     .filter_coeff = 0.0f
   };
 
-  struct ExtState {
+  struct ClockState {
+    uint8_t step_per_beat = 4;
+    float interval_tick = TimerCls::secToTick(SeqSyncableClock::bpmToIntervalSec(120.0f, step_per_beat));
+    std::function<void(void)> on_update = [](){};
+
     uint16_t clock_per_beat = 4;
     float filter_coeff = 0.0f;
 
+    uint16_t clock_div = 1;
+
     // for int&ext clock sync
-    bool is_first_clock_arrived = false;
     uint16_t clk_count = 0; // clear when received reset event
     uint16_t clk_count_max = 0;
     uint16_t ipl_count = 0;
@@ -58,51 +58,110 @@ struct SeqSyncableClock {
 
     // for bpm detection
     float expected_interval_tick = 0.0f; // 0 == not expected
+
+    inline void resetCounts() {
+      clk_count = 0;
+      ipl_count = 0;
+    }
+
+    inline void _updateCompletionCount() {
+      const auto cpb = clock_per_beat * clock_div;
+      const auto gcd_num = std::gcd(step_per_beat, cpb);
+      clk_count_max = (cpb / gcd_num) - 1;
+      ipl_count_max = (step_per_beat / gcd_num) - 1;
+    }
+
+    inline void changeStepPerBeat(uint16_t new_step_per_beat) {
+      if (new_step_per_beat > 0) {
+        step_per_beat = new_step_per_beat;
+        _updateCompletionCount();
+      }
+    }
+
+    inline void changeClockPerBeat(uint8_t new_clock_per_beat) {
+      if (new_clock_per_beat > 0) {
+        clock_per_beat = new_clock_per_beat;
+        _updateCompletionCount();
+      }
+    }
+
+    inline void changeClockDiv(uint16_t new_clock_div) {
+      if (new_clock_div > 0) {
+        clock_div = new_clock_div;
+        _updateCompletionCount();
+      }
+    }
+  };
+
+  struct ExtSrcState {
+    bool is_first_clock_arrived = false;
     uint32_t prev_tick = 0;
   };
 
   TimerCls _timer;
-  std::array<ExtState, ext_clocks_size> _extClockStates;
-  uint8_t _selected_ext_clock_idx = 0;
-  bool _is_active_internal = true;
+  std::array<ClockState, out_clocks_size> _clockStates;
+  std::array<SrcConf, src_clocks_size> _src_confs;
+  ExtSrcState _ext_src_state;
+  uint8_t _selected_src_clock_idx = 0;
+  uint8_t _selected_int_clock_idx = 255;
   bool _is_start = false;
 
-  void init(float _bpm, auto&& intConf, auto&& extConfs) {
-    for_each_tuple(extConfs, [this](auto&& idx, auto&& value) {
-      _initExtConf(idx, value);
+  void init(float _bpm, auto&& clockConfs, auto&& srcConfs) {
+    for_each_tuple(srcConfs, [this](auto&& idx, auto&& value) {
+      _initSrcConf(idx, value);
     });
-
     bpm = _bpm;
-
-    changeStepPerBeat(intConf.step_per_beat);
-    float interval_sec = bpmToIntervalSec(bpm);
-    _interval_tick = TimerCls::secToTick(interval_sec);
-    on_update = intConf.on_update;
-    _timer.init(interval_sec, [this](){onUpdateIntTimer();});
-    _timer.initSubTimer(sub_timer_idx, sub_timer_interval_sec, [this](){checkTimeout();});
-    _timer.startSubTimer(sub_timer_idx);
+    _timer.init();
+    for_each_tuple(clockConfs, [this](auto&& idx, auto&& value) {
+      _initClockConf(idx, value);
+    });
+    _initIntClock();
+    _timer.enable();
   }
 
-  inline void _initExtConf(uint8_t idx, auto&& conf) {
-    _extClockStates[idx].clock_per_beat = conf.clock_per_beat;
-    _extClockStates[idx].filter_coeff = conf.filter_coeff;
+  inline void _initClockConf(uint8_t idx, auto&& conf) {
+    _clockStates[idx].changeStepPerBeat(conf.step_per_beat);
+    _clockStates[idx].step_per_beat = conf.step_per_beat;
+    float interval_sec = bpmToIntervalSec(bpm, conf.step_per_beat);
+    _clockStates[idx].interval_tick = TimerCls::secToTick(interval_sec);
+    _clockStates[idx].on_update = conf.on_update;
+    _timer.setIntervalTick(idx, _clockStates[idx].interval_tick);
+    _timer.setupTimer(idx, interval_sec, [this, idx](){onUpdateIntTimer(idx);});
   }
 
-  inline bool isIntActive() const {
-    return _is_active_internal;
+  inline void _initIntClock() {
+    if (_selected_int_clock_idx == 255) { return; }
+    float interval_sec = bpmToIntervalSec(bpm, _src_confs[_selected_int_clock_idx].clock_per_beat);
+    int_interval_tick = TimerCls::secToTick(interval_sec);
+    _timer.setIntervalTick(int_clock_cc_idx, int_interval_tick);
+    _timer.setupTimer(int_clock_cc_idx, interval_sec, [this](){ receiveClock(_selected_int_clock_idx); });
   }
-  inline std::optional<uint8_t> getActiveExtClockIdx() const {
-    if (isIntActive()) {
-      return std::nullopt;
+
+  inline void _initSrcConf(uint8_t idx, auto&& conf) {
+    _src_confs[idx] = conf;
+  }
+
+  inline std::optional<uint8_t> getActiveSrcClockIdx() const {
+    return _selected_src_clock_idx;
+  }
+  inline void enableIntClock(uint8_t idx) {
+    _selected_int_clock_idx = idx;
+    _initIntClock();
+  }
+  inline void disableIntClock() {
+    _selected_int_clock_idx = 255;
+  }
+  inline bool isIntClockEnabled() {
+    return _selected_int_clock_idx != 255;
+  }
+  inline void selectSrcClockIdx(uint8_t idx) {
+    for (auto& state : _clockStates) {
+      state.resetCounts();
+      state.changeClockPerBeat(_src_confs[idx].clock_per_beat);
+      state.filter_coeff = _src_confs[idx].filter_coeff;
     }
-    return _selected_ext_clock_idx;
-  }
-  inline void selectExtClockIdx(uint8_t idx) {
-    _selected_ext_clock_idx = idx;
-    _is_active_internal = false;
-  }
-  inline void selectIntClock() {
-    _is_active_internal = true;
+    _ext_src_state.is_first_clock_arrived = false;
+    _selected_src_clock_idx = idx;
   }
 
   inline void start() {
@@ -110,10 +169,13 @@ struct SeqSyncableClock {
       return;
     }
     resetClocks();
-    if (isIntActive()) {
-      _timer.setIntervalTick(_interval_tick);
-      on_update();
-      _timer.start();
+    if (isIntClockEnabled()) {
+      for (auto& state : _clockStates) {
+        state.on_update();
+        state.interval_tick = int_interval_tick * (float)(_src_confs[_selected_int_clock_idx].clock_per_beat) / (float)state.step_per_beat;
+      }
+      _timer.setIntervalTick(int_clock_cc_idx, int_interval_tick);
+      _timer.start(int_clock_cc_idx);
     }
     _is_start = true;
   }
@@ -122,165 +184,144 @@ struct SeqSyncableClock {
     if (!_is_start) {
       return;
     }
-    _is_start = false;
-    if (isIntActive()) {
-      _timer.stop();
+    if (isIntClockEnabled()) {
+      _timer.stop(int_clock_cc_idx);
+      for (uint8_t i = 0; i < out_clocks_size; ++i) {
+        _timer.stop(i);
+      }
     }
+    _is_start = false;
     resetClocks();
   }
 
   inline void resetClocks() {
-    for (uint8_t i = 0; i < ext_clocks_size; ++i) {
-      _extClockStates[i].clk_count = 0;
-      _extClockStates[i].ipl_count = 0;
+    for (auto& state : _clockStates) {
+      state.resetCounts();
     }
   }
 
-  inline void receiveExtClock(uint8_t idx) {
+  inline void receiveClock(uint8_t idx) {
+    if (_selected_src_clock_idx != idx) {
+      return;
+    }
     const uint32_t t = _timer.tick();
-    auto& state = _extClockStates[idx];
-    if (_selected_ext_clock_idx == idx) {
-      updateSelectedExtClockState(state);
+
+    for (uint8_t i = 0; i < out_clocks_size; ++i) {
+      updateClockState(i);
     }
-    expectInterval(state, t);
+
+    if (!_ext_src_state.is_first_clock_arrived) {
+      _ext_src_state.is_first_clock_arrived = true;
+    } else {
+      const uint32_t diff_tick = (t - _ext_src_state.prev_tick);
+      for (uint8_t i = 0; i < out_clocks_size; ++i) {
+        expectInterval(i, diff_tick);
+      }
+    }
+    _ext_src_state.prev_tick = t;
   }
 
-  inline void updateSelectedExtClockState(auto& state) {
+  inline void updateClockState(uint8_t idx) {
+    auto& state = _clockStates[idx];
     if (_is_start && state.clk_count == 0) {
       // sync int&ext clock
-      _timer.stop();
+      _timer.stop(idx);
       state.ipl_count = state.ipl_count_max;
       state.clk_count = state.clk_count_max;
-      on_update();
-      if (state.is_first_clock_arrived) {
-        _timer.setIntervalTick(state.expected_interval_tick);
+      state.on_update();
+      if (_ext_src_state.is_first_clock_arrived) {
+        _timer.setIntervalTick(idx, state.expected_interval_tick);
       } else {
-        _timer.setIntervalTick(_interval_tick);
+        _timer.setIntervalTick(idx, state.interval_tick);
       }
       if (state.ipl_count != 0) {
-        _timer.start();
+        _timer.start(idx);
       }
     } else {
       state.clk_count--;
     }
   }
 
-  inline void expectInterval(auto& state, uint32_t new_tick) {
-    if (!state.is_first_clock_arrived) {
-      state.is_first_clock_arrived = true;
-    } else {
-      const uint32_t diff_tick = (new_tick - state.prev_tick);
-      if (diff_tick < timeout_tick) {
-        const float bar_tick = (float)diff_tick * (float)state.clock_per_beat;
-        const float interval_tick = bar_tick / (float)step_per_beat;
-        if (state.expected_interval_tick > 0.0f) { 
-          const auto filter_coeff = state.filter_coeff;
-          state.expected_interval_tick = (state.expected_interval_tick * filter_coeff) + ((float)interval_tick * (1.0f - filter_coeff));
-        } else {
-          state.expected_interval_tick = interval_tick;
-        }
+  inline void expectInterval(uint8_t idx, uint32_t diff_tick) {
+    auto& state = _clockStates[idx];
+    if (diff_tick < timeout_tick) {
+      const float bar_tick = (float)diff_tick * (float)state.clock_per_beat;
+      const float interval_tick = bar_tick / (float)state.step_per_beat;
+      if (state.expected_interval_tick > 0.0f) { 
+        const auto filter_coeff = state.filter_coeff;
+        state.expected_interval_tick = (state.expected_interval_tick * filter_coeff) + ((float)interval_tick * (1.0f - filter_coeff));
+      } else {
+        state.expected_interval_tick = interval_tick;
       }
     }
-    state.prev_tick = new_tick;
   }
 
-  void onUpdateIntTimer() {
-    if(isIntActive()) {
-      _timer.setIntervalTick(_interval_tick);
-    } else {
-      auto& state = _extClockStates[_selected_ext_clock_idx];
-      if (state.ipl_count > 0) {
-        state.ipl_count--;
-      } 
-      if (state.ipl_count == 0) {
-        _timer.stop(); 
-      }
-      _timer.setIntervalTick(state.expected_interval_tick);
+  void onUpdateIntTimer(uint8_t clock_idx) {
+    auto& state = _clockStates[clock_idx];
+    if (state.ipl_count > 0) {
+      state.ipl_count--;
+    } 
+    if (state.ipl_count == 0) {
+      _timer.stop(clock_idx); 
     }
-    on_update();
+    _timer.setIntervalTick(clock_idx, state.expected_interval_tick);
+    state.on_update();
   }
 
   void checkTimeout() {
     const auto t = _timer.tick();
-    for (auto& state : _extClockStates) {
-      if (state.is_first_clock_arrived) {
-        if ((t - state.prev_tick) > timeout_tick) {
-          state.is_first_clock_arrived = false;
-        }
+    if (_ext_src_state.is_first_clock_arrived) {
+      if ((t - _ext_src_state.prev_tick) > timeout_tick) {
+        _ext_src_state.is_first_clock_arrived = false;
       }
     }
   }
 
-  inline void _updateCompletionCount(auto& extClockState) {
-    uint8_t clock_per_beat = extClockState.clock_per_beat;
-    const auto gcd_num = std::gcd(step_per_beat, clock_per_beat);
-    extClockState.clk_count_max = (clock_per_beat / gcd_num) - 1;
-    extClockState.ipl_count_max = (step_per_beat / gcd_num) - 1;
+  inline void changeStepPerBeat(uint8_t idx, uint16_t step_per_beat) {
+    _clockStates[idx].changeStepPerBeat(step_per_beat);
   }
 
-  // step_per_beat == clock_per_beat の時は補完不要なので ipl_count_max == 0
-  // clock_per_beat % step_per_beat == 0 の時も補完不要なので ipl_count_max == 0、しかし clk_count_max != 0 の場合がありうる（clock divideが必要)
-  // 上記のどちらでもない場合、少なくとも1bar単位では外部/内部クロックタイミングが一致する
-  // ex:
-  // ipl_count_max = 0; clk_count_max = 5; step_per_beat = 4, clock_per_beat = 24,
-  // ipl_count_max = 0; clk_count_max = 0; step_per_beat = 4, clock_per_beat = 4,
-  // ipl_count_max = 3; clk_count_max = 0; step_per_beat = 4, clock_per_beat = 1,
-  // ipl_count_max = 7; clk_count_max = 0; step_per_beat = 8, clock_per_beat = 1,
-  // ipl_count_max = 3; clk_count_max = 2; step_per_beat = 4, clock_per_beat = 3,
-  // ipl_count_max = 2; clk_count_max = 3; step_per_beat = 3, clock_per_beat = 4,
-  inline void changeStepPerBeat(uint16_t new_step_per_beat) {
-    if (new_step_per_beat > 0) {
-      step_per_beat = new_step_per_beat;
-      for (auto& state : _extClockStates) {
-        _updateCompletionCount(state);
-      }
-    }
+  inline void changeClockPerBeat(uint8_t idx, uint8_t clock_per_beat) {
+    _clockStates[idx].changeClockPerBeat(clock_per_beat);
   }
 
-  inline void changeClockPerBeat(uint8_t new_clock_per_beat) {
-    if (new_clock_per_beat > 0) {
-      for (auto& state : _extClockStates) {
-        state.clock_per_beat = new_clock_per_beat;
-        _updateCompletionCount(state);
-      }
-    }
+  inline void changeClockDiv(uint8_t idx, uint8_t clock_div) {
+    _clockStates[idx].changeClockDiv(clock_div);
   }
 
-  constexpr float bpmToIntervalSec(float _bpm) {
+  constexpr static float bpmToIntervalSec(float _bpm, uint16_t step_per_beat) {
     const float sec_per_beat = 60.0f / _bpm;
-    const float sec_per_step = sec_per_beat / (float)step_per_beat;
+    const float sec_per_step = sec_per_beat / step_per_beat;
     return sec_per_step;
   }
 
-  constexpr float intervalSecToBpm(float interval_sec) {
+  constexpr static float intervalSecToBpm(float interval_sec, uint16_t step_per_beat) {
     const float sec_per_beat = interval_sec * (float)step_per_beat;
     return 60.0f / sec_per_beat;
   }
 
-  inline float getIntervalSec() const {
-    return _timer.getIntervalSec();
+  inline float getIntervalSec(uint8_t idx) const {
+    return _timer.getIntervalSec(idx);
   }
 
-  inline float getIntervalTick() const {
-    return _timer.getIntervalTick();
+  inline float getIntervalTick(uint8_t idx) const {
+    return _timer.getIntervalTick(idx);
   }
 
   inline float getIntIntervalSec() const {
-    return TimerCls::tickToSec(_interval_tick);
+    return TimerCls::tickToSec(int_interval_tick);
   }
 
   inline float getIntIntervalTick() const {
-    return _interval_tick;
+    return int_interval_tick;
   }
 
   inline void setIntIntervalSec(float sec) {
-    setIntervalTick(TimerCls::secToTick(sec));
+    setIntIntervalTick(TimerCls::secToTick(sec));
   }
   inline void setIntIntervalTick(float tick) {
-    _interval_tick = tick;
-  }
-  inline void setIntIntervalTick(uint32_t tick) {
-    _interval_tick = (float)tick;
+    int_interval_tick = tick;
+    _timer.setIntervalTick(int_clock_cc_idx, int_interval_tick);
   }
 
   inline uint32_t tick() {
@@ -293,8 +334,8 @@ struct SeqSyncableClock {
 
   inline void irqHandler() {
     _timer.irqHandler();
+    checkTimeout();
   }
-
 };
 
 }

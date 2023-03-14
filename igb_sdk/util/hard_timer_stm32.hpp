@@ -16,6 +16,7 @@ struct HardCcTimerStm32 {
   static_assert(std::is_same<count_t, uint16_t>::value || std::is_same<count_t, uint32_t>::value, "count_t must be uint16_t or uint32_t");
 
   constexpr static uint32_t sub_timer_count = 3;
+  constexpr static uint32_t cc_ch_count = 4;
 
   TimCls _tim;
   struct CcState {
@@ -35,7 +36,7 @@ struct HardCcTimerStm32 {
       update_count++;
     }
   };
-  std::array<CcState, 4> _cc_states;
+  std::array<CcState, cc_ch_count> _cc_states;
 
   constexpr IGB_FAST_INLINE static float secToTick(float interval_sec) {
     return interval_sec * (float)tim_base_clock;
@@ -44,6 +45,38 @@ struct HardCcTimerStm32 {
     return tick / (float)tim_base_clock;
   }
 
+  void init() { // general timer api
+    _tim.count(0);
+    const count_t period = (count_t)0xFFFFFFFF;
+    _tim.init(
+      igb::stm32::TimConf {
+        .prescale = 0,
+        .period = period,
+        .interrupt_priority = priority,
+        .enable_it = true
+      }
+    );
+  }
+
+  void enable() {
+    if (!_tim.enable()) {
+      _tim.start();
+    }
+  }
+
+  void disable() {
+    _tim.stop();
+  }
+
+  void setupTimer(uint8_t cc_idx, float interval_sec, auto&& update_func) { // general timer api
+    auto& state = _cc_states[cc_idx];
+    setIntervalSec(cc_idx, interval_sec);
+    state.on_capture = update_func;
+    state.active = false;
+    enableCh(cc_idx);
+  }
+
+  // DEPRECATED
   void init(float cc1_interval_sec, auto&& update_func) { // general timer api
     _tim.count(0);
     setIntervalSec(cc1_interval_sec);
@@ -63,6 +96,7 @@ struct HardCcTimerStm32 {
     }
   }
 
+  // DEPRECATED
   void initSubTimer(uint8_t sub_timer_idx, float interval_sec, auto&& update_func) { // specialized timer api
     if (sub_timer_idx < sub_timer_count) {
       const auto cc_idx = sub_timer_idx + 1;
@@ -82,6 +116,7 @@ struct HardCcTimerStm32 {
     const float interval_tick_f = secToTick(interval_sec);
     setIntervalTick(cc_idx, interval_tick_f);
   }
+  // DEPRECATED
   IGB_FAST_INLINE void setSubTimerIntervalSec(uint8_t sub_timer_idx, float interval_sec) { // specialized timer api
     if (sub_timer_idx < sub_timer_count) {
       setIntervalSec(sub_timer_idx+1, interval_sec);
@@ -101,12 +136,14 @@ struct HardCcTimerStm32 {
     auto& state = _cc_states[cc_idx];
     return state.interval_tick_f;
   }
+  // DEPRECATED
   IGB_FAST_INLINE float getSubTimerIntervalSec(uint8_t sub_timer_idx) const { // general timer api
     if (sub_timer_idx < sub_timer_count) {
       return getIntervalSec(sub_timer_idx+1);
     }
     return 0.0f;
   }
+  // DEPRECATED
   IGB_FAST_INLINE float getSubTimerIntervalTick(uint8_t sub_timer_idx) const { // general timer api
     if (sub_timer_idx < sub_timer_count) {
       return getIntervalTick(sub_timer_idx+1);
@@ -114,10 +151,11 @@ struct HardCcTimerStm32 {
     return 0.0f;
   }
 
-  IGB_FAST_INLINE void start() { // general timer api
-    _startTimer(0);
+  IGB_FAST_INLINE void start(uint8_t cc_idx = 0) { // general timer api
+    _startTimer(cc_idx);
   }
 
+  // DEPRECATED:
   IGB_FAST_INLINE void startSubTimer(uint8_t sub_timer_idx) { // specialized timer api
     if (sub_timer_idx < sub_timer_count) {
       const auto cc_idx = sub_timer_idx + 1;
@@ -125,6 +163,7 @@ struct HardCcTimerStm32 {
     }
   }
 
+  // DEPRECATED:
   IGB_FAST_INLINE void stopSubTimer(uint8_t sub_timer_idx) { // specialized timer api
     if (sub_timer_idx < sub_timer_count) {
       const auto cc_idx = sub_timer_idx + 1;
@@ -141,8 +180,8 @@ struct HardCcTimerStm32 {
   }
 
 
-  IGB_FAST_INLINE void stop() { // general timer api
-    _stopTimer(0);
+  IGB_FAST_INLINE void stop(uint8_t cc_idx = 0) { // general timer api
+    _stopTimer(cc_idx);
   }
 
   IGB_FAST_INLINE void _stopTimer(uint8_t cc_idx) { // general timer api
@@ -192,12 +231,9 @@ struct HardCcTimerStm32 {
 
   IGB_FAST_INLINE void setIntervalTick(uint8_t cc_idx, count_t interval_tick) { // specialized api
     auto& state = _cc_states[cc_idx];
-    if (interval_tick > 0) {
-      auto& state = _cc_states[0];
-      state.interval_tick = interval_tick;
-      state.interval_tick_f = (float)interval_tick;
-      state.interval_tick_adj = 0;
-    }
+    state.interval_tick = interval_tick;
+    state.interval_tick_f = (float)interval_tick;
+    state.interval_tick_adj = 0;
   }
 
   IGB_FAST_INLINE void setIntervalTick(uint8_t cc_idx, float interval_tick_f) { // specialized api
@@ -213,9 +249,11 @@ struct HardCcTimerStm32 {
     }
   }
 
+  // DEPRECATED
   IGB_FAST_INLINE void setSubTimerIntervalTick(uint8_t sub_timer_idx, float interval_tick_f) { // specialized timer api
     setIntervalTick(sub_timer_idx+1, interval_tick_f);
   }
+  // DEPRECATED
   IGB_FAST_INLINE void setSubTimerIntervalTick(uint8_t sub_timer_idx, count_t interval_tick) { // specialized timer api
     setIntervalTick(sub_timer_idx+1, interval_tick);
   }
