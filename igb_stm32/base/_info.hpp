@@ -128,7 +128,11 @@ struct TscInfo {
 #ifdef STM32_PERIPHGRP_DMA_EXISTS
 struct DmaChannelInfo {
   bool exists = true;
+#ifdef STM32_PERIPHGRP_BDMA_EXISTS
+  BDMA_Channel_TypeDef* const p_dma_channel;
+#else
   DMA_Channel_TypeDef* const p_dma_channel;
+#endif
   const uint32_t addr;
   const IRQn_Type irqn;
 };

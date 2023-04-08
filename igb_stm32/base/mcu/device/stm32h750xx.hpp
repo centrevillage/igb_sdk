@@ -83,8 +83,6 @@
 #define STM32_PERIPH_ADC3_EXISTS 1
 #define STM32_PERIPH_ADC1_EXISTS 1
 #define STM32_PERIPH_ADC2_EXISTS 1
-#define STM32_PERIPH_ADC3_COMMON_EXISTS 1
-#define STM32_PERIPH_ADC12_COMMON_EXISTS 1
 #define STM32_PERIPHGRP_CRC_EXISTS 1
 #define STM32_PERIPH_CRC_EXISTS 1
 #define STM32_PERIPHGRP_RCC_EXISTS 1
@@ -139,20 +137,10 @@
 #define STM32_PERIPH_HRTIM_COMMON_EXISTS 1
 #define STM32_PERIPHGRP_DFSDM_EXISTS 1
 #define STM32_PERIPH_DFSDM_EXISTS 1
-#define STM32_PERIPHGRP_TIMS_EXISTS 1
+#define STM32_PERIPHGRP_TIM_EXISTS 1
 #define STM32_PERIPH_TIM16_EXISTS 1
 #define STM32_PERIPH_TIM17_EXISTS 1
 #define STM32_PERIPH_TIM15_EXISTS 1
-#define STM32_PERIPHGRP_USART_EXISTS 1
-#define STM32_PERIPH_USART1_EXISTS 1
-#define STM32_PERIPH_USART2_EXISTS 1
-#define STM32_PERIPH_USART3_EXISTS 1
-#define STM32_PERIPH_UART4_EXISTS 1
-#define STM32_PERIPH_UART5_EXISTS 1
-#define STM32_PERIPH_USART6_EXISTS 1
-#define STM32_PERIPH_UART7_EXISTS 1
-#define STM32_PERIPH_UART8_EXISTS 1
-#define STM32_PERIPHGRP_TIM_EXISTS 1
 #define STM32_PERIPH_TIM1_EXISTS 1
 #define STM32_PERIPH_TIM8_EXISTS 1
 #define STM32_PERIPH_TIM2_EXISTS 1
@@ -164,6 +152,15 @@
 #define STM32_PERIPH_TIM14_EXISTS 1
 #define STM32_PERIPH_TIM6_EXISTS 1
 #define STM32_PERIPH_TIM7_EXISTS 1
+#define STM32_PERIPHGRP_USART_EXISTS 1
+#define STM32_PERIPH_USART1_EXISTS 1
+#define STM32_PERIPH_USART2_EXISTS 1
+#define STM32_PERIPH_USART3_EXISTS 1
+#define STM32_PERIPH_UART4_EXISTS 1
+#define STM32_PERIPH_UART5_EXISTS 1
+#define STM32_PERIPH_USART6_EXISTS 1
+#define STM32_PERIPH_UART7_EXISTS 1
+#define STM32_PERIPH_UART8_EXISTS 1
 #define STM32_PERIPHGRP_FDCAN_EXISTS 1
 #define STM32_PERIPH_FDCAN1_EXISTS 1
 #define STM32_PERIPH_FDCAN2_EXISTS 1
@@ -202,8 +199,11 @@ enum class PeriphGroupType : uint16_t {
   spi,
   adc,
   rcc,
-  usart,
+  syscfg,
+  exti,
+  dma,
   tim,
+  usart,
 };
 
 enum class PeriphType : uint16_t {
@@ -233,14 +233,10 @@ enum class PeriphType : uint16_t {
   adc2,
   adc3,
   rcc,
-  usart1,
-  usart2,
-  usart3,
-  uart4,
-  uart5,
-  usart6,
-  uart7,
-  uart8,
+  syscfg,
+  exti,
+  dma1,
+  dma2,
   tim1,
   tim2,
   tim3,
@@ -252,17 +248,53 @@ enum class PeriphType : uint16_t {
   tim12,
   tim13,
   tim14,
+  tim15,
+  tim16,
+  tim17,
+  usart1,
+  usart2,
+  usart3,
+  uart4,
+  uart5,
+  usart6,
+  uart7,
+  uart8,
 };
 
 enum class DacType : uint8_t {
   dac1 = 0,
 };
+constexpr static uint8_t to_idx(DacType type) {
+  switch (type) {
+    case DacType::dac1:
+      return 0;
+      break;
+  }
+  return 0;
+}
 enum class I2cType : uint8_t {
   i2c1 = 0,
   i2c2,
   i2c3,
   i2c4,
 };
+constexpr static uint8_t to_idx(I2cType type) {
+  switch (type) {
+    case I2cType::i2c1:
+      return 0;
+      break;
+    case I2cType::i2c2:
+      return 1;
+      break;
+    case I2cType::i2c3:
+      return 2;
+      break;
+    case I2cType::i2c4:
+      return 3;
+      break;
+  }
+  return 0;
+}
 enum class GpioType : uint8_t {
   gpioa = 0,
   gpiob,
@@ -276,6 +308,44 @@ enum class GpioType : uint8_t {
   gpioj,
   gpiok,
 };
+constexpr static uint8_t to_idx(GpioType type) {
+  switch (type) {
+    case GpioType::gpioa:
+      return 0;
+      break;
+    case GpioType::gpiob:
+      return 1;
+      break;
+    case GpioType::gpioc:
+      return 2;
+      break;
+    case GpioType::gpiod:
+      return 3;
+      break;
+    case GpioType::gpioe:
+      return 4;
+      break;
+    case GpioType::gpiof:
+      return 5;
+      break;
+    case GpioType::gpiog:
+      return 6;
+      break;
+    case GpioType::gpioh:
+      return 7;
+      break;
+    case GpioType::gpioi:
+      return 8;
+      break;
+    case GpioType::gpioj:
+      return 9;
+      break;
+    case GpioType::gpiok:
+      return 10;
+      break;
+  }
+  return 0;
+}
 enum class SpiType : uint8_t {
   spi1 = 0,
   spi2,
@@ -284,21 +354,63 @@ enum class SpiType : uint8_t {
   spi5,
   spi6,
 };
+constexpr static uint8_t to_idx(SpiType type) {
+  switch (type) {
+    case SpiType::spi1:
+      return 0;
+      break;
+    case SpiType::spi2:
+      return 1;
+      break;
+    case SpiType::spi3:
+      return 2;
+      break;
+    case SpiType::spi4:
+      return 3;
+      break;
+    case SpiType::spi5:
+      return 4;
+      break;
+    case SpiType::spi6:
+      return 5;
+      break;
+  }
+  return 0;
+}
 enum class AdcType : uint8_t {
   adc1 = 0,
   adc2,
   adc3,
 };
-enum class UsartType : uint8_t {
-  usart1 = 0,
-  usart2,
-  usart3,
-  uart4,
-  uart5,
-  usart6,
-  uart7,
-  uart8,
+constexpr static uint8_t to_idx(AdcType type) {
+  switch (type) {
+    case AdcType::adc1:
+      return 0;
+      break;
+    case AdcType::adc2:
+      return 1;
+      break;
+    case AdcType::adc3:
+      return 2;
+      break;
+  }
+  return 0;
+}
+enum class DmaType : uint8_t {
+  dma1 = 0,
+  dma2,
 };
+constexpr static uint8_t to_idx(DmaType type) {
+  switch (type) {
+    case DmaType::dma1:
+      return 0;
+      break;
+    case DmaType::dma2:
+      return 1;
+      break;
+  }
+  return 0;
+}
 enum class TimType : uint8_t {
   tim1 = 0,
   tim2,
@@ -311,7 +423,96 @@ enum class TimType : uint8_t {
   tim12,
   tim13,
   tim14,
+  tim15,
+  tim16,
+  tim17,
 };
+constexpr static uint8_t to_idx(TimType type) {
+  switch (type) {
+    case TimType::tim1:
+      return 0;
+      break;
+    case TimType::tim2:
+      return 1;
+      break;
+    case TimType::tim3:
+      return 2;
+      break;
+    case TimType::tim4:
+      return 3;
+      break;
+    case TimType::tim5:
+      return 4;
+      break;
+    case TimType::tim6:
+      return 5;
+      break;
+    case TimType::tim7:
+      return 6;
+      break;
+    case TimType::tim8:
+      return 7;
+      break;
+    case TimType::tim12:
+      return 8;
+      break;
+    case TimType::tim13:
+      return 9;
+      break;
+    case TimType::tim14:
+      return 10;
+      break;
+    case TimType::tim15:
+      return 11;
+      break;
+    case TimType::tim16:
+      return 12;
+      break;
+    case TimType::tim17:
+      return 13;
+      break;
+  }
+  return 0;
+}
+enum class UsartType : uint8_t {
+  usart1 = 0,
+  usart2,
+  usart3,
+  uart4,
+  uart5,
+  usart6,
+  uart7,
+  uart8,
+};
+constexpr static uint8_t to_idx(UsartType type) {
+  switch (type) {
+    case UsartType::usart1:
+      return 0;
+      break;
+    case UsartType::usart2:
+      return 1;
+      break;
+    case UsartType::usart3:
+      return 2;
+      break;
+    case UsartType::uart4:
+      return 3;
+      break;
+    case UsartType::uart5:
+      return 4;
+      break;
+    case UsartType::usart6:
+      return 5;
+      break;
+    case UsartType::uart7:
+      return 6;
+      break;
+    case UsartType::uart8:
+      return 7;
+      break;
+  }
+  return 0;
+}
 
 enum class GpioPinType : uint8_t {
   pa0 = (0 << 4) | 0,
@@ -492,7 +693,7 @@ enum class GpioPinType : uint8_t {
   pk15 = (10 << 4) | 15,
 };
 
-static inline GpioType extract_gpio_type(GpioPinType pin_type) {
+constexpr static GpioType extract_gpio_type(GpioPinType pin_type) {
   switch (pin_type) {
     case GpioPinType::pa0:
     case GpioPinType::pa1:
@@ -695,10 +896,10 @@ static inline GpioType extract_gpio_type(GpioPinType pin_type) {
     default:
       break;
   }
-  return static_cast<GpioType>(0); // never reach
+  return GpioType::gpioa; // never reach
 }
 
-static inline uint8_t extract_pin_idx(GpioPinType pin_type) {
+constexpr static uint8_t extract_pin_idx(GpioPinType pin_type) {
   switch (pin_type) {
     case GpioPinType::pa0:
       return 0;
@@ -1101,6 +1302,8 @@ constexpr struct PeriphInfo {
     DacInfo {
       .periph_type = PeriphType::dac1,
       .p_dac = DAC1,
+      .addr = DAC1_BASE,
+      .irqn = TIM6_DAC_IRQn,
       .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 29},
     },
   };
@@ -1134,56 +1337,67 @@ constexpr struct PeriphInfo {
     GpioInfo {
       .periph_type = PeriphType::gpioa,
       .p_gpio = GPIOA,
+      .addr = GPIOA_BASE,
       .bus = PeriphBusInfo { BusType::ahb4, (uint32_t)1 << 0},
     },
     GpioInfo {
       .periph_type = PeriphType::gpiob,
       .p_gpio = GPIOB,
+      .addr = GPIOB_BASE,
       .bus = PeriphBusInfo { BusType::ahb4, (uint32_t)1 << 1},
     },
     GpioInfo {
       .periph_type = PeriphType::gpioc,
       .p_gpio = GPIOC,
+      .addr = GPIOC_BASE,
       .bus = PeriphBusInfo { BusType::ahb4, (uint32_t)1 << 2},
     },
     GpioInfo {
       .periph_type = PeriphType::gpiod,
       .p_gpio = GPIOD,
+      .addr = GPIOD_BASE,
       .bus = PeriphBusInfo { BusType::ahb4, (uint32_t)1 << 3},
     },
     GpioInfo {
       .periph_type = PeriphType::gpioe,
       .p_gpio = GPIOE,
+      .addr = GPIOE_BASE,
       .bus = PeriphBusInfo { BusType::ahb4, (uint32_t)1 << 4},
     },
     GpioInfo {
       .periph_type = PeriphType::gpiof,
       .p_gpio = GPIOF,
+      .addr = GPIOF_BASE,
       .bus = PeriphBusInfo { BusType::ahb4, (uint32_t)1 << 5},
     },
     GpioInfo {
       .periph_type = PeriphType::gpiog,
       .p_gpio = GPIOG,
+      .addr = GPIOG_BASE,
       .bus = PeriphBusInfo { BusType::ahb4, (uint32_t)1 << 6},
     },
     GpioInfo {
       .periph_type = PeriphType::gpioh,
       .p_gpio = GPIOH,
+      .addr = GPIOH_BASE,
       .bus = PeriphBusInfo { BusType::ahb4, (uint32_t)1 << 7},
     },
     GpioInfo {
       .periph_type = PeriphType::gpioi,
       .p_gpio = GPIOI,
+      .addr = GPIOI_BASE,
       .bus = PeriphBusInfo { BusType::ahb4, (uint32_t)1 << 8},
     },
     GpioInfo {
       .periph_type = PeriphType::gpioj,
       .p_gpio = GPIOJ,
+      .addr = GPIOJ_BASE,
       .bus = PeriphBusInfo { BusType::ahb4, (uint32_t)1 << 9},
     },
     GpioInfo {
       .periph_type = PeriphType::gpiok,
       .p_gpio = GPIOK,
+      .addr = GPIOK_BASE,
       .bus = PeriphBusInfo { BusType::ahb4, (uint32_t)1 << 10},
     },
   };
@@ -1230,72 +1444,194 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::adc1,
       .p_adc = ADC1,
       .addr = ADC1_BASE,
+      .irqn = ADC_IRQn,
       .bus = PeriphBusInfo { BusType::ahb1, (uint32_t)1 << 5},
     },
     AdcInfo {
       .periph_type = PeriphType::adc2,
       .p_adc = ADC2,
       .addr = ADC2_BASE,
+      .irqn = ADC_IRQn,
       .bus = PeriphBusInfo { BusType::ahb1, (uint32_t)1 << 5},
     },
     AdcInfo {
       .periph_type = PeriphType::adc3,
       .p_adc = ADC3,
       .addr = ADC3_BASE,
+      .irqn = ADC3_IRQn,
       .bus = PeriphBusInfo { BusType::ahb4, (uint32_t)1 << 24},
     },
   };
   const RccInfo rcc {
     .periph_type = PeriphType::rcc,
     .p_rcc = RCC,
+    .addr = RCC_BASE,
   };
-  const std::array<UsartInfo, 8> usart {
-    UsartInfo {
-      .periph_type = PeriphType::usart1,
-      .p_usart = USART1,
-      .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 4},
-    },
-    UsartInfo {
-      .periph_type = PeriphType::usart2,
-      .p_usart = USART2,
-      .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 17},
-    },
-    UsartInfo {
-      .periph_type = PeriphType::usart3,
-      .p_usart = USART3,
-      .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 18},
-    },
-    UsartInfo {
-      .periph_type = PeriphType::uart4,
-      .p_usart = UART4,
-      .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 19},
-    },
-    UsartInfo {
-      .periph_type = PeriphType::uart5,
-      .p_usart = UART5,
-      .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 20},
-    },
-    UsartInfo {
-      .periph_type = PeriphType::usart6,
-      .p_usart = USART6,
-      .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 5},
-    },
-    UsartInfo {
-      .periph_type = PeriphType::uart7,
-      .p_usart = UART7,
-      .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 30},
-    },
-    UsartInfo {
-      .periph_type = PeriphType::uart8,
-      .p_usart = UART8,
-      .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 31},
+  const SysCfgInfo syscfg {
+    .periph_type = PeriphType::syscfg,
+    .p_syscfg = SYSCFG,
+    .addr = SYSCFG_BASE,
+    .bus = PeriphBusInfo { BusType::apb4, (uint32_t)1 << 1},
+  };
+  const ExtiInfo exti {
+    .periph_type = PeriphType::exti,
+    .p_exti = EXTI,
+    .addr = EXTI_BASE,
+    .line_irqns = {
+      EXTI0_IRQn,
+      EXTI1_IRQn,
+      EXTI2_IRQn,
+      EXTI3_IRQn,
+      EXTI4_IRQn,
+      EXTI9_5_IRQn,
+      EXTI9_5_IRQn,
+      EXTI9_5_IRQn,
+      EXTI9_5_IRQn,
+      EXTI9_5_IRQn,
+      EXTI15_10_IRQn,
+      EXTI15_10_IRQn,
+      EXTI15_10_IRQn,
+      EXTI15_10_IRQn,
+      EXTI15_10_IRQn,
+      EXTI15_10_IRQn,
     },
   };
-  const std::array<TimInfo, 11> tim {
+  const std::array<DmaInfo, 2> dma {
+    DmaInfo {
+      .periph_type = PeriphType::dma1,
+      .p_dma = DMA1,
+      .addr = DMA1_BASE,
+      .bus = PeriphBusInfo { BusType::ahb1, (uint32_t)1 << 0},
+      .channels = {
+  
+        DmaChannelInfo {
+          .exists = false,
+          .p_dma_channel = (BDMA_Channel_TypeDef*)0,
+          .addr = 0,
+          .irqn = (IRQn_Type)0
+        },
+  
+        DmaChannelInfo {
+          .exists = false,
+          .p_dma_channel = (BDMA_Channel_TypeDef*)0,
+          .addr = 0,
+          .irqn = (IRQn_Type)0
+        },
+  
+        DmaChannelInfo {
+          .exists = false,
+          .p_dma_channel = (BDMA_Channel_TypeDef*)0,
+          .addr = 0,
+          .irqn = (IRQn_Type)0
+        },
+  
+        DmaChannelInfo {
+          .exists = false,
+          .p_dma_channel = (BDMA_Channel_TypeDef*)0,
+          .addr = 0,
+          .irqn = (IRQn_Type)0
+        },
+  
+        DmaChannelInfo {
+          .exists = false,
+          .p_dma_channel = (BDMA_Channel_TypeDef*)0,
+          .addr = 0,
+          .irqn = (IRQn_Type)0
+        },
+  
+        DmaChannelInfo {
+          .exists = false,
+          .p_dma_channel = (BDMA_Channel_TypeDef*)0,
+          .addr = 0,
+          .irqn = (IRQn_Type)0
+        },
+  
+        DmaChannelInfo {
+          .exists = false,
+          .p_dma_channel = (BDMA_Channel_TypeDef*)0,
+          .addr = 0,
+          .irqn = (IRQn_Type)0
+        },
+  
+        DmaChannelInfo {
+          .exists = false,
+          .p_dma_channel = (BDMA_Channel_TypeDef*)0,
+          .addr = 0,
+          .irqn = (IRQn_Type)0
+        },
+      },
+    },
+    DmaInfo {
+      .periph_type = PeriphType::dma2,
+      .p_dma = DMA2,
+      .addr = DMA2_BASE,
+      .bus = PeriphBusInfo { BusType::ahb1, (uint32_t)1 << 1},
+      .channels = {
+  
+        DmaChannelInfo {
+          .exists = false,
+          .p_dma_channel = (BDMA_Channel_TypeDef*)0,
+          .addr = 0,
+          .irqn = (IRQn_Type)0
+        },
+  
+        DmaChannelInfo {
+          .exists = false,
+          .p_dma_channel = (BDMA_Channel_TypeDef*)0,
+          .addr = 0,
+          .irqn = (IRQn_Type)0
+        },
+  
+        DmaChannelInfo {
+          .exists = false,
+          .p_dma_channel = (BDMA_Channel_TypeDef*)0,
+          .addr = 0,
+          .irqn = (IRQn_Type)0
+        },
+  
+        DmaChannelInfo {
+          .exists = false,
+          .p_dma_channel = (BDMA_Channel_TypeDef*)0,
+          .addr = 0,
+          .irqn = (IRQn_Type)0
+        },
+  
+        DmaChannelInfo {
+          .exists = false,
+          .p_dma_channel = (BDMA_Channel_TypeDef*)0,
+          .addr = 0,
+          .irqn = (IRQn_Type)0
+        },
+  
+        DmaChannelInfo {
+          .exists = false,
+          .p_dma_channel = (BDMA_Channel_TypeDef*)0,
+          .addr = 0,
+          .irqn = (IRQn_Type)0
+        },
+  
+        DmaChannelInfo {
+          .exists = false,
+          .p_dma_channel = (BDMA_Channel_TypeDef*)0,
+          .addr = 0,
+          .irqn = (IRQn_Type)0
+        },
+  
+        DmaChannelInfo {
+          .exists = false,
+          .p_dma_channel = (BDMA_Channel_TypeDef*)0,
+          .addr = 0,
+          .irqn = (IRQn_Type)0
+        },
+      },
+    },
+  };
+  const std::array<TimInfo, 14> tim {
     TimInfo {
       .periph_type = PeriphType::tim1,
       .category = TimCategory::ADVANCED,
       .p_tim = TIM1,
+      .addr = TIM1_BASE,
       .irqn = TIM1_UP_IRQn,
       .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 0},
     },
@@ -1303,6 +1639,7 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::tim2,
       .category = TimCategory::GENERAL,
       .p_tim = TIM2,
+      .addr = TIM2_BASE,
       .irqn = TIM2_IRQn,
       .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 0},
     },
@@ -1310,6 +1647,7 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::tim3,
       .category = TimCategory::GENERAL,
       .p_tim = TIM3,
+      .addr = TIM3_BASE,
       .irqn = TIM3_IRQn,
       .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 1},
     },
@@ -1317,6 +1655,7 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::tim4,
       .category = TimCategory::GENERAL,
       .p_tim = TIM4,
+      .addr = TIM4_BASE,
       .irqn = TIM4_IRQn,
       .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 2},
     },
@@ -1324,6 +1663,7 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::tim5,
       .category = TimCategory::GENERAL,
       .p_tim = TIM5,
+      .addr = TIM5_BASE,
       .irqn = TIM5_IRQn,
       .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 3},
     },
@@ -1331,6 +1671,7 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::tim6,
       .category = TimCategory::BASIC,
       .p_tim = TIM6,
+      .addr = TIM6_BASE,
       .irqn = TIM6_DAC_IRQn,
       .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 4},
     },
@@ -1338,6 +1679,7 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::tim7,
       .category = TimCategory::BASIC,
       .p_tim = TIM7,
+      .addr = TIM7_BASE,
       .irqn = TIM7_IRQn,
       .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 5},
     },
@@ -1345,6 +1687,7 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::tim8,
       .category = TimCategory::ADVANCED,
       .p_tim = TIM8,
+      .addr = TIM8_BASE,
       .irqn = TIM8_UP_TIM13_IRQn,
       .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 1},
     },
@@ -1352,6 +1695,7 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::tim12,
       .category = TimCategory::GENERAL,
       .p_tim = TIM12,
+      .addr = TIM12_BASE,
       .irqn = TIM8_BRK_TIM12_IRQn,
       .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 6},
     },
@@ -1359,6 +1703,7 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::tim13,
       .category = TimCategory::GENERAL,
       .p_tim = TIM13,
+      .addr = TIM13_BASE,
       .irqn = TIM8_UP_TIM13_IRQn,
       .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 7},
     },
@@ -1366,12 +1711,94 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::tim14,
       .category = TimCategory::GENERAL,
       .p_tim = TIM14,
+      .addr = TIM14_BASE,
       .irqn = TIM8_TRG_COM_TIM14_IRQn,
       .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 8},
     },
+    TimInfo {
+      .periph_type = PeriphType::tim15,
+      .category = TimCategory::GENERAL,
+      .p_tim = TIM15,
+      .addr = TIM15_BASE,
+      .irqn = TIM15_IRQn,
+      .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 16},
+    },
+    TimInfo {
+      .periph_type = PeriphType::tim16,
+      .category = TimCategory::GENERAL,
+      .p_tim = TIM16,
+      .addr = TIM16_BASE,
+      .irqn = TIM16_IRQn,
+      .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 17},
+    },
+    TimInfo {
+      .periph_type = PeriphType::tim17,
+      .category = TimCategory::GENERAL,
+      .p_tim = TIM17,
+      .addr = TIM17_BASE,
+      .irqn = TIM17_IRQn,
+      .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 18},
+    },
+  };
+  const std::array<UsartInfo, 8> usart {
+    UsartInfo {
+      .periph_type = PeriphType::usart1,
+      .p_usart = USART1,
+      .addr = USART1_BASE,
+      .irqn = USART1_IRQn,
+      .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 4},
+    },
+    UsartInfo {
+      .periph_type = PeriphType::usart2,
+      .p_usart = USART2,
+      .addr = USART2_BASE,
+      .irqn = USART2_IRQn,
+      .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 17},
+    },
+    UsartInfo {
+      .periph_type = PeriphType::usart3,
+      .p_usart = USART3,
+      .addr = USART3_BASE,
+      .irqn = USART3_IRQn,
+      .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 18},
+    },
+    UsartInfo {
+      .periph_type = PeriphType::uart4,
+      .p_usart = UART4,
+      .addr = UART4_BASE,
+      .irqn = UART4_IRQn,
+      .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 19},
+    },
+    UsartInfo {
+      .periph_type = PeriphType::uart5,
+      .p_usart = UART5,
+      .addr = UART5_BASE,
+      .irqn = UART5_IRQn,
+      .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 20},
+    },
+    UsartInfo {
+      .periph_type = PeriphType::usart6,
+      .p_usart = USART6,
+      .addr = USART6_BASE,
+      .irqn = USART6_IRQn,
+      .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 5},
+    },
+    UsartInfo {
+      .periph_type = PeriphType::uart7,
+      .p_usart = UART7,
+      .addr = UART7_BASE,
+      .irqn = UART7_IRQn,
+      .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 30},
+    },
+    UsartInfo {
+      .periph_type = PeriphType::uart8,
+      .p_usart = UART8,
+      .addr = UART8_BASE,
+      .irqn = UART8_IRQn,
+      .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 31},
+    },
   };
 } STM32_PERIPH_INFO;
-
 
 enum class GpioAf : uint8_t {
   af0 = 0,
@@ -1391,7 +1818,7 @@ enum class GpioAf : uint8_t {
   af14,
 };
 
-static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinType gpio_pin) {
+constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinType gpio_pin) {
   switch (gpio_pin) {
     case GpioPinType::pa2:
       switch (periph_type) {
@@ -1399,6 +1826,8 @@ static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinTy
           return GpioAf::af1;
         case PeriphType::tim5:
           return GpioAf::af2;
+        case PeriphType::tim15:
+          return GpioAf::af4;
         case PeriphType::usart2:
           return GpioAf::af7;
         default:
@@ -1411,6 +1840,8 @@ static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinTy
           return GpioAf::af1;
         case PeriphType::tim5:
           return GpioAf::af2;
+        case PeriphType::tim15:
+          return GpioAf::af4;
         case PeriphType::usart2:
           return GpioAf::af7;
         default:
@@ -1637,6 +2068,8 @@ static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinTy
       break;
     case GpioPinType::pb4:
       switch (periph_type) {
+        case PeriphType::tim16:
+          return GpioAf::af1;
         case PeriphType::tim3:
           return GpioAf::af2;
         case PeriphType::spi1:
@@ -1655,6 +2088,8 @@ static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinTy
       break;
     case GpioPinType::pb5:
       switch (periph_type) {
+        case PeriphType::tim17:
+          return GpioAf::af1;
         case PeriphType::tim3:
           return GpioAf::af2;
         case PeriphType::i2c1:
@@ -1675,6 +2110,8 @@ static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinTy
       break;
     case GpioPinType::pb6:
       switch (periph_type) {
+        case PeriphType::tim16:
+          return GpioAf::af1;
         case PeriphType::tim4:
           return GpioAf::af2;
         case PeriphType::i2c1:
@@ -1691,6 +2128,8 @@ static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinTy
       break;
     case GpioPinType::pb7:
       switch (periph_type) {
+        case PeriphType::tim17:
+          return GpioAf::af1;
         case PeriphType::tim4:
           return GpioAf::af2;
         case PeriphType::i2c1:
@@ -1705,6 +2144,8 @@ static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinTy
       break;
     case GpioPinType::pb8:
       switch (periph_type) {
+        case PeriphType::tim16:
+          return GpioAf::af1;
         case PeriphType::tim4:
           return GpioAf::af2;
         case PeriphType::i2c1:
@@ -1719,6 +2160,8 @@ static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinTy
       break;
     case GpioPinType::pb9:
       switch (periph_type) {
+        case PeriphType::tim17:
+          return GpioAf::af1;
         case PeriphType::tim4:
           return GpioAf::af2;
         case PeriphType::i2c1:
@@ -2119,12 +2562,16 @@ static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinTy
       break;
     case GpioPinType::pe3:
       switch (periph_type) {
+        case PeriphType::tim15:
+          return GpioAf::af4;
         default:
           break;
       }
       break;
     case GpioPinType::pe4:
       switch (periph_type) {
+        case PeriphType::tim15:
+          return GpioAf::af4;
         case PeriphType::spi4:
           return GpioAf::af5;
         default:
@@ -2133,6 +2580,8 @@ static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinTy
       break;
     case GpioPinType::pe5:
       switch (periph_type) {
+        case PeriphType::tim15:
+          return GpioAf::af4;
         case PeriphType::spi4:
           return GpioAf::af5;
         default:
@@ -2143,6 +2592,8 @@ static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinTy
       switch (periph_type) {
         case PeriphType::tim1:
           return GpioAf::af1;
+        case PeriphType::tim15:
+          return GpioAf::af4;
         case PeriphType::spi4:
           return GpioAf::af5;
         default:
@@ -2281,6 +2732,8 @@ static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinTy
       break;
     case GpioPinType::pf6:
       switch (periph_type) {
+        case PeriphType::tim16:
+          return GpioAf::af1;
         case PeriphType::spi5:
           return GpioAf::af5;
         case PeriphType::uart7:
@@ -2291,6 +2744,8 @@ static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinTy
       break;
     case GpioPinType::pf7:
       switch (periph_type) {
+        case PeriphType::tim17:
+          return GpioAf::af1;
         case PeriphType::spi5:
           return GpioAf::af5;
         case PeriphType::uart7:
@@ -2301,6 +2756,8 @@ static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinTy
       break;
     case GpioPinType::pf8:
       switch (periph_type) {
+        case PeriphType::tim16:
+          return GpioAf::af1;
         case PeriphType::spi5:
           return GpioAf::af5;
         case PeriphType::uart7:
@@ -2313,6 +2770,8 @@ static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinTy
       break;
     case GpioPinType::pf9:
       switch (periph_type) {
+        case PeriphType::tim17:
+          return GpioAf::af1;
         case PeriphType::spi5:
           return GpioAf::af5;
         case PeriphType::uart7:
@@ -2325,6 +2784,8 @@ static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinTy
       break;
     case GpioPinType::pf10:
       switch (periph_type) {
+        case PeriphType::tim16:
+          return GpioAf::af1;
         default:
           break;
       }
@@ -2413,6 +2874,8 @@ static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinTy
       break;
     case GpioPinType::pg6:
       switch (periph_type) {
+        case PeriphType::tim17:
+          return GpioAf::af1;
         default:
           break;
       }
@@ -2942,12 +3405,12 @@ static inline std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinTy
 }
 
 template<typename T>
-static inline std::optional<PeriphType> as_periph_type(T type) {
+constexpr static std::optional<PeriphType> as_periph_type(T type) {
   return std::nullopt;
 }
 
 template<>
-inline std::optional<PeriphType> as_periph_type(DacType type) {
+constexpr std::optional<PeriphType> as_periph_type(DacType type) {
   switch (type) {
     case DacType::dac1:
       return PeriphType::dac1;
@@ -2955,7 +3418,7 @@ inline std::optional<PeriphType> as_periph_type(DacType type) {
   return std::nullopt;
 }
 template<>
-inline std::optional<PeriphType> as_periph_type(I2cType type) {
+constexpr std::optional<PeriphType> as_periph_type(I2cType type) {
   switch (type) {
     case I2cType::i2c1:
       return PeriphType::i2c1;
@@ -2969,7 +3432,7 @@ inline std::optional<PeriphType> as_periph_type(I2cType type) {
   return std::nullopt;
 }
 template<>
-inline std::optional<PeriphType> as_periph_type(GpioType type) {
+constexpr std::optional<PeriphType> as_periph_type(GpioType type) {
   switch (type) {
     case GpioType::gpioa:
       return PeriphType::gpioa;
@@ -2997,7 +3460,7 @@ inline std::optional<PeriphType> as_periph_type(GpioType type) {
   return std::nullopt;
 }
 template<>
-inline std::optional<PeriphType> as_periph_type(SpiType type) {
+constexpr std::optional<PeriphType> as_periph_type(SpiType type) {
   switch (type) {
     case SpiType::spi1:
       return PeriphType::spi1;
@@ -3015,7 +3478,7 @@ inline std::optional<PeriphType> as_periph_type(SpiType type) {
   return std::nullopt;
 }
 template<>
-inline std::optional<PeriphType> as_periph_type(AdcType type) {
+constexpr std::optional<PeriphType> as_periph_type(AdcType type) {
   switch (type) {
     case AdcType::adc1:
       return PeriphType::adc1;
@@ -3027,29 +3490,17 @@ inline std::optional<PeriphType> as_periph_type(AdcType type) {
   return std::nullopt;
 }
 template<>
-inline std::optional<PeriphType> as_periph_type(UsartType type) {
+constexpr std::optional<PeriphType> as_periph_type(DmaType type) {
   switch (type) {
-    case UsartType::usart1:
-      return PeriphType::usart1;
-    case UsartType::usart2:
-      return PeriphType::usart2;
-    case UsartType::usart3:
-      return PeriphType::usart3;
-    case UsartType::uart4:
-      return PeriphType::uart4;
-    case UsartType::uart5:
-      return PeriphType::uart5;
-    case UsartType::usart6:
-      return PeriphType::usart6;
-    case UsartType::uart7:
-      return PeriphType::uart7;
-    case UsartType::uart8:
-      return PeriphType::uart8;
+    case DmaType::dma1:
+      return PeriphType::dma1;
+    case DmaType::dma2:
+      return PeriphType::dma2;
   }
   return std::nullopt;
 }
 template<>
-inline std::optional<PeriphType> as_periph_type(TimType type) {
+constexpr std::optional<PeriphType> as_periph_type(TimType type) {
   switch (type) {
     case TimType::tim1:
       return PeriphType::tim1;
@@ -3073,6 +3524,34 @@ inline std::optional<PeriphType> as_periph_type(TimType type) {
       return PeriphType::tim13;
     case TimType::tim14:
       return PeriphType::tim14;
+    case TimType::tim15:
+      return PeriphType::tim15;
+    case TimType::tim16:
+      return PeriphType::tim16;
+    case TimType::tim17:
+      return PeriphType::tim17;
+  }
+  return std::nullopt;
+}
+template<>
+constexpr std::optional<PeriphType> as_periph_type(UsartType type) {
+  switch (type) {
+    case UsartType::usart1:
+      return PeriphType::usart1;
+    case UsartType::usart2:
+      return PeriphType::usart2;
+    case UsartType::usart3:
+      return PeriphType::usart3;
+    case UsartType::uart4:
+      return PeriphType::uart4;
+    case UsartType::uart5:
+      return PeriphType::uart5;
+    case UsartType::usart6:
+      return PeriphType::usart6;
+    case UsartType::uart7:
+      return PeriphType::uart7;
+    case UsartType::uart8:
+      return PeriphType::uart8;
   }
   return std::nullopt;
 }

@@ -32,7 +32,11 @@ struct FlashCtrl {
   }
 
   static IGB_FAST_INLINE bool isBusy() {
+#if defined(STM32H7)
+    return FLASH->SR1 & 0x1UL;
+#else
     return FLASH->SR & 0x1UL;
+#endif
   }
 
 #if defined(STM32F0) || defined(STM32F3)

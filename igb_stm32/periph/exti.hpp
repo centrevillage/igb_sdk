@@ -178,14 +178,22 @@ struct ExtiConf {
 struct ExtiCtrl {
   constexpr static auto info = STM32_PERIPH_INFO.exti;
   constexpr static auto addr = STM32_PERIPH_INFO.exti.addr;
+#if defined(STM32H7)
+  // TODO: define IMR2,3
+  constexpr static auto addr_IMR = IGB_EXTI_REG_ADDR(IMR1);
+  constexpr static auto addr_EMR = IGB_EXTI_REG_ADDR(EMR1);
+  constexpr static auto addr_RTSR = IGB_EXTI_REG_ADDR(RTSR1);
+  constexpr static auto addr_FTSR = IGB_EXTI_REG_ADDR(FTSR1);
+  constexpr static auto addr_SWIER = IGB_EXTI_REG_ADDR(SWIER1);
+  constexpr static auto addr_PR = IGB_EXTI_REG_ADDR(PR1);
+#else
   constexpr static auto addr_IMR = IGB_EXTI_REG_ADDR(IMR);
   constexpr static auto addr_EMR = IGB_EXTI_REG_ADDR(EMR);
   constexpr static auto addr_RTSR = IGB_EXTI_REG_ADDR(RTSR);
   constexpr static auto addr_FTSR = IGB_EXTI_REG_ADDR(FTSR);
   constexpr static auto addr_SWIER = IGB_EXTI_REG_ADDR(SWIER);
   constexpr static auto addr_PR = IGB_EXTI_REG_ADDR(PR);
-
-  // TODO: define IMR2 etc for only F3/F4/F7
+#endif
 
   static Reg<addr_IMR> reg_IMR;
   static Reg<addr_EMR> reg_EMR;

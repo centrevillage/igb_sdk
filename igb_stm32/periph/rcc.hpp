@@ -271,9 +271,11 @@ struct RccCtrl {
     return (READ_BIT(RCC->CR, RCC_CR_HSIRDY) == (RCC_CR_HSIRDY));
   }
 
+#if defined(STM32F0) || defined(STM32F3)
   static IGB_FAST_INLINE RccPllClockSrc getPllSrc() {
     return static_cast<RccPllClockSrc>(RCC->CFGR & RCC_CFGR_PLLSRC);
   }
+#endif
 
 #if defined(RCC_HSI48_SUPPORT)
   static IGB_FAST_INLINE void enableHSI48() {
