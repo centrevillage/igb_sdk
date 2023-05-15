@@ -5,7 +5,6 @@
 #include <igb_stm32/base/mcu/stm32h750xx.hpp>
 
 namespace igb {
-namespace daisy {
 
 enum class DaisyGpioPinType : uint8_t {
   d0  = static_cast<uint8_t>(stm32::GpioPinType::pb12),
@@ -45,7 +44,6 @@ constexpr IGB_FAST_INLINE stm32::GpioPinType daisy_pin_to_stm32_pin(DaisyGpioPin
   return static_cast<stm32::GpioPinType>(static_cast<uint8_t>(pin_type));
 }
 
-}
 }
 
 #endif /* IGB_DAISY_PERIPH_GPIO_H */
