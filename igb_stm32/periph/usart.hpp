@@ -20,9 +20,6 @@ namespace stm32 {
 #define IGB_USART_REG_ADDR(member) (addr + offsetof(USART_TypeDef, member))
 #define IGB_USART_REG(member) ((USART_TypeDef*)IGB_USART_REG_ADDR(member))
 
-// TODO: other series
-#if defined(STM32F3)
-
 enum class UsartInterruptType1 : uint32_t {
   idle = USART_CR1_IDLEIE,
   rxne = USART_CR1_RXNEIE,
@@ -33,6 +30,23 @@ enum class UsartInterruptType1 : uint32_t {
   receiverTimeout = USART_CR1_RTOIE,
   endOfBlock = USART_CR1_EOBIE
 };
+
+# if defined(USART_ISR_RXNE_RXFNE)
+#   if !defined(USART_ISR_RXNE)
+#     define USART_ISR_RXNE USART_ISR_RXNE_RXFNE
+#   endif
+#   if !defined(USART_ISR_RXFNE)
+#     define USART_ISR_RXFNE USART_ISR_RXNE_RXFNE
+#   endif
+# endif
+# if defined(USART_ISR_TXE_TXFNF)
+#   if !defined(USART_ISR_TXE)
+#    define USART_ISR_TXE USART_ISR_TXE_TXFNF
+#   endif
+#   if !defined(USART_ISR_TXFNF)
+#     define USART_ISR_TXFNF USART_ISR_TXE_TXFNF
+#   endif
+# endif
 
 enum class UsartState : uint32_t {
   parityError = USART_ISR_PE,
@@ -239,6 +253,9 @@ struct Usart {
   constexpr static auto addr_ICR = IGB_USART_REG_ADDR(ICR);
   constexpr static auto addr_RDR = IGB_USART_REG_ADDR(RDR);
   constexpr static auto addr_TDR = IGB_USART_REG_ADDR(TDR);
+#if defined(STM32H7)
+  constexpr static auto addr_PRESC = IGB_USART_REG_ADDR(PRESC);
+#endif
 
   RegFlag<addr_CR1, USART_CR1_UE> enable;
   RegFlag<addr_CR1, USART_CR1_UESM> enableWakeup;
@@ -489,8 +506,6 @@ struct Usart {
     enable(true);
   }
 };
-
-#endif /* STM32F3 */
 
 #undef IGB_USART_REG
 #undef IGB_USART_REG_ADDR
