@@ -16,6 +16,20 @@ namespace stm32 {
 #define IGB_SPI_REG(member) ((SPI_TypeDef*)IGB_SPI_REG_ADDR(member))
 
 #if defined(STM32H7)
+# define SPI_IT_RXP    SPI_IER_RXPIE
+# define SPI_IT_TXP    SPI_IER_TXPIE
+# define SPI_IT_DXP    SPI_IER_DXPIE
+# define SPI_IT_EOT    SPI_IER_EOTIE
+# define SPI_IT_TXTF   SPI_IER_TXTFIE
+# define SPI_IT_UDR    SPI_IER_UDRIE
+# define SPI_IT_OVR    SPI_IER_OVRIE
+# define SPI_IT_CRCERR SPI_IER_CRCEIE
+# define SPI_IT_FRE    SPI_IER_TIFREIE
+# define SPI_IT_MODF   SPI_IER_MODFIE
+# define SPI_IT_TSERF  SPI_IER_TSERFIE
+#endif
+
+#if defined(STM32H7)
 enum class SpiMode : uint32_t {
   slave  = 0,
   master = SPI_CFG2_MASTER,
