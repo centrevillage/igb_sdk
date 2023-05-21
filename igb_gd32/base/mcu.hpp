@@ -12,6 +12,6 @@
 // #define _WRAPPING(name) name
 // #define GD32_BASE_MCU_HPP_FILE(mcusym) <igb_gd32/device/mcu/_WRAPPING(mcusym) ## .hpp>
 
-#include STM32_BASE_MCU_HPP_FILE(GD32_MCU)
+#include GD32_BASE_MCU_HPP_FILE(GD32_MCU)
 
 #endif /* IGB_GD32_BASE_MCU_H */

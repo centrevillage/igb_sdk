@@ -35,23 +35,6 @@ struct GpioAfInfo {
 
 #ifdef GD32_PERIPHGRP_RCC_EXISTS
 
-struct RCC_TypeDef {
-  volatile uint32_t CR;
-  volatile uint32_t CFGR;
-  volatile uint32_t CIR;
-  volatile uint32_t APB2RSTR;
-  volatile uint32_t APB1RSTR;
-  volatile uint32_t AHBENR;
-  volatile uint32_t APB2ENR;
-  volatile uint32_t APB1ENR;
-  volatile uint32_t BDCR;
-  volatile uint32_t CSR;
-  volatile uint32_t AHBRSTR;
-  volatile uint32_t CFGR2;
-  volatile uint32_t CFGR3;
-  volatile uint32_t CTL1; // extended
-};
-
 struct RccInfo {
   const PeriphType   periph_type;
   RCC_TypeDef* const p_rcc;
@@ -60,22 +43,6 @@ struct RccInfo {
 #endif
 
 #ifdef GD32_PERIPHGRP_GPIO_EXISTS
-
-struct GPIO_TypeDef {
-  volatile uint32_t MODER;
-  volatile uint32_t OTYPER;
-  volatile uint32_t OSPEEDR;
-  volatile uint32_t PUPDR;
-  volatile uint32_t IDR;
-  volatile uint32_t ODR;
-  volatile uint32_t BSRR;
-  volatile uint32_t LCKR;
-  volatile uint32_t AFR[2];
-  volatile uint32_t BRR;
-  volatile uint32_t TG; // extended
-  volatile uint32_t _reserved[3]; // 0x30-0x38
-  volatile uint32_t OSPD1; // extended
-} GPIO_TypeDef;
 
 struct GpioInfo {
   const PeriphType    periph_type;

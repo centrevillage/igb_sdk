@@ -5,11 +5,7 @@
 #include <array>
 #include <optional>
 
-#define FLASH_BASE            0x08000000UL
-#define SRAM_BASE             0x20000000UL
 #define PERIPH_BASE           0x40000000UL
-#define SRAM_BB_BASE          0x22000000UL
-#define PERIPH_BB_BASE        0x42000000UL
 
 #define APB1PERIPH_BASE       PERIPH_BASE
 #define APB2PERIPH_BASE       (PERIPH_BASE + 0x00010000UL)
@@ -263,7 +259,7 @@ constexpr static uint8_t to_idx(GpioType type) {
       return 3;
       break;
     case GpioType::gpiof:
-      return 5;
+      return 4;
       break;
   }
   return 0;
@@ -837,57 +833,90 @@ enum class BusType : uint8_t {
   apb2,
 };
 
+typedef struct {
+  volatile uint32_t MODER;
+  volatile uint32_t OTYPER;
+  volatile uint32_t OSPEEDR;
+  volatile uint32_t PUPDR;
+  volatile uint32_t IDR;
+  volatile uint32_t ODR;
+  volatile uint32_t BSRR;
+  volatile uint32_t LCKR;
+  volatile uint32_t AFR[2];
+  volatile uint32_t BRR;
+  volatile uint32_t TG; // extended
+  volatile uint32_t _reserved[3]; // 0x30-0x38
+  volatile uint32_t OSPD1; // extended
+} GPIO_TypeDef ;
+
+typedef struct {
+  volatile uint32_t CR;
+  volatile uint32_t CFGR;
+  volatile uint32_t CIR;
+  volatile uint32_t APB2RSTR;
+  volatile uint32_t APB1RSTR;
+  volatile uint32_t AHBENR;
+  volatile uint32_t APB2ENR;
+  volatile uint32_t APB1ENR;
+  volatile uint32_t BDCR;
+  volatile uint32_t CSR;
+  volatile uint32_t AHBRSTR;
+  volatile uint32_t CFGR2;
+  volatile uint32_t CFGR3;
+  volatile uint32_t CTL1; // extended
+} RCC_TypeDef;
+
+#define GPIOA_ ((GPIO_TypeDef*)GPIOA_BASE)
+#define GPIOB_ ((GPIO_TypeDef*)GPIOB_BASE)
+#define GPIOC_ ((GPIO_TypeDef*)GPIOC_BASE)
+#define GPIOD_ ((GPIO_TypeDef*)GPIOD_BASE)
+#define GPIOF_ ((GPIO_TypeDef*)GPIOF_BASE)
+
+#define RCC_ ((RCC_TypeDef*)RCC_BASE)
+
 const std::array<volatile uint32_t*, 3> GD32_BUS_TO_ENR_ADDRESS = {
-  &(RCC->AHBENR),
-  &(RCC->APB1ENR),
-  &(RCC->APB2ENR),
+  &(RCC_->AHBENR),
+  &(RCC_->APB1ENR),
+  &(RCC_->APB2ENR),
 };
 
 const std::array<volatile uint32_t*, 3> GD32_BUS_TO_RSTR_ADDRESS = {
-  &(RCC->AHBRSTR),
-  &(RCC->APB1RSTR),
-  &(RCC->APB2RSTR),
+  &(RCC_->AHBRSTR),
+  &(RCC_->APB1RSTR),
+  &(RCC_->APB2RSTR),
 };
 
 #include <igb_gd32/base/_info.hpp>
-
-#define GPIOA ((GPIO_TypeDef*)GPIOA_BASE)
-#define GPIOB ((GPIO_TypeDef*)GPIOB_BASE)
-#define GPIOC ((GPIO_TypeDef*)GPIOC_BASE)
-#define GPIOD ((GPIO_TypeDef*)GPIOD_BASE)
-#define GPIOF ((GPIO_TypeDef*)GPIOF_BASE)
-
-#define RCC ((RCC_TypeDef*)RCC_BASE)
 
 constexpr struct PeriphInfo {
   const std::array<GpioInfo, 5> gpio {
     GpioInfo {
       .periph_type = PeriphType::gpioa,
-      .p_gpio = GPIOA,
+      .p_gpio = GPIOA_,
       .addr = GPIOA_BASE,
       .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 17},
     },
     GpioInfo {
       .periph_type = PeriphType::gpiob,
-      .p_gpio = GPIOB,
+      .p_gpio = GPIOB_,
       .addr = GPIOB_BASE,
       .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 18},
     },
     GpioInfo {
       .periph_type = PeriphType::gpioc,
-      .p_gpio = GPIOC,
+      .p_gpio = GPIOC_,
       .addr = GPIOC_BASE,
       .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 19},
     },
     GpioInfo {
       .periph_type = PeriphType::gpiod,
-      .p_gpio = GPIOD,
+      .p_gpio = GPIOD_,
       .addr = GPIOD_BASE,
       .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 20},
     },
     GpioInfo {
       .periph_type = PeriphType::gpiof,
-      .p_gpio = GPIOF,
+      .p_gpio = GPIOF_,
       .addr = GPIOF_BASE,
       .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 22},
     },
@@ -901,7 +930,7 @@ constexpr struct PeriphInfo {
   //};
   const RccInfo rcc {
     .periph_type = PeriphType::rcc,
-    .p_rcc = RCC,
+    .p_rcc = RCC_,
     .addr = RCC_BASE,
   };
   //const std::array<DmaInfo, 2> dma {
@@ -1239,25 +1268,25 @@ constexpr struct PeriphInfo {
   //};
 } GD32_PERIPH_INFO;
 
-enum class GpioAf : uint8_t {
-  af0 = 0,
-  af1,
-  af2,
-  af3,
-  af4,
-  af5,
-  af6,
-  af7,
-  af8,
-  af9,
-  af10,
-  af11,
-  af12,
-  af13,
-  af14,
-};
-
 // TODO:
+//enum class GpioAf : uint8_t {
+//  af0 = 0,
+//  af1,
+//  af2,
+//  af3,
+//  af4,
+//  af5,
+//  af6,
+//  af7,
+//  af8,
+//  af9,
+//  af10,
+//  af11,
+//  af12,
+//  af13,
+//  af14,
+//};
+
 //constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinType gpio_pin) {
 //  switch (gpio_pin) {
 //    case GpioPinType::pa0:
