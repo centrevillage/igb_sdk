@@ -183,38 +183,38 @@ struct DRegValueWO {
   }
 };
 
-template<const uint32_t bit_mask, typename ENUM_TYPE>
+template<const uint32_t bit_mask, typename ENUM_TYPE, const uint32_t bit_pos = 0>
 struct DRegEnum {
   const uint32_t reg_addr;
 
   // getter
   IGB_FAST_INLINE ENUM_TYPE operator()() {
-    return static_cast<ENUM_TYPE>((*IGB_ACC_DYNAMIC_REG_PTR) & (bit_mask));
+    return static_cast<ENUM_TYPE>(((*IGB_ACC_DYNAMIC_REG_PTR) & (bit_mask)) >> bit_pos);
   }
 
   // setter
   IGB_FAST_INLINE void operator()(ENUM_TYPE v) {
-    (*IGB_ACC_DYNAMIC_REG_PTR) = ((*IGB_ACC_DYNAMIC_REG_PTR) & (~bit_mask)) | (static_cast<uint32_t>(v) & bit_mask);
+    (*IGB_ACC_DYNAMIC_REG_PTR) = ((*IGB_ACC_DYNAMIC_REG_PTR) & (~bit_mask)) | ((static_cast<uint32_t>(v) << bit_pos) & bit_mask);
   }
 };
 
-template<const uint32_t bit_mask, typename ENUM_TYPE>
+template<const uint32_t bit_mask, typename ENUM_TYPE, const uint32_t bit_pos = 0>
 struct DRegEnumRO {
   const uint32_t reg_addr;
 
   // getter
   IGB_FAST_INLINE ENUM_TYPE operator()() {
-    return static_cast<ENUM_TYPE>((*IGB_ACC_DYNAMIC_REG_PTR) & (bit_mask));
+    return static_cast<ENUM_TYPE>(((*IGB_ACC_DYNAMIC_REG_PTR) & (bit_mask)) >> bit_pos);
   }
 };
 
-template<const uint32_t bit_mask, typename ENUM_TYPE>
+template<const uint32_t bit_mask, typename ENUM_TYPE, const uint32_t bit_pos = 0>
 struct DRegEnumWO {
   const uint32_t reg_addr;
 
   // setter
   IGB_FAST_INLINE void operator()(ENUM_TYPE v) {
-    (*IGB_ACC_DYNAMIC_REG_PTR) = ((*IGB_ACC_DYNAMIC_REG_PTR) & (~bit_mask)) | (static_cast<uint32_t>(v) & bit_mask);
+    (*IGB_ACC_DYNAMIC_REG_PTR) = ((*IGB_ACC_DYNAMIC_REG_PTR) & (~bit_mask)) | ((static_cast<uint32_t>(v) << bit_pos) & bit_mask);
   }
 };
 

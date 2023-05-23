@@ -63,20 +63,14 @@
 //#define TIM17_BASE            (APB2PERIPH_BASE + 0x00004800UL)
 
 // AHB1 peripherals
-//#define DMA1_BASE             (AHB1PERIPH_BASE + 0x00000000UL)
-//#define DMA1_Channel1_BASE    (AHB1PERIPH_BASE + 0x00000008UL)
-//#define DMA1_Channel2_BASE    (AHB1PERIPH_BASE + 0x0000001CUL)
-//#define DMA1_Channel3_BASE    (AHB1PERIPH_BASE + 0x00000030UL)
-//#define DMA1_Channel4_BASE    (AHB1PERIPH_BASE + 0x00000044UL)
-//#define DMA1_Channel5_BASE    (AHB1PERIPH_BASE + 0x00000058UL)
-//#define DMA1_Channel6_BASE    (AHB1PERIPH_BASE + 0x0000006CUL)
-//#define DMA1_Channel7_BASE    (AHB1PERIPH_BASE + 0x00000080UL)
-//#define DMA2_BASE             (AHB1PERIPH_BASE + 0x00000400UL)
-//#define DMA2_Channel1_BASE    (AHB1PERIPH_BASE + 0x00000408UL)
-//#define DMA2_Channel2_BASE    (AHB1PERIPH_BASE + 0x0000041CUL)
-//#define DMA2_Channel3_BASE    (AHB1PERIPH_BASE + 0x00000430UL)
-//#define DMA2_Channel4_BASE    (AHB1PERIPH_BASE + 0x00000444UL)
-//#define DMA2_Channel5_BASE    (AHB1PERIPH_BASE + 0x00000458UL)
+#define DMA1_BASE             (AHB1PERIPH_BASE + 0x00000000UL)
+#define DMA1_Channel0_BASE    (AHB1PERIPH_BASE + 0x00000008UL)
+#define DMA1_Channel1_BASE    (AHB1PERIPH_BASE + 0x0000001CUL)
+#define DMA1_Channel2_BASE    (AHB1PERIPH_BASE + 0x00000030UL)
+#define DMA1_Channel3_BASE    (AHB1PERIPH_BASE + 0x00000044UL)
+#define DMA1_Channel4_BASE    (AHB1PERIPH_BASE + 0x00000058UL)
+#define DMA1_Channel5_BASE    (AHB1PERIPH_BASE + 0x0000006CUL)
+#define DMA1_Channel6_BASE    (AHB1PERIPH_BASE + 0x00000080UL)
 #define RCC_BASE              (AHB1PERIPH_BASE + 0x00001000UL)
 //#define FLASH_R_BASE          (AHB1PERIPH_BASE + 0x00002000UL)
 //#define OB_BASE               0x1FFFF800UL
@@ -105,6 +99,8 @@
 #define GD32_PERIPH_ADC1_EXISTS 1
 #define GD32_PERIPHGRP_DAC_EXISTS 1
 #define GD32_PERIPH_DAC1_EXISTS 1
+#define GD32_PERIPHGRP_DMA_EXISTS 1
+#define GD32_PERIPH_DMA1_EXISTS 1
 
 // TODO:
 //#define GD32_PERIPHGRP_TSC_EXISTS 1
@@ -113,9 +109,6 @@
 //#define GD32_PERIPH_CRC_EXISTS 1
 //#define GD32_PERIPHGRP_FLASH_EXISTS 1
 //#define GD32_PERIPH_FLASH_EXISTS 1
-//#define GD32_PERIPHGRP_DMA_EXISTS 1
-//#define GD32_PERIPH_DMA1_EXISTS 1
-//#define GD32_PERIPH_DMA2_EXISTS 1
 //#define GD32_PERIPHGRP_TIM_EXISTS 1
 //#define GD32_PERIPH_TIM2_EXISTS 1
 //#define GD32_PERIPH_TIM3_EXISTS 1
@@ -215,6 +208,7 @@ enum class PeriphType : uint16_t {
   usart0,
   usart1,
   usb,
+  dma1
 };
 
 enum class GpioType : uint8_t {
@@ -245,22 +239,18 @@ constexpr static uint8_t to_idx(GpioType type) {
   return 0;
 }
 
+enum class DmaType : uint8_t {
+  dma1 = 0,
+};
+constexpr static uint8_t to_idx(DmaType type) {
+  switch (type) {
+    case DmaType::dma1:
+      return 0;
+      break;
+  }
+  return 0;
+}
 // TODO:
-//enum class DmaType : uint8_t {
-//  dma1 = 0,
-//  dma2,
-//};
-//constexpr static uint8_t to_idx(DmaType type) {
-//  switch (type) {
-//    case DmaType::dma1:
-//      return 0;
-//      break;
-//    case DmaType::dma2:
-//      return 1;
-//      break;
-//  }
-//  return 0;
-//}
 //enum class TimType : uint8_t {
 //  tim1 = 0,
 //  tim2,
@@ -798,6 +788,18 @@ typedef struct {
   volatile uint32_t STAT;           // 0x34
 } DAC_TypeDef;
 
+typedef struct {
+  volatile uint32_t ISR;  // 0x00; INTF
+  volatile uint32_t IFCR; // 0x04; INTC
+} DMA_TypeDef;
+
+typedef struct {
+  volatile uint32_t CCR;    // 0x00; CTL
+  volatile uint32_t CNDTR;  // 0x04; CNT
+  volatile uint32_t CPAR;   // 0x08; PADDR
+  volatile uint32_t CMAR;   // 0x0C; MADDR
+} DMA_Channel_TypeDef;
+
 #define GPIOA_ ((GPIO_TypeDef*)GPIOA_BASE)
 #define GPIOB_ ((GPIO_TypeDef*)GPIOB_BASE)
 #define GPIOC_ ((GPIO_TypeDef*)GPIOC_BASE)
@@ -865,136 +867,64 @@ constexpr struct PeriphInfo {
     .p_rcc = RCC_,
     .addr = RCC_BASE,
   };
-  //const std::array<DmaInfo, 2> dma {
-  //  DmaInfo {
-  //    .periph_type = PeriphType::dma1,
-  //    .p_dma = DMA1,
-  //    .addr = DMA1_BASE,
-  //    .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 0},
-  //    .channels = {
-  //
-  //      DmaChannelInfo {
-  //        .exists = true,
-  //        .p_dma_channel = DMA1_Channel1,
-  //        .addr = DMA1_Channel1_BASE,
-  //        .irqn = DMA1_Channel1_IRQn
-  //      },
-  //
-  //      DmaChannelInfo {
-  //        .exists = true,
-  //        .p_dma_channel = DMA1_Channel2,
-  //        .addr = DMA1_Channel2_BASE,
-  //        .irqn = DMA1_Channel2_IRQn
-  //      },
-  //
-  //      DmaChannelInfo {
-  //        .exists = true,
-  //        .p_dma_channel = DMA1_Channel3,
-  //        .addr = DMA1_Channel3_BASE,
-  //        .irqn = DMA1_Channel3_IRQn
-  //      },
-  //
-  //      DmaChannelInfo {
-  //        .exists = true,
-  //        .p_dma_channel = DMA1_Channel4,
-  //        .addr = DMA1_Channel4_BASE,
-  //        .irqn = DMA1_Channel4_IRQn
-  //      },
-  //
-  //      DmaChannelInfo {
-  //        .exists = true,
-  //        .p_dma_channel = DMA1_Channel5,
-  //        .addr = DMA1_Channel5_BASE,
-  //        .irqn = DMA1_Channel5_IRQn
-  //      },
-  //
-  //      DmaChannelInfo {
-  //        .exists = true,
-  //        .p_dma_channel = DMA1_Channel6,
-  //        .addr = DMA1_Channel6_BASE,
-  //        .irqn = DMA1_Channel6_IRQn
-  //      },
-  //
-  //      DmaChannelInfo {
-  //        .exists = true,
-  //        .p_dma_channel = DMA1_Channel7,
-  //        .addr = DMA1_Channel7_BASE,
-  //        .irqn = DMA1_Channel7_IRQn
-  //      },
-  //
-  //      DmaChannelInfo {
-  //        .exists = false,
-  //        .p_dma_channel = (DMA_Channel_TypeDef*)0,
-  //        .addr = 0,
-  //        .irqn = (IRQn_Type)0
-  //      },
-  //    },
-  //  },
-  //  DmaInfo {
-  //    .periph_type = PeriphType::dma2,
-  //    .p_dma = DMA2,
-  //    .addr = DMA2_BASE,
-  //    .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 1},
-  //    .channels = {
-  //
-  //      DmaChannelInfo {
-  //        .exists = true,
-  //        .p_dma_channel = DMA2_Channel1,
-  //        .addr = DMA2_Channel1_BASE,
-  //        .irqn = DMA2_Channel1_IRQn
-  //      },
-  //
-  //      DmaChannelInfo {
-  //        .exists = true,
-  //        .p_dma_channel = DMA2_Channel2,
-  //        .addr = DMA2_Channel2_BASE,
-  //        .irqn = DMA2_Channel2_IRQn
-  //      },
-  //
-  //      DmaChannelInfo {
-  //        .exists = true,
-  //        .p_dma_channel = DMA2_Channel3,
-  //        .addr = DMA2_Channel3_BASE,
-  //        .irqn = DMA2_Channel3_IRQn
-  //      },
-  //
-  //      DmaChannelInfo {
-  //        .exists = true,
-  //        .p_dma_channel = DMA2_Channel4,
-  //        .addr = DMA2_Channel4_BASE,
-  //        .irqn = DMA2_Channel4_IRQn
-  //      },
-  //
-  //      DmaChannelInfo {
-  //        .exists = true,
-  //        .p_dma_channel = DMA2_Channel5,
-  //        .addr = DMA2_Channel5_BASE,
-  //        .irqn = DMA2_Channel5_IRQn
-  //      },
-  //
-  //      DmaChannelInfo {
-  //        .exists = false,
-  //        .p_dma_channel = (DMA_Channel_TypeDef*)0,
-  //        .addr = 0,
-  //        .irqn = (IRQn_Type)0
-  //      },
-  //
-  //      DmaChannelInfo {
-  //        .exists = false,
-  //        .p_dma_channel = (DMA_Channel_TypeDef*)0,
-  //        .addr = 0,
-  //        .irqn = (IRQn_Type)0
-  //      },
-  //
-  //      DmaChannelInfo {
-  //        .exists = false,
-  //        .p_dma_channel = (DMA_Channel_TypeDef*)0,
-  //        .addr = 0,
-  //        .irqn = (IRQn_Type)0
-  //      },
-  //    },
-  //  },
-  //};
+  const std::array<DmaInfo, 1> dma {
+    DmaInfo {
+      .periph_type = PeriphType::dma1,
+      .p_dma = (DMA_TypeDef*)DMA1_BASE,
+      .addr = DMA1_BASE,
+      .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 0},
+      .channels = {
+        DmaChannelInfo {
+          .exists = true,
+          .p_dma_channel = (DMA_Channel_TypeDef*)DMA1_Channel0_BASE,
+          .addr = DMA1_Channel0_BASE,
+          .irqn = DMA_Channel0_IRQn
+        },
+  
+        DmaChannelInfo {
+          .exists = true,
+          .p_dma_channel = (DMA_Channel_TypeDef*)DMA1_Channel1_BASE,
+          .addr = DMA1_Channel1_BASE,
+          .irqn = DMA_Channel1_2_IRQn
+        },
+  
+        DmaChannelInfo {
+          .exists = true,
+          .p_dma_channel = (DMA_Channel_TypeDef*)DMA1_Channel2_BASE,
+          .addr = DMA1_Channel2_BASE,
+          .irqn = DMA_Channel1_2_IRQn
+        },
+  
+        DmaChannelInfo {
+          .exists = true,
+          .p_dma_channel = (DMA_Channel_TypeDef*)DMA1_Channel3_BASE,
+          .addr = DMA1_Channel3_BASE,
+          .irqn = DMA_Channel3_4_IRQn
+        },
+  
+        DmaChannelInfo {
+          .exists = true,
+          .p_dma_channel = (DMA_Channel_TypeDef*)DMA1_Channel4_BASE,
+          .addr = DMA1_Channel4_BASE,
+          .irqn = DMA_Channel3_4_IRQn
+        },
+  
+        DmaChannelInfo {
+          .exists = true,
+          .p_dma_channel = (DMA_Channel_TypeDef*)DMA1_Channel5_BASE,
+          .addr = DMA1_Channel5_BASE,
+          .irqn = DMA_Channel5_6_IRQn
+        },
+  
+        DmaChannelInfo {
+          .exists = true,
+          .p_dma_channel = (DMA_Channel_TypeDef*)DMA1_Channel6_BASE,
+          .addr = DMA1_Channel6_BASE,
+          .irqn = DMA_Channel5_6_IRQn
+        },
+      },
+    },
+  };
   //const std::array<TimInfo, 10> tim {
   //  TimInfo {
   //    .periph_type = PeriphType::tim1,

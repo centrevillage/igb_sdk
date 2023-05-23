@@ -128,26 +128,22 @@ struct AdcInfo {
 //};
 //#endif
 //
-//#ifdef GD32_PERIPHGRP_DMA_EXISTS
-//struct DmaChannelInfo {
-//  bool exists = true;
-//#ifdef GD32_PERIPHGRP_BDMA_EXISTS
-//  BDMA_Channel_TypeDef* const p_dma_channel;
-//#else
-//  DMA_Channel_TypeDef* const p_dma_channel;
-//#endif
-//  const uint32_t addr;
-//  const IRQn_Type irqn;
-//};
-//struct DmaInfo {
-//  const PeriphType   periph_type;
-//  DMA_TypeDef* const p_dma;
-//  const uint32_t addr;
-//  const PeriphBusInfo bus;
-//  const std::array<DmaChannelInfo, 8> channels;
-//};
-//#endif
-//
+#ifdef GD32_PERIPHGRP_DMA_EXISTS
+struct DmaChannelInfo {
+  bool exists = true;
+  DMA_Channel_TypeDef* const p_dma_channel;
+  const uint32_t addr;
+  const IRQn_Type irqn;
+};
+struct DmaInfo {
+  const PeriphType   periph_type;
+  DMA_TypeDef* const p_dma;
+  const uint32_t addr;
+  const PeriphBusInfo bus;
+  const std::array<DmaChannelInfo, 7> channels;
+};
+#endif
+
 //#ifdef GD32_PERIPHGRP_EXTI_EXISTS
 //struct ExtiInfo {
 //  const PeriphType      periph_type;
