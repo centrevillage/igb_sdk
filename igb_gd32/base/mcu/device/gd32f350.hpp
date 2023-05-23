@@ -36,8 +36,7 @@
 //#define USB_PMAADDR           (APB1PERIPH_BASE + 0x00006000UL) /*!< USB_IP Packet Memory Area base address */
 //#define CAN_BASE              (APB1PERIPH_BASE + 0x00006400UL)
 //#define PWR_BASE              (APB1PERIPH_BASE + 0x00007000UL)
-//#define DAC1_BASE             (APB1PERIPH_BASE + 0x00007400UL)
-//#define DAC_BASE               DAC1_BASE
+#define DAC1_BASE               (APB1PERIPH_BASE + 0x00007400UL)
 
 // AHB2 peripherails
 //#define SYSCFG_BASE           (APB2PERIPH_BASE + 0x00000000UL)
@@ -104,6 +103,8 @@
 #define GD32_PERIPH_RCC_EXISTS 1
 #define GD32_PERIPHGRP_ADC_EXISTS 1
 #define GD32_PERIPH_ADC1_EXISTS 1
+#define GD32_PERIPHGRP_DAC_EXISTS 1
+#define GD32_PERIPH_DAC1_EXISTS 1
 
 // TODO:
 //#define GD32_PERIPHGRP_TSC_EXISTS 1
@@ -150,8 +151,6 @@
 //#define GD32_PERIPH_WWDG_EXISTS 1
 //#define GD32_PERIPHGRP_RTC_EXISTS 1
 //#define GD32_PERIPH_RTC_EXISTS 1
-//#define GD32_PERIPHGRP_DAC_EXISTS 1
-//#define GD32_PERIPH_DAC1_EXISTS 1
 //#define GD32_PERIPHGRP_DBGMCU_EXISTS 1
 //#define GD32_PERIPH_DBGMCU_EXISTS 1
 //#define GD32_PERIPHGRP_SYSCFG_EXISTS 1
@@ -178,6 +177,8 @@ namespace gd32 {
 enum class PeriphGroupType : uint16_t {
   gpio = 0,
   rcc,
+  dac,
+  adc,
   //tsc,
   //dma,
   //tim,
@@ -185,8 +186,6 @@ enum class PeriphGroupType : uint16_t {
   //spi,
   //exti,
   //i2c,
-  //dac,
-  //adc,
   //syscfg,
 };
 
@@ -198,6 +197,7 @@ enum class PeriphType : uint16_t {
   gpiof,
   rcc,
   adc1,
+  dac1,
   i2c0,
   i2c1,
   i2s0,
@@ -357,17 +357,17 @@ constexpr static uint8_t to_idx(GpioType type) {
 //  }
 //  return 0;
 //}
-//enum class DacType : uint8_t {
-//  dac1 = 0,
-//};
-//constexpr static uint8_t to_idx(DacType type) {
-//  switch (type) {
-//    case DacType::dac1:
-//      return 0;
-//      break;
-//  }
-//  return 0;
-//}
+enum class DacType : uint8_t {
+  dac1 = 0,
+};
+constexpr static uint8_t to_idx(DacType type) {
+  switch (type) {
+    case DacType::dac1:
+      return 0;
+      break;
+  }
+  return 0;
+}
 enum class AdcType : uint8_t {
   adc1 = 0,
 };
@@ -445,22 +445,6 @@ enum class GpioPinType : uint8_t {
   pd13 = (3 << 4) | 13,
   pd14 = (3 << 4) | 14,
   pd15 = (3 << 4) | 15,
-  //pe0 = (4 << 4) | 0,
-  //pe1 = (4 << 4) | 1,
-  //pe2 = (4 << 4) | 2,
-  //pe3 = (4 << 4) | 3,
-  //pe4 = (4 << 4) | 4,
-  //pe5 = (4 << 4) | 5,
-  //pe6 = (4 << 4) | 6,
-  //pe7 = (4 << 4) | 7,
-  //pe8 = (4 << 4) | 8,
-  //pe9 = (4 << 4) | 9,
-  //pe10 = (4 << 4) | 10,
-  //pe11 = (4 << 4) | 11,
-  //pe12 = (4 << 4) | 12,
-  //pe13 = (4 << 4) | 13,
-  //pe14 = (4 << 4) | 14,
-  //pe15 = (4 << 4) | 15,
   pf0 = (5 << 4) | 0,
   pf1 = (5 << 4) | 1,
   pf2 = (5 << 4) | 2,
@@ -553,24 +537,6 @@ constexpr static GpioType extract_gpio_type(GpioPinType pin_type) {
     case GpioPinType::pd15:
       return GpioType::gpiod;
       [[fallthrough]];
-    //case GpioPinType::pe0:
-    //case GpioPinType::pe1:
-    //case GpioPinType::pe2:
-    //case GpioPinType::pe3:
-    //case GpioPinType::pe4:
-    //case GpioPinType::pe5:
-    //case GpioPinType::pe6:
-    //case GpioPinType::pe7:
-    //case GpioPinType::pe8:
-    //case GpioPinType::pe9:
-    //case GpioPinType::pe10:
-    //case GpioPinType::pe11:
-    //case GpioPinType::pe12:
-    //case GpioPinType::pe13:
-    //case GpioPinType::pe14:
-    //case GpioPinType::pe15:
-    //  return GpioType::gpioe;
-    //  [[fallthrough]];
     case GpioPinType::pf0:
     case GpioPinType::pf1:
     case GpioPinType::pf2:
@@ -725,38 +691,6 @@ constexpr static uint8_t extract_pin_idx(GpioPinType pin_type) {
       return 14;
     case GpioPinType::pd15:
       return 15;
-    //case GpioPinType::pe0:
-    //  return 0;
-    //case GpioPinType::pe1:
-    //  return 1;
-    //case GpioPinType::pe2:
-    //  return 2;
-    //case GpioPinType::pe3:
-    //  return 3;
-    //case GpioPinType::pe4:
-    //  return 4;
-    //case GpioPinType::pe5:
-    //  return 5;
-    //case GpioPinType::pe6:
-    //  return 6;
-    //case GpioPinType::pe7:
-    //  return 7;
-    //case GpioPinType::pe8:
-    //  return 8;
-    //case GpioPinType::pe9:
-    //  return 9;
-    //case GpioPinType::pe10:
-    //  return 10;
-    //case GpioPinType::pe11:
-    //  return 11;
-    //case GpioPinType::pe12:
-    //  return 12;
-    //case GpioPinType::pe13:
-    //  return 13;
-    //case GpioPinType::pe14:
-    //  return 14;
-    //case GpioPinType::pe15:
-    //  return 15;
     case GpioPinType::pf0:
       return 0;
     case GpioPinType::pf1:
@@ -851,6 +785,18 @@ typedef struct {
   volatile uint32_t _reserved3[12]; // 0x50-0x7C
   volatile uint32_t OVSAMPCTL;      // 0x80
 } ADC_TypeDef;
+
+typedef struct {
+  volatile uint32_t CTL;            // 0x00
+  volatile uint32_t SWT;            // 0x04
+  volatile uint32_t R12DH;          // 0x08
+  volatile uint32_t L12DH;          // 0x0C
+  volatile uint32_t R8DH;           // 0x10
+  volatile uint32_t _reserved1[6];  // 0x14, 0x18, 0x1C, 0x20, 0x24, 0x28
+  volatile uint32_t DO;             // 0x2C
+  volatile uint32_t _reserved2;     // 0x30
+  volatile uint32_t STAT;           // 0x34
+} DAC_TypeDef;
 
 #define GPIOA_ ((GPIO_TypeDef*)GPIOA_BASE)
 #define GPIOB_ ((GPIO_TypeDef*)GPIOB_BASE)
@@ -1207,15 +1153,15 @@ constexpr struct PeriphInfo {
   //    .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 21},
   //  },
   //};
-  //const std::array<DacInfo, 1> dac {
-  //  DacInfo {
-  //    .periph_type = PeriphType::dac1,
-  //    .p_dac = DAC1,
-  //    .addr = DAC1_BASE,
-  //    .irqn = TIM6_DAC_IRQn,
-  //    .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 29},
-  //  },
-  //};
+  const std::array<DacInfo, 1> dac {
+    DacInfo {
+      .periph_type = PeriphType::dac1,
+      .p_dac = (DAC_TypeDef*)DAC1_BASE,
+      .addr = DAC1_BASE,
+      .irqn = TIMER5_DAC_IRQn,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 29},
+    },
+  };
   const std::array<AdcInfo, 1> adc {
     AdcInfo {
       .periph_type = PeriphType::adc1,
@@ -2050,6 +1996,14 @@ constexpr std::optional<PeriphType> as_periph_type(AdcType type) {
   }
   return std::nullopt;
 }
+template<>
+constexpr std::optional<PeriphType> as_periph_type(DacType type) {
+  switch (type) {
+    case DacType::dac1:
+      return PeriphType::dac1;
+  }
+  return std::nullopt;
+}
 
 // TODO:
 //template<>
@@ -2117,14 +2071,6 @@ constexpr std::optional<PeriphType> as_periph_type(AdcType type) {
 //  switch (type) {
 //    case I2cType::i2c1:
 //      return PeriphType::i2c1;
-//  }
-//  return std::nullopt;
-//}
-//template<>
-//constexpr std::optional<PeriphType> as_periph_type(DacType type) {
-//  switch (type) {
-//    case DacType::dac1:
-//      return PeriphType::dac1;
 //  }
 //  return std::nullopt;
 //}

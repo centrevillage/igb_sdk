@@ -98,16 +98,16 @@ struct GpioInfo {
 //};
 //#endif
 //
-//#ifdef GD32_PERIPHGRP_DAC_EXISTS
-//struct DacInfo {
-//  const PeriphType   periph_type;
-//  DAC_TypeDef* const p_dac;
-//  const uint32_t addr;
-//  const IRQn_Type irqn;
-//  const PeriphBusInfo bus;
-//};
-//#endif
-//
+#ifdef GD32_PERIPHGRP_DAC_EXISTS
+struct DacInfo {
+  const PeriphType   periph_type;
+  DAC_TypeDef* const p_dac;
+  const uint32_t addr;
+  const IRQn_Type irqn;
+  const PeriphBusInfo bus;
+};
+#endif
+
 #ifdef GD32_PERIPHGRP_ADC_EXISTS
 struct AdcInfo {
   const PeriphType   periph_type;
