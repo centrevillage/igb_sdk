@@ -57,27 +57,16 @@ struct GpioPort {
     IGB_MODIFY_REG(p_gpio->OSPEEDR, ((pin_bit * pin_bit) * GPIO_SPEED_MODE_MASK), ((pin_bit * pin_bit) * static_cast<uint32_t>(mode)));
   }
 
-//  IGB_FAST_INLINE void setAlternateFunc(uint32_t pin_bit, GpioAf af) {
-//    uint32_t lsb = pin_bit & 0x00FF;
-//    uint32_t msb = (pin_bit >> 8) & 0x00FF;
-//#if defined(GPIO_AFRL_AFSEL0)
-//    if (lsb) {
-//      IGB_MODIFY_REG(p_gpio->AFR[0], ((((lsb * lsb) * lsb) * lsb) * GPIO_AFRL_AFSEL0), ((((lsb * lsb) * lsb) * lsb) * as<uint32_t>(af)));
-//    }
-//    if (msb) {
-//      IGB_MODIFY_REG(p_gpio->AFR[1], ((((msb * msb) * msb) * msb) * GPIO_AFRH_AFSEL8), ((((msb * msb) * msb) * msb) * as<uint32_t>(af)));
-//    }
-//#elif defined(GPIO_AFRL_AFRL0)
-//    if (lsb) {
-//      IGB_MODIFY_REG(p_gpio->AFR[0], (GPIO_AFRL_AFRL0 << (POSITION_VAL(lsb) * 4U)), (as<uint32_t>(af) << (POSITION_VAL(lsb) * 4U)));
-//    }
-//    if (msb) {
-//      IGB_MODIFY_REG(p_gpio->AFR[1], (GPIO_AFRH_AFRH0 << (POSITION_VAL(msb) * 4U)), (as<uint32_t>(af) << (POSITION_VAL(msb) * 4U)));
-//    }
-//#else
-//  #error Unsupported MCU
-//#endif
-//  }
+  IGB_FAST_INLINE void setAlternateFunc(uint32_t pin_bit, GpioAf af) {
+    uint32_t lsb = pin_bit & 0x00FF;
+    uint32_t msb = (pin_bit >> 8) & 0x00FF;
+    if (lsb) {
+      IGB_MODIFY_REG(p_gpio->AFR[0], ((((lsb * lsb) * lsb) * lsb) * IGB_BIT_MASK(4, 0)), ((((lsb * lsb) * lsb) * lsb) * as<uint32_t>(af)));
+    }
+    if (msb) {
+      IGB_MODIFY_REG(p_gpio->AFR[1], ((((msb * msb) * msb) * msb) * IGB_BIT_MASK(4, 0)), ((((msb * msb) * msb) * msb) * as<uint32_t>(af)));
+    }
+  }
 
   //IGB_FAST_INLINE void lock(uint32_t pin_bit) {
   //  IGB_WRITE_REG(p_gpio->LCKR, GPIO_LCKR_LCKK | pin_bit);
@@ -148,9 +137,9 @@ struct GpioPin {
     port.setSpeedMode(pin_bit, mode);
   }
 
-  //IGB_FAST_INLINE void setAlternateFunc(GpioAf af) {
-  //  port.setAlternateFunc(pin_bit, af);
-  //}
+  IGB_FAST_INLINE void setAlternateFunc(GpioAf af) {
+    port.setAlternateFunc(pin_bit, af);
+  }
 
   //IGB_FAST_INLINE void lock() {
   //  port.lock(pin_bit);

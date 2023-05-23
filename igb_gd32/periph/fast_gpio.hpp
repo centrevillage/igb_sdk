@@ -142,24 +142,24 @@ struct FastGpioPort {
 ////    RegEnum<addr_AFR1, (0x0000000FUL << #{i}), GpioAf, #{i}>,
 ////EOS
 ////end
-//  std::tuple<
-//    RegEnum<addr_AFR0, (0x0000000FUL << 0), GpioAf, 0>,
-//    RegEnum<addr_AFR0, (0x0000000FUL << 4), GpioAf, 4>,
-//    RegEnum<addr_AFR0, (0x0000000FUL << 8), GpioAf, 8>,
-//    RegEnum<addr_AFR0, (0x0000000FUL << 12), GpioAf, 12>,
-//    RegEnum<addr_AFR0, (0x0000000FUL << 16), GpioAf, 16>,
-//    RegEnum<addr_AFR0, (0x0000000FUL << 20), GpioAf, 20>,
-//    RegEnum<addr_AFR0, (0x0000000FUL << 24), GpioAf, 24>,
-//    RegEnum<addr_AFR0, (0x0000000FUL << 28), GpioAf, 28>,
-//    RegEnum<addr_AFR1, (0x0000000FUL << 0), GpioAf, 0>,
-//    RegEnum<addr_AFR1, (0x0000000FUL << 4), GpioAf, 4>,
-//    RegEnum<addr_AFR1, (0x0000000FUL << 8), GpioAf, 8>,
-//    RegEnum<addr_AFR1, (0x0000000FUL << 12), GpioAf, 12>,
-//    RegEnum<addr_AFR1, (0x0000000FUL << 16), GpioAf, 16>,
-//    RegEnum<addr_AFR1, (0x0000000FUL << 20), GpioAf, 20>,
-//    RegEnum<addr_AFR1, (0x0000000FUL << 24), GpioAf, 24>,
-//    RegEnum<addr_AFR1, (0x0000000FUL << 28), GpioAf, 28>
-//  > alternateFuncs;
+  std::tuple<
+    RegEnum<addr_AFR0, (0x0000000FUL << 0), GpioAf, 0>,
+    RegEnum<addr_AFR0, (0x0000000FUL << 4), GpioAf, 4>,
+    RegEnum<addr_AFR0, (0x0000000FUL << 8), GpioAf, 8>,
+    RegEnum<addr_AFR0, (0x0000000FUL << 12), GpioAf, 12>,
+    RegEnum<addr_AFR0, (0x0000000FUL << 16), GpioAf, 16>,
+    RegEnum<addr_AFR0, (0x0000000FUL << 20), GpioAf, 20>,
+    RegEnum<addr_AFR0, (0x0000000FUL << 24), GpioAf, 24>,
+    RegEnum<addr_AFR0, (0x0000000FUL << 28), GpioAf, 28>,
+    RegEnum<addr_AFR1, (0x0000000FUL << 0), GpioAf, 0>,
+    RegEnum<addr_AFR1, (0x0000000FUL << 4), GpioAf, 4>,
+    RegEnum<addr_AFR1, (0x0000000FUL << 8), GpioAf, 8>,
+    RegEnum<addr_AFR1, (0x0000000FUL << 12), GpioAf, 12>,
+    RegEnum<addr_AFR1, (0x0000000FUL << 16), GpioAf, 16>,
+    RegEnum<addr_AFR1, (0x0000000FUL << 20), GpioAf, 20>,
+    RegEnum<addr_AFR1, (0x0000000FUL << 24), GpioAf, 24>,
+    RegEnum<addr_AFR1, (0x0000000FUL << 28), GpioAf, 28>
+  > alternateFuncs;
 //
 //  RegFlag<addr_LCKR, GPIO_LCKR_LCKK> lockKey;
 //  std::tuple<
@@ -258,10 +258,10 @@ struct FastGpioPin {
     v(mode);
   }
 
-  //IGB_FAST_INLINE void setAlternateFunc(GpioAf af) {
-  //  auto& v = std::get<pin_idx>(port.alternateFuncs);
-  //  v(af);
-  //}
+  IGB_FAST_INLINE void setAlternateFunc(GpioAf af) {
+    auto& v = std::get<pin_idx>(port.alternateFuncs);
+    v(af);
+  }
 
   //IGB_FAST_INLINE void lock() {
   //  auto& lk = std::get<pin_idx>(port.locks);

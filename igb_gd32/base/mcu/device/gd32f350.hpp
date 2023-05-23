@@ -93,14 +93,6 @@
 #define GPIOD_BASE            (AHB2PERIPH_BASE + 0x00000C00UL)
 #define GPIOF_BASE            (AHB2PERIPH_BASE + 0x00001400UL)
 
-// AHB3 peripherals
-//#define ADC1_BASE             (AHB3PERIPH_BASE + 0x00000000UL)
-//#define ADC2_BASE             (AHB3PERIPH_BASE + 0x00000100UL)
-//#define ADC1_2_COMMON_BASE    (AHB3PERIPH_BASE + 0x00000300UL)
-//#define ADC3_BASE             (AHB3PERIPH_BASE + 0x00000400UL)
-//#define ADC4_BASE             (AHB3PERIPH_BASE + 0x00000500UL)
-//#define ADC3_4_COMMON_BASE    (AHB3PERIPH_BASE + 0x00000700UL)
-
 #define GD32_PERIPHGRP_GPIO_EXISTS 1
 #define GD32_PERIPH_GPIOA_EXISTS 1
 #define GD32_PERIPH_GPIOB_EXISTS 1
@@ -110,6 +102,8 @@
 #define GD32_PERIPH_GPIO_REG_BRR_EXISTS 1
 #define GD32_PERIPHGRP_RCC_EXISTS 1
 #define GD32_PERIPH_RCC_EXISTS 1
+#define GD32_PERIPHGRP_ADC_EXISTS 1
+#define GD32_PERIPH_ADC1_EXISTS 1
 
 // TODO:
 //#define GD32_PERIPHGRP_TSC_EXISTS 1
@@ -160,11 +154,6 @@
 //#define GD32_PERIPH_DAC1_EXISTS 1
 //#define GD32_PERIPHGRP_DBGMCU_EXISTS 1
 //#define GD32_PERIPH_DBGMCU_EXISTS 1
-//#define GD32_PERIPHGRP_ADC_EXISTS 1
-//#define GD32_PERIPH_ADC1_EXISTS 1
-//#define GD32_PERIPH_ADC2_EXISTS 1
-//#define GD32_PERIPH_ADC3_EXISTS 1
-//#define GD32_PERIPH_ADC4_EXISTS 1
 //#define GD32_PERIPHGRP_SYSCFG_EXISTS 1
 //#define GD32_PERIPH_SYSCFG_EXISTS 1
 //#define GD32_PERIPHGRP_FMC_EXISTS 1
@@ -208,33 +197,24 @@ enum class PeriphType : uint16_t {
   gpiod,
   gpiof,
   rcc,
-  //tsc,
-  //dma1,
-  //dma2,
-  //tim1,
-  //tim2,
-  //tim3,
-  //tim4,
-  //tim6,
-  //tim7,
-  //tim8,
-  //tim15,
-  //tim16,
-  //tim17,
-  //usart1,
-  //usart2,
-  //usart3,
-  //uart4,
-  //uart5,
-  //spi1,
-  //exti,
-  //i2c1,
-  //dac1,
-  //adc1,
-  //adc2,
-  //adc3,
-  //adc4,
-  //syscfg,
+  adc1,
+  i2c0,
+  i2c1,
+  i2s0,
+  spi0,
+  spi1,
+  tim0,
+  tim1,
+  tim2,
+  tim5,
+  tim13,
+  tim14,
+  tim15,
+  tim16,
+  tsc,
+  usart0,
+  usart1,
+  usb,
 };
 
 enum class GpioType : uint8_t {
@@ -388,29 +368,17 @@ constexpr static uint8_t to_idx(GpioType type) {
 //  }
 //  return 0;
 //}
-//enum class AdcType : uint8_t {
-//  adc1 = 0,
-//  adc2,
-//  adc3,
-//  adc4,
-//};
-//constexpr static uint8_t to_idx(AdcType type) {
-//  switch (type) {
-//    case AdcType::adc1:
-//      return 0;
-//      break;
-//    case AdcType::adc2:
-//      return 1;
-//      break;
-//    case AdcType::adc3:
-//      return 2;
-//      break;
-//    case AdcType::adc4:
-//      return 3;
-//      break;
-//  }
-//  return 0;
-//}
+enum class AdcType : uint8_t {
+  adc1 = 0,
+};
+constexpr static uint8_t to_idx(AdcType type) {
+  switch (type) {
+    case AdcType::adc1:
+      return 0;
+      break;
+  }
+  return 0;
+}
 
 enum class GpioPinType : uint8_t {
   pa0 = (0 << 4) | 0,
@@ -866,6 +834,24 @@ typedef struct {
   volatile uint32_t CTL1; // extended
 } RCC_TypeDef;
 
+typedef struct {
+  volatile uint32_t STAT;           // 0x00
+  volatile uint32_t CTL0;           // 0x04
+  volatile uint32_t CTL1;           // 0x08
+  volatile uint32_t SAMPT0;         // 0x0C
+  volatile uint32_t SAMPT1;         // 0x10
+  volatile uint32_t _reserved1[4];  // 0x14, 0x18, 0x1C, 0x20
+  volatile uint32_t WDHT;           // 0x24
+  volatile uint32_t WDLT;           // 0x28
+  volatile uint32_t RSQ0;           // 0x2C
+  volatile uint32_t RSQ1;           // 0x30
+  volatile uint32_t RSQ2;           // 0x34
+  volatile uint32_t _reserved2[5];  // 0x38, 0x3C, 0x40, 0x44, 0x48
+  volatile uint32_t RDATA;          // 0x4C
+  volatile uint32_t _reserved3[12]; // 0x50-0x7C
+  volatile uint32_t OVSAMPCTL;      // 0x80
+} ADC_TypeDef;
+
 #define GPIOA_ ((GPIO_TypeDef*)GPIOA_BASE)
 #define GPIOB_ ((GPIO_TypeDef*)GPIOB_BASE)
 #define GPIOC_ ((GPIO_TypeDef*)GPIOC_BASE)
@@ -1230,36 +1216,15 @@ constexpr struct PeriphInfo {
   //    .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 29},
   //  },
   //};
-  //const std::array<AdcInfo, 4> adc {
-  //  AdcInfo {
-  //    .periph_type = PeriphType::adc1,
-  //    .p_adc = ADC1,
-  //    .addr = ADC1_BASE,
-  //    .irqn = ADC1_2_IRQn,
-  //    .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 28},
-  //  },
-  //  AdcInfo {
-  //    .periph_type = PeriphType::adc2,
-  //    .p_adc = ADC2,
-  //    .addr = ADC2_BASE,
-  //    .irqn = ADC1_2_IRQn,
-  //    .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 28},
-  //  },
-  //  AdcInfo {
-  //    .periph_type = PeriphType::adc3,
-  //    .p_adc = ADC3,
-  //    .addr = ADC3_BASE,
-  //    .irqn = ADC3_IRQn,
-  //    .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 29},
-  //  },
-  //  AdcInfo {
-  //    .periph_type = PeriphType::adc4,
-  //    .p_adc = ADC4,
-  //    .addr = ADC4_BASE,
-  //    .irqn = ADC4_IRQn,
-  //    .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 29},
-  //  },
-  //};
+  const std::array<AdcInfo, 1> adc {
+    AdcInfo {
+      .periph_type = PeriphType::adc1,
+      .p_adc = (ADC_TypeDef*)ADC_BASE,
+      .addr = ADC_BASE,
+      .irqn = ADC_CMP_IRQn,
+      .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 9},
+    },
+  };
   //const SysCfgInfo syscfg {
   //  .periph_type = PeriphType::syscfg,
   //  .p_syscfg = SYSCFG,
@@ -1268,1074 +1233,825 @@ constexpr struct PeriphInfo {
   //};
 } GD32_PERIPH_INFO;
 
-// TODO:
-//enum class GpioAf : uint8_t {
-//  af0 = 0,
-//  af1,
-//  af2,
-//  af3,
-//  af4,
-//  af5,
-//  af6,
-//  af7,
-//  af8,
-//  af9,
-//  af10,
-//  af11,
-//  af12,
-//  af13,
-//  af14,
-//};
+enum class GpioAf : uint8_t {
+  af0 = 0,
+  af1,
+  af2,
+  af3,
+  af4,
+  af5,
+  af6,
+  af7,
+};
 
-//constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinType gpio_pin) {
-//  switch (gpio_pin) {
-//    case GpioPinType::pa0:
-//      switch (periph_type) {
-//        case PeriphType::tim2:
-//          return GpioAf::af1;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::usart2:
-//          return GpioAf::af7;
-//        case PeriphType::tim8:
-//          return GpioAf::af9;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pa1:
-//      switch (periph_type) {
-//        case PeriphType::tim2:
-//          return GpioAf::af1;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::usart2:
-//          return GpioAf::af7;
-//        case PeriphType::tim15:
-//          return GpioAf::af9;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pa2:
-//      switch (periph_type) {
-//        case PeriphType::tim2:
-//          return GpioAf::af1;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::usart2:
-//          return GpioAf::af7;
-//        case PeriphType::tim15:
-//          return GpioAf::af9;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pa3:
-//      switch (periph_type) {
-//        case PeriphType::tim2:
-//          return GpioAf::af1;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::usart2:
-//          return GpioAf::af7;
-//        case PeriphType::tim15:
-//          return GpioAf::af9;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pa4:
-//      switch (periph_type) {
-//        case PeriphType::tim3:
-//          return GpioAf::af2;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::spi1:
-//          return GpioAf::af5;
-//        case PeriphType::usart2:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pa5:
-//      switch (periph_type) {
-//        case PeriphType::tim2:
-//          return GpioAf::af1;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::spi1:
-//          return GpioAf::af5;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pa6:
-//      switch (periph_type) {
-//        case PeriphType::tim16:
-//          return GpioAf::af1;
-//        case PeriphType::tim3:
-//          return GpioAf::af2;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::tim8:
-//          return GpioAf::af4;
-//        case PeriphType::spi1:
-//          return GpioAf::af5;
-//        case PeriphType::tim1:
-//          return GpioAf::af6;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pa7:
-//      switch (periph_type) {
-//        case PeriphType::tim17:
-//          return GpioAf::af1;
-//        case PeriphType::tim3:
-//          return GpioAf::af2;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::tim8:
-//          return GpioAf::af4;
-//        case PeriphType::spi1:
-//          return GpioAf::af5;
-//        case PeriphType::tim1:
-//          return GpioAf::af6;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pa8:
-//      switch (periph_type) {
-//        case PeriphType::rcc:
-//          return GpioAf::af0;
-//        case PeriphType::tim1:
-//          return GpioAf::af6;
-//        case PeriphType::usart1:
-//          return GpioAf::af7;
-//        case PeriphType::tim4:
-//          return GpioAf::af10;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pa9:
-//      switch (periph_type) {
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::tim1:
-//          return GpioAf::af6;
-//        case PeriphType::usart1:
-//          return GpioAf::af7;
-//        case PeriphType::tim15:
-//          return GpioAf::af9;
-//        case PeriphType::tim2:
-//          return GpioAf::af10;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pa10:
-//      switch (periph_type) {
-//        case PeriphType::tim17:
-//          return GpioAf::af1;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::tim1:
-//          return GpioAf::af6;
-//        case PeriphType::usart1:
-//          return GpioAf::af7;
-//        case PeriphType::tim2:
-//          return GpioAf::af10;
-//        case PeriphType::tim8:
-//          return GpioAf::af11;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pa11:
-//      switch (periph_type) {
-//        case PeriphType::tim1:
-//          return GpioAf::af6;
-//        case PeriphType::usart1:
-//          return GpioAf::af7;
-//        case PeriphType::tim4:
-//          return GpioAf::af10;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pa12:
-//      switch (periph_type) {
-//        case PeriphType::tim16:
-//          return GpioAf::af1;
-//        case PeriphType::tim1:
-//          return GpioAf::af6;
-//        case PeriphType::usart1:
-//          return GpioAf::af7;
-//        case PeriphType::tim4:
-//          return GpioAf::af10;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pa13:
-//      switch (periph_type) {
-//        case PeriphType::tim16:
-//          return GpioAf::af1;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::usart3:
-//          return GpioAf::af7;
-//        case PeriphType::tim4:
-//          return GpioAf::af10;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pa14:
-//      switch (periph_type) {
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::i2c1:
-//          return GpioAf::af4;
-//        case PeriphType::tim8:
-//          return GpioAf::af5;
-//        case PeriphType::tim1:
-//          return GpioAf::af6;
-//        case PeriphType::usart2:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pa15:
-//      switch (periph_type) {
-//        case PeriphType::tim2:
-//          return GpioAf::af1;
-//        case PeriphType::tim8:
-//          return GpioAf::af2;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::i2c1:
-//          return GpioAf::af4;
-//        case PeriphType::spi1:
-//          return GpioAf::af5;
-//        case PeriphType::usart2:
-//          return GpioAf::af7;
-//        case PeriphType::tim1:
-//          return GpioAf::af9;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pb0:
-//      switch (periph_type) {
-//        case PeriphType::tim3:
-//          return GpioAf::af2;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::tim8:
-//          return GpioAf::af4;
-//        case PeriphType::tim1:
-//          return GpioAf::af6;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pb1:
-//      switch (periph_type) {
-//        case PeriphType::tim3:
-//          return GpioAf::af2;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::tim8:
-//          return GpioAf::af4;
-//        case PeriphType::tim1:
-//          return GpioAf::af6;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pb2:
-//      switch (periph_type) {
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pb3:
-//      switch (periph_type) {
-//        case PeriphType::tim2:
-//          return GpioAf::af1;
-//        case PeriphType::tim4:
-//          return GpioAf::af2;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::tim8:
-//          return GpioAf::af4;
-//        case PeriphType::spi1:
-//          return GpioAf::af5;
-//        case PeriphType::usart2:
-//          return GpioAf::af7;
-//        case PeriphType::tim3:
-//          return GpioAf::af10;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pb4:
-//      switch (periph_type) {
-//        case PeriphType::tim16:
-//          return GpioAf::af1;
-//        case PeriphType::tim3:
-//          return GpioAf::af2;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::tim8:
-//          return GpioAf::af4;
-//        case PeriphType::spi1:
-//          return GpioAf::af5;
-//        case PeriphType::usart2:
-//          return GpioAf::af7;
-//        case PeriphType::tim17:
-//          return GpioAf::af10;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pb5:
-//      switch (periph_type) {
-//        case PeriphType::tim16:
-//          return GpioAf::af1;
-//        case PeriphType::tim3:
-//          return GpioAf::af2;
-//        case PeriphType::tim8:
-//          return GpioAf::af3;
-//        case PeriphType::i2c1:
-//          return GpioAf::af4;
-//        case PeriphType::spi1:
-//          return GpioAf::af5;
-//        case PeriphType::usart2:
-//          return GpioAf::af7;
-//        case PeriphType::tim17:
-//          return GpioAf::af10;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pb6:
-//      switch (periph_type) {
-//        case PeriphType::tim16:
-//          return GpioAf::af1;
-//        case PeriphType::tim4:
-//          return GpioAf::af2;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::i2c1:
-//          return GpioAf::af4;
-//        case PeriphType::tim8:
-//          return GpioAf::af5;
-//        case PeriphType::usart1:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pb7:
-//      switch (periph_type) {
-//        case PeriphType::tim17:
-//          return GpioAf::af1;
-//        case PeriphType::tim4:
-//          return GpioAf::af2;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::i2c1:
-//          return GpioAf::af4;
-//        case PeriphType::tim8:
-//          return GpioAf::af5;
-//        case PeriphType::usart1:
-//          return GpioAf::af7;
-//        case PeriphType::tim3:
-//          return GpioAf::af10;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pb8:
-//      switch (periph_type) {
-//        case PeriphType::tim16:
-//          return GpioAf::af1;
-//        case PeriphType::tim4:
-//          return GpioAf::af2;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::i2c1:
-//          return GpioAf::af4;
-//        case PeriphType::usart3:
-//          return GpioAf::af7;
-//        case PeriphType::tim8:
-//          return GpioAf::af10;
-//        case PeriphType::tim1:
-//          return GpioAf::af12;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pb9:
-//      switch (periph_type) {
-//        case PeriphType::tim17:
-//          return GpioAf::af1;
-//        case PeriphType::tim4:
-//          return GpioAf::af2;
-//        case PeriphType::i2c1:
-//          return GpioAf::af4;
-//        case PeriphType::usart3:
-//          return GpioAf::af7;
-//        case PeriphType::tim8:
-//          return GpioAf::af10;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pb10:
-//      switch (periph_type) {
-//        case PeriphType::tim2:
-//          return GpioAf::af1;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::usart3:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pb11:
-//      switch (periph_type) {
-//        case PeriphType::tim2:
-//          return GpioAf::af1;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::usart3:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pb12:
-//      switch (periph_type) {
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::tim1:
-//          return GpioAf::af6;
-//        case PeriphType::usart3:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pb13:
-//      switch (periph_type) {
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::tim1:
-//          return GpioAf::af6;
-//        case PeriphType::usart3:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pb14:
-//      switch (periph_type) {
-//        case PeriphType::tim15:
-//          return GpioAf::af1;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::tim1:
-//          return GpioAf::af6;
-//        case PeriphType::usart3:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pb15:
-//      switch (periph_type) {
-//        case PeriphType::tim15:
-//          return GpioAf::af1;
-//        case PeriphType::tim1:
-//          return GpioAf::af4;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pc0:
-//      switch (periph_type) {
-//        case PeriphType::tim1:
-//          return GpioAf::af2;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pc1:
-//      switch (periph_type) {
-//        case PeriphType::tim1:
-//          return GpioAf::af2;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pc2:
-//      switch (periph_type) {
-//        case PeriphType::tim1:
-//          return GpioAf::af2;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pc3:
-//      switch (periph_type) {
-//        case PeriphType::tim1:
-//          return GpioAf::af2;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pc4:
-//      switch (periph_type) {
-//        case PeriphType::tim1:
-//          return GpioAf::af2;
-//        case PeriphType::usart1:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pc5:
-//      switch (periph_type) {
-//        case PeriphType::tim15:
-//          return GpioAf::af2;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::usart1:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pc6:
-//      switch (periph_type) {
-//        case PeriphType::tim3:
-//          return GpioAf::af2;
-//        case PeriphType::tim8:
-//          return GpioAf::af4;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pc7:
-//      switch (periph_type) {
-//        case PeriphType::tim3:
-//          return GpioAf::af2;
-//        case PeriphType::tim8:
-//          return GpioAf::af4;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pc8:
-//      switch (periph_type) {
-//        case PeriphType::tim3:
-//          return GpioAf::af2;
-//        case PeriphType::tim8:
-//          return GpioAf::af4;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pc9:
-//      switch (periph_type) {
-//        case PeriphType::tim3:
-//          return GpioAf::af2;
-//        case PeriphType::tim8:
-//          return GpioAf::af4;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pc10:
-//      switch (periph_type) {
-//        case PeriphType::tim8:
-//          return GpioAf::af4;
-//        case PeriphType::uart4:
-//          return GpioAf::af5;
-//        case PeriphType::usart3:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pc11:
-//      switch (periph_type) {
-//        case PeriphType::tim8:
-//          return GpioAf::af4;
-//        case PeriphType::uart4:
-//          return GpioAf::af5;
-//        case PeriphType::usart3:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pc12:
-//      switch (periph_type) {
-//        case PeriphType::tim8:
-//          return GpioAf::af4;
-//        case PeriphType::uart5:
-//          return GpioAf::af5;
-//        case PeriphType::usart3:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pc13:
-//      switch (periph_type) {
-//        case PeriphType::tim1:
-//          return GpioAf::af4;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pd0:
-//      switch (periph_type) {
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pd1:
-//      switch (periph_type) {
-//        case PeriphType::tim8:
-//          return GpioAf::af4;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pd2:
-//      switch (periph_type) {
-//        case PeriphType::tim3:
-//          return GpioAf::af2;
-//        case PeriphType::tim8:
-//          return GpioAf::af4;
-//        case PeriphType::uart5:
-//          return GpioAf::af5;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pd3:
-//      switch (periph_type) {
-//        case PeriphType::tim2:
-//          return GpioAf::af2;
-//        case PeriphType::usart2:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pd4:
-//      switch (periph_type) {
-//        case PeriphType::tim2:
-//          return GpioAf::af2;
-//        case PeriphType::usart2:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pd5:
-//      switch (periph_type) {
-//        case PeriphType::usart2:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pd6:
-//      switch (periph_type) {
-//        case PeriphType::tim2:
-//          return GpioAf::af2;
-//        case PeriphType::usart2:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pd7:
-//      switch (periph_type) {
-//        case PeriphType::tim2:
-//          return GpioAf::af2;
-//        case PeriphType::usart2:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pd8:
-//      switch (periph_type) {
-//        case PeriphType::usart3:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pd9:
-//      switch (periph_type) {
-//        case PeriphType::usart3:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pd10:
-//      switch (periph_type) {
-//        case PeriphType::usart3:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pd11:
-//      switch (periph_type) {
-//        case PeriphType::usart3:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pd12:
-//      switch (periph_type) {
-//        case PeriphType::tim4:
-//          return GpioAf::af2;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        case PeriphType::usart3:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pd13:
-//      switch (periph_type) {
-//        case PeriphType::tim4:
-//          return GpioAf::af2;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pd14:
-//      switch (periph_type) {
-//        case PeriphType::tim4:
-//          return GpioAf::af2;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pd15:
-//      switch (periph_type) {
-//        case PeriphType::tim4:
-//          return GpioAf::af2;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pe0:
-//      switch (periph_type) {
-//        case PeriphType::tim4:
-//          return GpioAf::af2;
-//        case PeriphType::tim16:
-//          return GpioAf::af4;
-//        case PeriphType::usart1:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pe1:
-//      switch (periph_type) {
-//        case PeriphType::tim17:
-//          return GpioAf::af4;
-//        case PeriphType::usart1:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pe2:
-//      switch (periph_type) {
-//        case PeriphType::tim3:
-//          return GpioAf::af2;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pe3:
-//      switch (periph_type) {
-//        case PeriphType::tim3:
-//          return GpioAf::af2;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pe4:
-//      switch (periph_type) {
-//        case PeriphType::tim3:
-//          return GpioAf::af2;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pe5:
-//      switch (periph_type) {
-//        case PeriphType::tim3:
-//          return GpioAf::af2;
-//        case PeriphType::tsc:
-//          return GpioAf::af3;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pe6:
-//      switch (periph_type) {
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pe7:
-//      switch (periph_type) {
-//        case PeriphType::tim1:
-//          return GpioAf::af2;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pe8:
-//      switch (periph_type) {
-//        case PeriphType::tim1:
-//          return GpioAf::af2;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pe9:
-//      switch (periph_type) {
-//        case PeriphType::tim1:
-//          return GpioAf::af2;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pe10:
-//      switch (periph_type) {
-//        case PeriphType::tim1:
-//          return GpioAf::af2;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pe11:
-//      switch (periph_type) {
-//        case PeriphType::tim1:
-//          return GpioAf::af2;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pe12:
-//      switch (periph_type) {
-//        case PeriphType::tim1:
-//          return GpioAf::af2;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pe13:
-//      switch (periph_type) {
-//        case PeriphType::tim1:
-//          return GpioAf::af2;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pe14:
-//      switch (periph_type) {
-//        case PeriphType::tim1:
-//          return GpioAf::af2;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pe15:
-//      switch (periph_type) {
-//        case PeriphType::tim1:
-//          return GpioAf::af2;
-//        case PeriphType::usart3:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pf0:
-//      switch (periph_type) {
-//        case PeriphType::tim1:
-//          return GpioAf::af6;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pf1:
-//      switch (periph_type) {
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pf2:
-//      switch (periph_type) {
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pf3:
-//      switch (periph_type) {
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pf4:
-//      switch (periph_type) {
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pf5:
-//      switch (periph_type) {
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pf6:
-//      switch (periph_type) {
-//        case PeriphType::tim4:
-//          return GpioAf::af2;
-//        case PeriphType::usart3:
-//          return GpioAf::af7;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pf7:
-//      switch (periph_type) {
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pf8:
-//      switch (periph_type) {
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pf9:
-//      switch (periph_type) {
-//        case PeriphType::tim15:
-//          return GpioAf::af3;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pf10:
-//      switch (periph_type) {
-//        case PeriphType::tim15:
-//          return GpioAf::af3;
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pf11:
-//      switch (periph_type) {
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pf12:
-//      switch (periph_type) {
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pf13:
-//      switch (periph_type) {
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pf14:
-//      switch (periph_type) {
-//        default:
-//          break;
-//      }
-//      break;
-//    case GpioPinType::pf15:
-//      switch (periph_type) {
-//        default:
-//          break;
-//      }
-//      break;
-//    default:
-//      break;
-//  }
-//  return std::nullopt;
-//}
-//
-//template<typename T>
-//constexpr static std::optional<PeriphType> as_periph_type(T type) {
-//  return std::nullopt;
-//}
-//
-//template<>
-//constexpr std::optional<PeriphType> as_periph_type(GpioType type) {
-//  switch (type) {
-//    case GpioType::gpioa:
-//      return PeriphType::gpioa;
-//    case GpioType::gpiob:
-//      return PeriphType::gpiob;
-//    case GpioType::gpioc:
-//      return PeriphType::gpioc;
-//    case GpioType::gpiod:
-//      return PeriphType::gpiod;
-//    case GpioType::gpioe:
-//      return PeriphType::gpioe;
-//    case GpioType::gpiof:
-//      return PeriphType::gpiof;
-//  }
-//  return std::nullopt;
-//}
+constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPinType gpio_pin) {
+  switch (gpio_pin) {
+    case GpioPinType::pa0:
+      switch (periph_type) {
+        case PeriphType::usart0:
+        case PeriphType::usart1:
+          return GpioAf::af1;
+        case PeriphType::tim1:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        case PeriphType::i2c1:
+          return GpioAf::af4;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pa1:
+      switch (periph_type) {
+        case PeriphType::usart0:
+        case PeriphType::usart1:
+          return GpioAf::af1;
+        case PeriphType::tim1:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        case PeriphType::i2c1:
+          return GpioAf::af4;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pa2:
+      switch (periph_type) {
+        case PeriphType::tim14:
+          return GpioAf::af0;
+        case PeriphType::usart0:
+        case PeriphType::usart1:
+          return GpioAf::af1;
+        case PeriphType::tim1:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pa3:
+      switch (periph_type) {
+        case PeriphType::tim14:
+          return GpioAf::af0;
+        case PeriphType::usart0:
+        case PeriphType::usart1:
+          return GpioAf::af1;
+        case PeriphType::tim1:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pa4:
+      switch (periph_type) {
+        case PeriphType::spi0:
+        case PeriphType::i2s0:
+          return GpioAf::af0;
+        case PeriphType::usart0:
+        case PeriphType::usart1:
+          return GpioAf::af1;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        case PeriphType::tim13:
+          return GpioAf::af4;
+        case PeriphType::spi1:
+          return GpioAf::af6;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pa5:
+      switch (periph_type) {
+        case PeriphType::spi0:
+        case PeriphType::i2s0:
+          return GpioAf::af0;
+        case PeriphType::tim1:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pa6:
+      switch (periph_type) {
+        case PeriphType::spi0:
+        case PeriphType::i2s0:
+          return GpioAf::af0;
+        case PeriphType::tim2:
+          return GpioAf::af1;
+        case PeriphType::tim0:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        case PeriphType::tim15:
+          return GpioAf::af5;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pa7:
+      switch (periph_type) {
+        case PeriphType::spi0:
+        case PeriphType::i2s0:
+          return GpioAf::af0;
+        case PeriphType::tim2:
+          return GpioAf::af1;
+        case PeriphType::tim0:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        case PeriphType::tim13:
+          return GpioAf::af4;
+        case PeriphType::tim16:
+          return GpioAf::af5;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pa8:
+      switch (periph_type) {
+        case PeriphType::usart0:
+          return GpioAf::af1;
+        case PeriphType::tim0:
+          return GpioAf::af2;
+        case PeriphType::usart1:
+          return GpioAf::af4;
+        case PeriphType::usb:
+          return GpioAf::af5;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pa9:
+      switch (periph_type) {
+        case PeriphType::tim14:
+          return GpioAf::af0;
+        case PeriphType::usart0:
+          return GpioAf::af1;
+        case PeriphType::tim0:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        case PeriphType::i2c0:
+          return GpioAf::af4;
+        case PeriphType::usb:
+          return GpioAf::af5;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pa10:
+      switch (periph_type) {
+        case PeriphType::tim16:
+          return GpioAf::af0;
+        case PeriphType::usart0:
+          return GpioAf::af1;
+        case PeriphType::tim0:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        case PeriphType::i2c0:
+          return GpioAf::af4;
+        case PeriphType::usb:
+          return GpioAf::af5;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pa11:
+      switch (periph_type) {
+        case PeriphType::usart0:
+          return GpioAf::af1;
+        case PeriphType::tim0:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        case PeriphType::spi1:
+          return GpioAf::af6;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pa12:
+      switch (periph_type) {
+        case PeriphType::usart0:
+          return GpioAf::af1;
+        case PeriphType::tim0:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        case PeriphType::spi1:
+          return GpioAf::af6;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pa13:
+      switch (periph_type) {
+        case PeriphType::spi1:
+          return GpioAf::af6;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pa14:
+      switch (periph_type) {
+        case PeriphType::usart0:
+        case PeriphType::usart1:
+          return GpioAf::af1;
+        case PeriphType::spi1:
+          return GpioAf::af6;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pa15:
+      switch (periph_type) {
+        case PeriphType::spi0:
+        case PeriphType::i2s0:
+          return GpioAf::af0;
+        case PeriphType::usart0:
+        case PeriphType::usart1:
+          return GpioAf::af1;
+        case PeriphType::tim1:
+          return GpioAf::af2;
+        case PeriphType::spi1:
+          return GpioAf::af6;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pb0:
+      switch (periph_type) {
+        case PeriphType::tim2:
+          return GpioAf::af1;
+        case PeriphType::tim0:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        case PeriphType::usart1:
+          return GpioAf::af4;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pb1:
+      switch (periph_type) {
+        case PeriphType::tim13:
+          return GpioAf::af0;
+        case PeriphType::tim2:
+          return GpioAf::af1;
+        case PeriphType::tim0:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        case PeriphType::spi1:
+          return GpioAf::af6;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pb2:
+      switch (periph_type) {
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pb3:
+      switch (periph_type) {
+        case PeriphType::spi0:
+        case PeriphType::i2s0:
+          return GpioAf::af0;
+        case PeriphType::tim1:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pb4:
+      switch (periph_type) {
+        case PeriphType::spi0:
+        case PeriphType::i2s0:
+          return GpioAf::af0;
+        case PeriphType::tim2:
+          return GpioAf::af1;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pb5:
+      switch (periph_type) {
+        case PeriphType::spi0:
+        case PeriphType::i2s0:
+          return GpioAf::af0;
+        case PeriphType::tim2:
+          return GpioAf::af1;
+        case PeriphType::tim15:
+          return GpioAf::af2;
+        case PeriphType::i2c0:
+          return GpioAf::af3;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pb6:
+      switch (periph_type) {
+        case PeriphType::usart0:
+          return GpioAf::af0;
+        case PeriphType::i2c0:
+          return GpioAf::af1;
+        case PeriphType::tim15:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pb7:
+      switch (periph_type) {
+        case PeriphType::usart0:
+          return GpioAf::af0;
+        case PeriphType::i2c0:
+          return GpioAf::af1;
+        case PeriphType::tim16:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pb8:
+      switch (periph_type) {
+        case PeriphType::i2c0:
+          return GpioAf::af1;
+        case PeriphType::tim15:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pb9:
+      switch (periph_type) {
+        case PeriphType::i2c0:
+          return GpioAf::af1;
+        case PeriphType::tim16:
+          return GpioAf::af2;
+        case PeriphType::i2s0:
+          return GpioAf::af5;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pb10:
+      switch (periph_type) {
+        case PeriphType::i2c0:
+        case PeriphType::i2c1:
+          return GpioAf::af1;
+        case PeriphType::tim1:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        case PeriphType::spi1:
+          return GpioAf::af6;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pb11:
+      switch (periph_type) {
+        case PeriphType::i2c0:
+        case PeriphType::i2c1:
+          return GpioAf::af1;
+        case PeriphType::tim1:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        case PeriphType::spi1:
+          return GpioAf::af6;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pb12:
+      switch (periph_type) {
+        case PeriphType::spi0:
+        case PeriphType::spi1:
+          return GpioAf::af0;
+        case PeriphType::tim0:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        case PeriphType::i2c1:
+          return GpioAf::af4;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pb13:
+      switch (periph_type) {
+        case PeriphType::spi0:
+        case PeriphType::spi1:
+          return GpioAf::af0;
+        case PeriphType::tim0:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pb14:
+      switch (periph_type) {
+        case PeriphType::spi0:
+        case PeriphType::spi1:
+          return GpioAf::af0;
+        case PeriphType::tim14:
+          return GpioAf::af1;
+        case PeriphType::tim0:
+          return GpioAf::af2;
+        case PeriphType::tsc:
+          return GpioAf::af3;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pb15:
+      switch (periph_type) {
+        case PeriphType::spi0:
+        case PeriphType::spi1:
+          return GpioAf::af0;
+        case PeriphType::tim14:
+          return GpioAf::af1;
+        //case PeriphType::tim14: Collision!: TIMER14_CH1 & IMER14_CH0_ON
+        //  return GpioAf::af3;
+        case PeriphType::tim0:
+          return GpioAf::af2;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pc0:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pc1:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pc2:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pc3:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pc4:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pc5:
+      switch (periph_type) {
+        case PeriphType::tsc:
+          return GpioAf::af0;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pc6:
+      switch (periph_type) {
+        case PeriphType::tim2:
+          return GpioAf::af0;
+        case PeriphType::i2s0:
+          return GpioAf::af2;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pc7:
+      switch (periph_type) {
+        case PeriphType::tim2:
+          return GpioAf::af0;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pc8:
+      switch (periph_type) {
+        case PeriphType::tim2:
+          return GpioAf::af0;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pc9:
+      switch (periph_type) {
+        case PeriphType::tim2:
+          return GpioAf::af0;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pc10:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pc11:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pc12:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pc13:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pc14:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pc15:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pd0:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pd1:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pd2:
+      switch (periph_type) {
+        case PeriphType::tim2:
+          return GpioAf::af0;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pd3:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pd4:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pd5:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pd6:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pd7:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pd8:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pd9:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pd10:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pd11:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pd12:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pd13:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pd14:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pd15:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pf0:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pf1:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pf2:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pf3:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pf4:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pf5:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pf6:
+      switch (periph_type) {
+        case PeriphType::i2c0:
+        case PeriphType::i2c1:
+          return GpioAf::af0;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pf7:
+      switch (periph_type) {
+        case PeriphType::i2c0:
+        case PeriphType::i2c1:
+          return GpioAf::af0;
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pf8:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pf9:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pf10:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pf11:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pf12:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pf13:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pf14:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    case GpioPinType::pf15:
+      switch (periph_type) {
+        default:
+          break;
+      }
+      break;
+    default:
+      break;
+  }
+  return std::nullopt;
+}
+
+
+template<typename T>
+constexpr static std::optional<PeriphType> as_periph_type(T type) {
+  return std::nullopt;
+}
+
+template<>
+constexpr std::optional<PeriphType> as_periph_type(GpioType type) {
+  switch (type) {
+    case GpioType::gpioa:
+      return PeriphType::gpioa;
+    case GpioType::gpiob:
+      return PeriphType::gpiob;
+    case GpioType::gpioc:
+      return PeriphType::gpioc;
+    case GpioType::gpiod:
+      return PeriphType::gpiod;
+    case GpioType::gpiof:
+      return PeriphType::gpiof;
+  }
+  return std::nullopt;
+}
+
+template<>
+constexpr std::optional<PeriphType> as_periph_type(AdcType type) {
+  switch (type) {
+    case AdcType::adc1:
+      return PeriphType::adc1;
+  }
+  return std::nullopt;
+}
+
+// TODO:
 //template<>
 //constexpr std::optional<PeriphType> as_periph_type(DmaType type) {
 //  switch (type) {
@@ -2409,20 +2125,6 @@ constexpr struct PeriphInfo {
 //  switch (type) {
 //    case DacType::dac1:
 //      return PeriphType::dac1;
-//  }
-//  return std::nullopt;
-//}
-//template<>
-//constexpr std::optional<PeriphType> as_periph_type(AdcType type) {
-//  switch (type) {
-//    case AdcType::adc1:
-//      return PeriphType::adc1;
-//    case AdcType::adc2:
-//      return PeriphType::adc2;
-//    case AdcType::adc3:
-//      return PeriphType::adc3;
-//    case AdcType::adc4:
-//      return PeriphType::adc4;
 //  }
 //  return std::nullopt;
 //}

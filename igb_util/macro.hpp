@@ -15,11 +15,13 @@
 // c++20 compatible macros (REG must be constant variable, not expression!)
 #define IGB_READ_REG(REG)         ((REG))
 #define IGB_WRITE_REG(REG, VAL)   ((REG) = (VAL))
-#define IGB_CLEAR_REG(REG, VAL)   ((REG) = (0x0))
+#define IGB_CLEAR_REG(REG)        ((REG) = (0x0))
 #define IGB_READ_BIT(REG, BIT)    ((REG) & (BIT))
 #define IGB_CLEAR_BIT(REG, BIT)   ((REG) = (REG) & ~(BIT))
 #define IGB_SET_BIT(REG, BIT)     ((REG) = (REG) | (BIT))
 #define IGB_MODIFY_REG(REG, CLEARMASK, SETMASK) (REG = ((IGB_READ_REG(REG)) & (~(CLEARMASK))) | (SETMASK))
+#define IGB_BIT(BIT_IDX)          (1UL << BIT_IDX)
+#define IGB_BIT_MASK(BIT_SIZE, BIT_IDX)   (((1UL << BIT_SIZE) - 1UL) << BIT_IDX)
 
 // David Mazières FOR_EACH implementation
 // from: https://www.scs.stanford.edu/~dm/blog/va-opt.html
