@@ -117,17 +117,17 @@ struct AdcInfo {
   const PeriphBusInfo bus;
 };
 #endif
-//
-//#ifdef GD32_PERIPHGRP_TSC_EXISTS
-//struct TscInfo {
-//  const PeriphType   periph_type;
-//  TSC_TypeDef* const p_tsc;
-//  const uint32_t addr;
-//  const IRQn_Type irqn;
-//  const PeriphBusInfo bus;
-//};
-//#endif
-//
+
+#ifdef GD32_PERIPHGRP_TSC_EXISTS
+struct TscInfo {
+  const PeriphType   periph_type;
+  TSC_TypeDef* const p_tsc;
+  const uint32_t addr;
+  const IRQn_Type irqn;
+  const PeriphBusInfo bus;
+};
+#endif
+
 #ifdef GD32_PERIPHGRP_DMA_EXISTS
 struct DmaChannelInfo {
   bool exists = true;

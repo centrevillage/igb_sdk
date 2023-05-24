@@ -74,7 +74,7 @@
 //#define FLASHSIZE_BASE        0x1FFFF7CCUL
 //#define UID_BASE              0x1FFFF7ACUL
 //#define CRC_BASE              (AHB1PERIPH_BASE + 0x00003000UL)
-//#define TSC_BASE              (AHB1PERIPH_BASE + 0x00004000UL)
+#define TSC_BASE              (AHB1PERIPH_BASE + 0x00004000UL)
 
 // AHB2 peripherals
 #define GPIOA_BASE            (AHB2PERIPH_BASE + 0x00000000UL)
@@ -110,10 +110,10 @@
 #define GD32_PERIPHGRP_I2C_EXISTS 1
 #define GD32_PERIPH_I2C0_EXISTS 1
 #define GD32_PERIPH_I2C1_EXISTS 1
+#define GD32_PERIPHGRP_TSC_EXISTS 1
+#define GD32_PERIPH_TSC_EXISTS 1
 
 // TODO:
-//#define GD32_PERIPHGRP_TSC_EXISTS 1
-//#define GD32_PERIPH_TSC_EXISTS 1
 //#define GD32_PERIPHGRP_CRC_EXISTS 1
 //#define GD32_PERIPH_CRC_EXISTS 1
 //#define GD32_PERIPHGRP_FLASH_EXISTS 1
@@ -177,7 +177,7 @@ enum class PeriphGroupType : uint16_t {
   rcc,
   dac,
   adc,
-  //tsc,
+  tsc,
   dma,
   //tim,
   //usart,
@@ -836,6 +836,23 @@ typedef struct {
   volatile uint32_t RT;      // 0x20
 } I2C_TypeDef;
 
+typedef struct {
+  volatile uint32_t CR;
+  volatile uint32_t IER;
+  volatile uint32_t ICR;
+  volatile uint32_t ISR;
+  volatile uint32_t IOHCR;
+  uint32_t RESERVED1;
+  volatile uint32_t IOASCR;
+  uint32_t RESERVED2;
+  volatile uint32_t IOSCR;
+  uint32_t RESERVED3;
+  volatile uint32_t IOCCR;
+  uint32_t RESERVED4;
+  volatile uint32_t IOGCSR;
+  volatile uint32_t IOGXCR[8];
+} TSC_TypeDef;
+
 #define GPIOA_ ((GPIO_TypeDef*)GPIOA_BASE)
 #define GPIOB_ ((GPIO_TypeDef*)GPIOB_BASE)
 #define GPIOC_ ((GPIO_TypeDef*)GPIOC_BASE)
@@ -891,13 +908,13 @@ constexpr struct PeriphInfo {
       .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 22},
     },
   };
-  //const TscInfo tsc {
-  //  .periph_type = PeriphType::tsc,
-  //  .p_tsc = TSC,
-  //  .addr = TSC_BASE,
-  //  .irqn = EXTI2_TSC_IRQn,
-  //  .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 24},
-  //};
+  const TscInfo tsc {
+    .periph_type = PeriphType::tsc,
+    .p_tsc = (TSC_TypeDef*)TSC_BASE,
+    .addr = TSC_BASE,
+    .irqn = TSI_IRQn,
+    .bus = PeriphBusInfo { BusType::ahb, (uint32_t)1 << 24},
+  };
   const RccInfo rcc {
     .periph_type = PeriphType::rcc,
     .p_rcc = RCC_,
