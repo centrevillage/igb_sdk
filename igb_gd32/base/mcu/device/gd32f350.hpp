@@ -30,8 +30,6 @@
 //#define USART3_BASE           (APB1PERIPH_BASE + 0x00004800UL)
 //#define UART4_BASE            (APB1PERIPH_BASE + 0x00004C00UL)
 //#define UART5_BASE            (APB1PERIPH_BASE + 0x00005000UL)
-//#define I2C1_BASE             (APB1PERIPH_BASE + 0x00005400UL)
-//#define I2C2_BASE             (APB1PERIPH_BASE + 0x00005800UL)
 //#define USB_BASE              (APB1PERIPH_BASE + 0x00005C00UL) /*!< USB_IP Peripheral Registers base address */
 //#define USB_PMAADDR           (APB1PERIPH_BASE + 0x00006000UL) /*!< USB_IP Packet Memory Area base address */
 //#define CAN_BASE              (APB1PERIPH_BASE + 0x00006400UL)
@@ -88,6 +86,8 @@
 // APB1
 #define SPI1_BASE             (APB1PERIPH_BASE + 0x00003800UL)
 #define SPI0_BASE             (SPI1_BASE + 0x0000F800UL)
+#define I2C0_BASE             (APB1PERIPH_BASE + 0x00005400UL)
+#define I2C1_BASE             (I2C0_BASE + 0x00000400U)
 
 #define GD32_PERIPHGRP_GPIO_EXISTS 1
 #define GD32_PERIPH_GPIOA_EXISTS 1
@@ -107,6 +107,9 @@
 #define GD32_PERIPHGRP_SPI_EXISTS 1
 #define GD32_PERIPH_SPI0_EXISTS 1
 #define GD32_PERIPH_SPI1_EXISTS 1
+#define GD32_PERIPHGRP_I2C_EXISTS 1
+#define GD32_PERIPH_I2C0_EXISTS 1
+#define GD32_PERIPH_I2C1_EXISTS 1
 
 // TODO:
 //#define GD32_PERIPHGRP_TSC_EXISTS 1
@@ -140,8 +143,6 @@
 //#define GD32_PERIPH_CAN_EXISTS 1
 //#define GD32_PERIPHGRP_USB_FS_EXISTS 1
 //#define GD32_PERIPH_USB_FS_EXISTS 1
-//#define GD32_PERIPHGRP_I2C_EXISTS 1
-//#define GD32_PERIPH_I2C1_EXISTS 1
 //#define GD32_PERIPHGRP_IWDG_EXISTS 1
 //#define GD32_PERIPH_IWDG_EXISTS 1
 //#define GD32_PERIPHGRP_WWDG_EXISTS 1
@@ -343,17 +344,21 @@ constexpr static uint8_t to_idx(SpiType type) {
   }
   return 0;
 }
-//enum class I2cType : uint8_t {
-//  i2c1 = 0,
-//};
-//constexpr static uint8_t to_idx(I2cType type) {
-//  switch (type) {
-//    case I2cType::i2c1:
-//      return 0;
-//      break;
-//  }
-//  return 0;
-//}
+enum class I2cType : uint8_t {
+  i2c0 = 0,
+  i2c1,
+};
+constexpr static uint8_t to_idx(I2cType type) {
+  switch (type) {
+    case I2cType::i2c0:
+      return 0;
+      break;
+    case I2cType::i2c1:
+      return 1;
+      break;
+  }
+  return 0;
+}
 enum class DacType : uint8_t {
   dac1 = 0,
 };
@@ -819,6 +824,18 @@ typedef struct {
   volatile uint32_t I2SPR;   // 0x20; I2SPSC
 } SPI_TypeDef;
 
+typedef struct {
+  volatile uint32_t CTL0;    // 0x00
+  volatile uint32_t CTL1;    // 0x04
+  volatile uint32_t SADDR0;  // 0x08
+  volatile uint32_t SADDR1;  // 0x0C
+  volatile uint32_t DATA;    // 0x10
+  volatile uint32_t STAT0;   // 0x14
+  volatile uint32_t STAT1;   // 0x18
+  volatile uint32_t CKCFG;   // 0x1C
+  volatile uint32_t RT;      // 0x20
+} I2C_TypeDef;
+
 #define GPIOA_ ((GPIO_TypeDef*)GPIOA_BASE)
 #define GPIOB_ ((GPIO_TypeDef*)GPIOB_BASE)
 #define GPIOC_ ((GPIO_TypeDef*)GPIOC_BASE)
@@ -1068,13 +1085,13 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::spi0,
       .p_spi = (SPI_TypeDef*)SPI0_BASE,
       .addr = SPI0_BASE,
-      //.bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 12},
+      .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 12},
     },
     SpiInfo {
       .periph_type = PeriphType::spi1,
       .p_spi = (SPI_TypeDef*)SPI1_BASE,
       .addr = SPI1_BASE,
-      //.bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 12},
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 14},
     },
   };
   //const ExtiInfo exti {
@@ -1100,14 +1117,20 @@ constexpr struct PeriphInfo {
   //    EXTI15_10_IRQn,
   //  },
   //};
-  //const std::array<I2cInfo, 1> i2c {
-  //  I2cInfo {
-  //    .periph_type = PeriphType::i2c1,
-  //    .p_i2c = I2C1,
-  //    .addr = I2C1_BASE,
-  //    .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 21},
-  //  },
-  //};
+  const std::array<I2cInfo, 2> i2c {
+    I2cInfo {
+      .periph_type = PeriphType::i2c0,
+      .p_i2c = (I2C_TypeDef*)I2C0_BASE,
+      .addr = I2C0_BASE,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 21},
+    },
+    I2cInfo {
+      .periph_type = PeriphType::i2c1,
+      .p_i2c = (I2C_TypeDef*)I2C1_BASE,
+      .addr = I2C1_BASE,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 22},
+    },
+  };
   const std::array<DacInfo, 1> dac {
     DacInfo {
       .periph_type = PeriphType::dac1,
@@ -1960,17 +1983,15 @@ constexpr std::optional<PeriphType> as_periph_type(DacType type) {
   return std::nullopt;
 }
 
+template<>
+constexpr std::optional<PeriphType> as_periph_type(DmaType type) {
+  switch (type) {
+    case DmaType::dma1:
+      return PeriphType::dma1;
+  }
+  return std::nullopt;
+}
 // TODO:
-//template<>
-//constexpr std::optional<PeriphType> as_periph_type(DmaType type) {
-//  switch (type) {
-//    case DmaType::dma1:
-//      return PeriphType::dma1;
-//    case DmaType::dma2:
-//      return PeriphType::dma2;
-//  }
-//  return std::nullopt;
-//}
 //template<>
 //constexpr std::optional<PeriphType> as_periph_type(TimType type) {
 //  switch (type) {
@@ -2023,14 +2044,16 @@ constexpr std::optional<PeriphType> as_periph_type(SpiType type) {
   }
   return std::nullopt;
 }
-//template<>
-//constexpr std::optional<PeriphType> as_periph_type(I2cType type) {
-//  switch (type) {
-//    case I2cType::i2c1:
-//      return PeriphType::i2c1;
-//  }
-//  return std::nullopt;
-//}
+template<>
+constexpr std::optional<PeriphType> as_periph_type(I2cType type) {
+  switch (type) {
+    case I2cType::i2c0:
+      return PeriphType::i2c0;
+    case I2cType::i2c1:
+      return PeriphType::i2c1;
+  }
+  return std::nullopt;
+}
 
 }
 }
