@@ -70,15 +70,15 @@ struct GpioInfo {
 //};
 //#endif
 //
-//#ifdef GD32_PERIPHGRP_SPI_EXISTS
-//struct SpiInfo {
-//  const PeriphType   periph_type;
-//  SPI_TypeDef* const p_spi;
-//  const uint32_t addr;
-//  const PeriphBusInfo bus;
-//};
-//#endif
-//
+#ifdef GD32_PERIPHGRP_SPI_EXISTS
+struct SpiInfo {
+  const PeriphType   periph_type;
+  SPI_TypeDef* const p_spi;
+  const uint32_t addr;
+  const PeriphBusInfo bus;
+};
+#endif
+
 //#ifdef GD32_PERIPHGRP_I2C_EXISTS
 //struct I2cInfo {
 //  const PeriphType   periph_type;

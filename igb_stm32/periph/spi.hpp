@@ -114,7 +114,7 @@ enum class SpiTransDir : uint32_t {
 };
 enum class SpiNssMode : uint32_t {
   hardInput  = 0,
-  hardOutput = SPI_CR1_SSM,
+  hardOutput = SPI_CR2_SSOE << 16U,
   soft       = SPI_CR1_SSM,
 };
 #endif
