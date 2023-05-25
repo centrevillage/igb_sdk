@@ -14,11 +14,6 @@
 #define AHB3PERIPH_BASE       (PERIPH_BASE + 0x10000000UL)
 
 // AHB1 peripherails
-//#define TIM2_BASE             (APB1PERIPH_BASE + 0x00000000UL)
-//#define TIM3_BASE             (APB1PERIPH_BASE + 0x00000400UL)
-//#define TIM4_BASE             (APB1PERIPH_BASE + 0x00000800UL)
-//#define TIM6_BASE             (APB1PERIPH_BASE + 0x00001000UL)
-//#define TIM7_BASE             (APB1PERIPH_BASE + 0x00001400UL)
 //#define RTC_BASE              (APB1PERIPH_BASE + 0x00002800UL)
 //#define WWDG_BASE             (APB1PERIPH_BASE + 0x00002C00UL)
 //#define IWDG_BASE             (APB1PERIPH_BASE + 0x00003000UL)
@@ -89,6 +84,16 @@
 #define I2C0_BASE             (APB1PERIPH_BASE + 0x00005400UL)
 #define I2C1_BASE             (I2C0_BASE + 0x00000400U)
 
+// TIMER
+#define TIM0_BASE             (APB2PERIPH_BASE + 0x00002C00UL)
+#define TIM1_BASE             (APB1PERIPH_BASE + 0x00000000UL)
+#define TIM2_BASE             (APB1PERIPH_BASE + 0x00000400UL)
+#define TIM5_BASE             (APB1PERIPH_BASE + 0x00001000UL)
+#define TIM13_BASE            (APB1PERIPH_BASE + 0x00002000UL)
+#define TIM14_BASE            (APB2PERIPH_BASE + 0x00004000UL)
+#define TIM15_BASE            (APB2PERIPH_BASE + 0x00004400UL)
+#define TIM16_BASE            (APB2PERIPH_BASE + 0x00004800UL)
+
 #define GD32_PERIPHGRP_GPIO_EXISTS 1
 #define GD32_PERIPH_GPIOA_EXISTS 1
 #define GD32_PERIPH_GPIOB_EXISTS 1
@@ -112,6 +117,15 @@
 #define GD32_PERIPH_I2C1_EXISTS 1
 #define GD32_PERIPHGRP_TSC_EXISTS 1
 #define GD32_PERIPH_TSC_EXISTS 1
+#define GD32_PERIPHGRP_TIM_EXISTS 1
+#define GD32_PERIPH_TIM0_EXISTS 1
+#define GD32_PERIPH_TIM1_EXISTS 1
+#define GD32_PERIPH_TIM2_EXISTS 1
+#define GD32_PERIPH_TIM5_EXISTS 1
+#define GD32_PERIPH_TIM13_EXISTS 1
+#define GD32_PERIPH_TIM14_EXISTS 1
+#define GD32_PERIPH_TIM15_EXISTS 1
+#define GD32_PERIPH_TIM16_EXISTS 1
 
 // TODO:
 //#define GD32_PERIPHGRP_CRC_EXISTS 1
@@ -179,7 +193,7 @@ enum class PeriphGroupType : uint16_t {
   adc,
   tsc,
   dma,
-  //tim,
+  tim,
   //usart,
   spi,
   //exti,
@@ -255,54 +269,46 @@ constexpr static uint8_t to_idx(DmaType type) {
   }
   return 0;
 }
+enum class TimType : uint8_t {
+  tim0 = 0,
+  tim1,
+  tim2,
+  tim5,
+  tim13,
+  tim14,
+  tim15,
+  tim16,
+};
+constexpr static uint8_t to_idx(TimType type) {
+  switch (type) {
+    case TimType::tim0:
+      return 0;
+      break;
+    case TimType::tim1:
+      return 1;
+      break;
+    case TimType::tim2:
+      return 2;
+      break;
+    case TimType::tim5:
+      return 3;
+      break;
+    case TimType::tim13:
+      return 4;
+      break;
+    case TimType::tim14:
+      return 5;
+      break;
+    case TimType::tim15:
+      return 6;
+      break;
+    case TimType::tim16:
+      return 7;
+      break;
+  }
+  return 0;
+}
 // TODO:
-//enum class TimType : uint8_t {
-//  tim1 = 0,
-//  tim2,
-//  tim3,
-//  tim4,
-//  tim6,
-//  tim7,
-//  tim8,
-//  tim15,
-//  tim16,
-//  tim17,
-//};
-//constexpr static uint8_t to_idx(TimType type) {
-//  switch (type) {
-//    case TimType::tim1:
-//      return 0;
-//      break;
-//    case TimType::tim2:
-//      return 1;
-//      break;
-//    case TimType::tim3:
-//      return 2;
-//      break;
-//    case TimType::tim4:
-//      return 3;
-//      break;
-//    case TimType::tim6:
-//      return 4;
-//      break;
-//    case TimType::tim7:
-//      return 5;
-//      break;
-//    case TimType::tim8:
-//      return 6;
-//      break;
-//    case TimType::tim15:
-//      return 7;
-//      break;
-//    case TimType::tim16:
-//      return 8;
-//      break;
-//    case TimType::tim17:
-//      return 9;
-//      break;
-//  }
-//  return 0;
-//}
 //enum class UsartType : uint8_t {
 //  usart1 = 0,
 //  usart2,
@@ -853,6 +859,33 @@ typedef struct {
   volatile uint32_t IOGXCR[8];
 } TSC_TypeDef;
 
+typedef struct {
+  volatile uint32_t CR1;
+  volatile uint32_t CR2;
+  volatile uint32_t SMCR;
+  volatile uint32_t DIER;
+  volatile uint32_t SR;
+  volatile uint32_t EGR;
+  volatile uint32_t CCMR1;
+  volatile uint32_t CCMR2;
+  volatile uint32_t CCER;
+  volatile uint32_t CNT;
+  volatile uint32_t PSC;
+  volatile uint32_t ARR;
+  volatile uint32_t RCR;
+  volatile uint32_t CCR1;
+  volatile uint32_t CCR2;
+  volatile uint32_t CCR3;
+  volatile uint32_t CCR4;
+  volatile uint32_t BDTR;
+  volatile uint32_t DCR;
+  volatile uint32_t DMAR;
+  volatile uint32_t OR;
+  volatile uint32_t CCMR3;
+  volatile uint32_t CCR5;
+  volatile uint32_t CCR6;
+} TIM_TypeDef;
+
 #define GPIOA_ ((GPIO_TypeDef*)GPIOA_BASE)
 #define GPIOB_ ((GPIO_TypeDef*)GPIOB_BASE)
 #define GPIOC_ ((GPIO_TypeDef*)GPIOC_BASE)
@@ -978,88 +1011,72 @@ constexpr struct PeriphInfo {
       },
     },
   };
-  //const std::array<TimInfo, 10> tim {
-  //  TimInfo {
-  //    .periph_type = PeriphType::tim1,
-  //    .category = TimCategory::ADVANCED,
-  //    .p_tim = TIM1,
-  //    .addr = TIM1_BASE,
-  //    .irqn = TIM1_UP_TIM16_IRQn,
-  //    .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 11},
-  //  },
-  //  TimInfo {
-  //    .periph_type = PeriphType::tim2,
-  //    .category = TimCategory::GENERAL,
-  //    .p_tim = TIM2,
-  //    .addr = TIM2_BASE,
-  //    .irqn = TIM2_IRQn,
-  //    .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 0},
-  //  },
-  //  TimInfo {
-  //    .periph_type = PeriphType::tim3,
-  //    .category = TimCategory::GENERAL,
-  //    .p_tim = TIM3,
-  //    .addr = TIM3_BASE,
-  //    .irqn = TIM3_IRQn,
-  //    .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 1},
-  //  },
-  //  TimInfo {
-  //    .periph_type = PeriphType::tim4,
-  //    .category = TimCategory::GENERAL,
-  //    .p_tim = TIM4,
-  //    .addr = TIM4_BASE,
-  //    .irqn = TIM4_IRQn,
-  //    .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 2},
-  //  },
-  //  TimInfo {
-  //    .periph_type = PeriphType::tim6,
-  //    .category = TimCategory::BASIC,
-  //    .p_tim = TIM6,
-  //    .addr = TIM6_BASE,
-  //    .irqn = TIM6_DAC_IRQn,
-  //    .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 4},
-  //  },
-  //  TimInfo {
-  //    .periph_type = PeriphType::tim7,
-  //    .category = TimCategory::BASIC,
-  //    .p_tim = TIM7,
-  //    .addr = TIM7_BASE,
-  //    .irqn = TIM7_IRQn,
-  //    .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 5},
-  //  },
-  //  TimInfo {
-  //    .periph_type = PeriphType::tim8,
-  //    .category = TimCategory::ADVANCED,
-  //    .p_tim = TIM8,
-  //    .addr = TIM8_BASE,
-  //    .irqn = TIM8_UP_IRQn,
-  //    .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 13},
-  //  },
-  //  TimInfo {
-  //    .periph_type = PeriphType::tim15,
-  //    .category = TimCategory::GENERAL,
-  //    .p_tim = TIM15,
-  //    .addr = TIM15_BASE,
-  //    .irqn = TIM1_BRK_TIM15_IRQn,
-  //    .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 16},
-  //  },
-  //  TimInfo {
-  //    .periph_type = PeriphType::tim16,
-  //    .category = TimCategory::GENERAL,
-  //    .p_tim = TIM16,
-  //    .addr = TIM16_BASE,
-  //    .irqn = TIM1_UP_TIM16_IRQn,
-  //    .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 17},
-  //  },
-  //  TimInfo {
-  //    .periph_type = PeriphType::tim17,
-  //    .category = TimCategory::GENERAL,
-  //    .p_tim = TIM17,
-  //    .addr = TIM17_BASE,
-  //    .irqn = TIM1_TRG_COM_TIM17_IRQn,
-  //    .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 18},
-  //  },
-  //};
+  const std::array<TimInfo, 8> tim {
+    TimInfo {
+      .periph_type = PeriphType::tim0,
+      .category = TimCategory::ADVANCED,
+      .p_tim = (TIM_TypeDef*)TIM0_BASE,
+      .addr = TIM0_BASE,
+      .irqn = TIMER0_BRK_UP_TRG_COM_IRQn,
+      .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 11},
+    },
+    TimInfo {
+      .periph_type = PeriphType::tim1,
+      .category = TimCategory::GENERAL,
+      .p_tim = (TIM_TypeDef*)TIM1_BASE,
+      .addr = TIM1_BASE,
+      .irqn = TIMER1_IRQn,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 0},
+    },
+    TimInfo {
+      .periph_type = PeriphType::tim2,
+      .category = TimCategory::GENERAL,
+      .p_tim = (TIM_TypeDef*)TIM2_BASE,
+      .addr = TIM2_BASE,
+      .irqn = TIMER2_IRQn,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 1},
+    },
+    TimInfo {
+      .periph_type = PeriphType::tim5,
+      .category = TimCategory::BASIC,
+      .p_tim = (TIM_TypeDef*)TIM5_BASE,
+      .addr = TIM5_BASE,
+      .irqn = TIMER5_DAC_IRQn,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 4},
+    },
+    TimInfo {
+      .periph_type = PeriphType::tim13,
+      .category = TimCategory::GENERAL,
+      .p_tim = (TIM_TypeDef*)TIM13_BASE,
+      .addr = TIM13_BASE,
+      .irqn = TIMER13_IRQn,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 8},
+    },
+    TimInfo {
+      .periph_type = PeriphType::tim14,
+      .category = TimCategory::GENERAL,
+      .p_tim = (TIM_TypeDef*)TIM14_BASE,
+      .addr = TIM14_BASE,
+      .irqn = TIMER14_IRQn,
+      .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 16},
+    },
+    TimInfo {
+      .periph_type = PeriphType::tim15,
+      .category = TimCategory::GENERAL,
+      .p_tim = (TIM_TypeDef*)TIM15_BASE,
+      .addr = TIM15_BASE,
+      .irqn = TIMER15_IRQn,
+      .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 17},
+    },
+    TimInfo {
+      .periph_type = PeriphType::tim16,
+      .category = TimCategory::GENERAL,
+      .p_tim = (TIM_TypeDef*)TIM16_BASE,
+      .addr = TIM16_BASE,
+      .irqn = TIMER16_IRQn,
+      .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 18},
+    },
+  };
   //const std::array<UsartInfo, 5> usart {
   //  UsartInfo {
   //    .periph_type = PeriphType::usart1,
@@ -2008,33 +2025,29 @@ constexpr std::optional<PeriphType> as_periph_type(DmaType type) {
   }
   return std::nullopt;
 }
+template<>
+constexpr std::optional<PeriphType> as_periph_type(TimType type) {
+  switch (type) {
+    case TimType::tim0:
+      return PeriphType::tim0;
+    case TimType::tim1:
+      return PeriphType::tim1;
+    case TimType::tim2:
+      return PeriphType::tim2;
+    case TimType::tim5:
+      return PeriphType::tim5;
+    case TimType::tim13:
+      return PeriphType::tim13;
+    case TimType::tim14:
+      return PeriphType::tim14;
+    case TimType::tim15:
+      return PeriphType::tim15;
+    case TimType::tim16:
+      return PeriphType::tim16;
+  }
+  return std::nullopt;
+}
 // TODO:
-//template<>
-//constexpr std::optional<PeriphType> as_periph_type(TimType type) {
-//  switch (type) {
-//    case TimType::tim1:
-//      return PeriphType::tim1;
-//    case TimType::tim2:
-//      return PeriphType::tim2;
-//    case TimType::tim3:
-//      return PeriphType::tim3;
-//    case TimType::tim4:
-//      return PeriphType::tim4;
-//    case TimType::tim6:
-//      return PeriphType::tim6;
-//    case TimType::tim7:
-//      return PeriphType::tim7;
-//    case TimType::tim8:
-//      return PeriphType::tim8;
-//    case TimType::tim15:
-//      return PeriphType::tim15;
-//    case TimType::tim16:
-//      return PeriphType::tim16;
-//    case TimType::tim17:
-//      return PeriphType::tim17;
-//  }
-//  return std::nullopt;
-//}
 //template<>
 //constexpr std::optional<PeriphType> as_periph_type(UsartType type) {
 //  switch (type) {

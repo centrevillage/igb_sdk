@@ -52,24 +52,23 @@ struct GpioInfo {
 };
 #endif
 
-// TODO:
-//#ifdef GD32_PERIPHGRP_TIM_EXISTS
-//enum class TimCategory {
-//  UNKNOWN = 0,
-//  ADVANCED,
-//  GENERAL,
-//  BASIC,
-//};
-//struct TimInfo {
-//  const PeriphType      periph_type;
-//  const TimCategory     category;
-//  TIM_TypeDef* const    p_tim;
-//  const uint32_t addr;
-//  const IRQn_Type       irqn;
-//  const PeriphBusInfo   bus;
-//};
-//#endif
-//
+#ifdef GD32_PERIPHGRP_TIM_EXISTS
+enum class TimCategory {
+  UNKNOWN = 0,
+  ADVANCED,
+  GENERAL,
+  BASIC,
+};
+struct TimInfo {
+  const PeriphType      periph_type;
+  const TimCategory     category;
+  TIM_TypeDef* const    p_tim;
+  const uint32_t addr;
+  const IRQn_Type       irqn;
+  const PeriphBusInfo   bus;
+};
+#endif
+
 #ifdef GD32_PERIPHGRP_SPI_EXISTS
 struct SpiInfo {
   const PeriphType   periph_type;
