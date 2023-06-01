@@ -1,6 +1,7 @@
 #ifndef IGB_UTIL_DSP_FUNC_H
 #define IGB_UTIL_DSP_FUNC_H
 
+#include <cstdint>
 #include <igb_util/macro.hpp>
 
 namespace igb {
