@@ -1,5 +1,7 @@
 #include <igb_util/cycle_speed.hpp>
 
+namespace igb {
+
 const uint16_t cycle_speed_table[] = {
   11431,
   11437,
@@ -1202,3 +1204,5 @@ const uint16_t cycle_speed_table[] = {
   22835,
   22848
 };
+
+}
