@@ -58,7 +58,7 @@ IGB_FAST_INLINE float dsp_log(float x) {
 IGB_FAST_INLINE float dsp_perlin_5order(float x /* -1.0 ~ 1.0 */) {
   if (x > 1.0f || x < -1.0f) {
     return 0.0f;
-  } else if (x > 0.0f) {
+  } else if (x < 0.0f) {
     return dsp_read_tbl(dsp_func_perlin_5order_tbl, -x);
   }
   return dsp_read_tbl(dsp_func_perlin_5order_tbl, x);
@@ -78,7 +78,7 @@ IGB_FAST_INLINE float dsp_log_fast(float x) {
 IGB_FAST_INLINE float dsp_perlin_5order_fast(float x /* -1.0 ~ 1.0 */) {
   if (x > 1.0f || x < -1.0f) {
     return 0.0f;
-  } else if (x > 0.0f) {
+  } else if (x < 0.0f) {
     return dsp_read_tbl_fast(dsp_func_perlin_5order_tbl, -x);
   }
   return dsp_read_tbl_fast(dsp_func_perlin_5order_tbl, x);
