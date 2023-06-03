@@ -13,6 +13,7 @@ extern const float dsp_func_sigmoid_tbl[dsp_func_tbl_size];
 extern const float dsp_func_sinusoid_tbl[dsp_func_tbl_size];
 extern const float dsp_func_log_tbl[dsp_func_tbl_size];
 extern const float dsp_func_exp_tbl[dsp_func_tbl_size];
+extern const float dsp_func_perlin_5order_tbl[dsp_func_tbl_size];
 
 IGB_FAST_INLINE float dsp_read_tbl(const float* tbl, float x /* 0.0 ~ 1.0 */) {
   x -= (uint32_t)x;
@@ -53,6 +54,14 @@ IGB_FAST_INLINE float dsp_exp(float x) {
 IGB_FAST_INLINE float dsp_log(float x) {
   return dsp_read_tbl(dsp_func_log_tbl, x);
 }
+IGB_FAST_INLINE float dsp_perlin_5order(float x /* -1.0 ~ 1.0 */) {
+  if (x > 1.0f || x < -1.0f) {
+    return 0.0f;
+  } else if (x > 0.0f) {
+    return dsp_read_tbl(dsp_func_perlin_5order_tbl, -x);
+  }
+  return dsp_read_tbl(dsp_func_perlin_5order_tbl, x);
+}
 IGB_FAST_INLINE float dsp_sin_fast(float x /* 0.0 ~ 1.0 */) {
   return dsp_read_tbl_fast(dsp_func_sinusoid_tbl, x);
 }
@@ -64,6 +73,14 @@ IGB_FAST_INLINE float dsp_exp_fast(float x) {
 }
 IGB_FAST_INLINE float dsp_log_fast(float x) {
   return dsp_read_tbl_fast(dsp_func_log_tbl, x);
+}
+IGB_FAST_INLINE float dsp_perlin_5order_fast(float x /* -1.0 ~ 1.0 */) {
+  if (x > 1.0f || x < -1.0f) {
+    return 0.0f;
+  } else if (x > 0.0f) {
+    return dsp_read_tbl_fast(dsp_func_perlin_5order_tbl, -x);
+  }
+  return dsp_read_tbl_fast(dsp_func_perlin_5order_tbl, x);
 }
 
 }
