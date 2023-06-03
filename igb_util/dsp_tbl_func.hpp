@@ -20,6 +20,7 @@ IGB_FAST_INLINE float dsp_read_tbl(const float* tbl, float x /* 0.0 ~ 1.0 */) {
   if (x < 0.0f) {
     x += 1.0f;
   }
+
   float v = x * (float)(dsp_func_tbl_size);
   uint16_t sp = (uint16_t)v;
   float diff = v - (float)sp;

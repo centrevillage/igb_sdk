@@ -10,8 +10,9 @@ constexpr const T& clamp(const T& v, const T& low, const T& high) noexcept {
   return (v < low) ? low : (v > high ? high : v);
 }
 
-constexpr float lerp(float a, float b, float t) noexcept {
-  return (1.0f - t) * a + t * b;
+template <class T>
+constexpr T lerp(T a, T b, T t) noexcept {
+  return a + (b - a) * t;
 }
 
 }
