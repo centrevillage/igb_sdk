@@ -76,6 +76,11 @@ IGB_FAST_INLINE uint8_t* write_float_16_16(uint8_t* buf, const float v) {
   return buf;
 }
 
+IGB_FAST_INLINE uint8_t* write_float_raw(uint8_t* buf, const float v) {
+  memcpy(buf, &v, sizeof(v));
+  return buf + (sizeof(v));
+}
+
 IGB_FAST_INLINE uint8_t* read_float_16_16(uint8_t* buf, float& v) {
   const uint8_t b1 = *(buf++);
   const uint8_t b2 = *(buf++);
@@ -88,6 +93,11 @@ IGB_FAST_INLINE uint8_t* read_float_16_16(uint8_t* buf, float& v) {
     v = -v;
   }
   return buf;
+}
+
+IGB_FAST_INLINE uint8_t* read_float_raw(uint8_t* buf, float& v) {
+  memcpy(&v, buf, sizeof(v));
+  return buf + (sizeof(v));
 }
 
 template<typename T>
@@ -117,8 +127,7 @@ IGB_FAST_INLINE uint8_t* write_buf(uint8_t* buf, const uint32_t v) {
 
 template<>
 IGB_FAST_INLINE uint8_t* write_buf(uint8_t* buf, const float v) {
-  //return write_float_16_16(buf, v);
-  return write_uint32_t(buf, reinterpret_cast<const uint32_t&>(v));
+  return write_float_raw(buf, v);
 }
 
 template<typename T>
@@ -148,8 +157,7 @@ IGB_FAST_INLINE uint8_t* read_buf(uint8_t* buf, uint32_t& v) {
 
 template<>
 IGB_FAST_INLINE uint8_t* read_buf(uint8_t* buf, float& v) {
-  //return read_float_16_16(buf, v);
-  return read_uint32_t(buf, reinterpret_cast<uint32_t&>(v));
+  return read_float_raw(buf, v);
 }
 
 }
