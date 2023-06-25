@@ -1,6 +1,7 @@
 #ifndef IGB_UTIL_SERIALIZE_FUNC_H
 #define IGB_UTIL_SERIALIZE_FUNC_H
 
+#include <string.h>
 #include <igb_util/macro.hpp>
 
 namespace igb {
@@ -116,7 +117,8 @@ IGB_FAST_INLINE uint8_t* write_buf(uint8_t* buf, const uint32_t v) {
 
 template<>
 IGB_FAST_INLINE uint8_t* write_buf(uint8_t* buf, const float v) {
-  return write_float_16_16(buf, v);
+  //return write_float_16_16(buf, v);
+  return write_uint32_t(buf, reinterpret_cast<const uint32_t&>(v));
 }
 
 template<typename T>
@@ -146,7 +148,8 @@ IGB_FAST_INLINE uint8_t* read_buf(uint8_t* buf, uint32_t& v) {
 
 template<>
 IGB_FAST_INLINE uint8_t* read_buf(uint8_t* buf, float& v) {
-  return read_float_16_16(buf, v);
+  //return read_float_16_16(buf, v);
+  return read_uint32_t(buf, reinterpret_cast<uint32_t&>(v));
 }
 
 }
