@@ -3,6 +3,8 @@
 
 #include <igb_util/macro.hpp>
 
+namespace igb {
+
 IGB_FAST_INLINE uint8_t* write_uint8_t(uint8_t* buf, const uint8_t v) {
   *(buf++) = v;
   return buf;
@@ -145,6 +147,8 @@ IGB_FAST_INLINE uint8_t* read_buf(uint8_t* buf, uint32_t& v) {
 template<>
 IGB_FAST_INLINE uint8_t* read_buf(uint8_t* buf, float& v) {
   return read_float_16_16(buf, v);
+}
+
 }
 
 #endif /* IGB_UTIL_SERIALIZE_FUNC_H */
