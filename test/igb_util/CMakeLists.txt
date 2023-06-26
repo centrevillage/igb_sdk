@@ -41,7 +41,7 @@ add_executable(
   igb_util_test
   src/test_bitmagic.cpp
   src/test_ring_buf.cpp
-  src/test_serialize_func.cpp
+  src/test_serializer.cpp
 )
 target_link_libraries(igb_util_test PRIVATE igb_util Catch2::Catch2WithMain)
 
