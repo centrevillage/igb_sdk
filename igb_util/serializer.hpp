@@ -116,6 +116,47 @@ struct Serializer {
     return sizeof(v);
   }
 
+  IGB_FAST_INLINE static size_t size(const uint8_t v) {
+    return sizeof(v);
+  }
+
+  IGB_FAST_INLINE static size_t size(const int8_t v) {
+    return sizeof(v);
+  }
+
+  IGB_FAST_INLINE static size_t size(const uint16_t v) {
+    return sizeof(v);
+  }
+
+  IGB_FAST_INLINE static size_t size(const int16_t v) {
+    return sizeof(v);
+  }
+
+  IGB_FAST_INLINE static size_t size(const uint32_t v) {
+    return sizeof(v);
+  }
+
+  IGB_FAST_INLINE static size_t size(const uint64_t v) {
+    return sizeof(v);
+  }
+
+  IGB_FAST_INLINE static size_t size(const int64_t v) {
+    return sizeof(v);
+  }
+
+  IGB_FAST_INLINE static size_t size(const int32_t v) {
+    return sizeof(v);
+  }
+
+  IGB_FAST_INLINE static size_t size(const float v) {
+    return sizeof(v);
+  }
+
+  IGB_FAST_INLINE static size_t size(const double v) {
+    return sizeof(v);
+  }
+
+
   template<typename T>
   IGB_FAST_INLINE static size_t serialize(uint8_t* buf, const T type) {
     return type.serialize(buf, type.serialized_buf_size);
@@ -124,6 +165,11 @@ struct Serializer {
   template<typename T>
   IGB_FAST_INLINE static size_t deserialize(uint8_t* buf, T& type) {
     return type.deserialize(buf, type.serialized_buf_size);
+  }
+
+  template<typename T>
+  IGB_FAST_INLINE static size_t size(T& type) {
+    return type.serialized_buf_size;
   }
 };
 
