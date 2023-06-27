@@ -30,6 +30,8 @@ struct RandomXorshift {
   }
 };
 
+extern RandomXorshift random;
+
 }
 
 #endif /* IGB_UTIL_RANDOM_H */
