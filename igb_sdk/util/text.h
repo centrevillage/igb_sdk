@@ -1,3 +1,5 @@
+// DEPRECATED:
+// TODO: change to a c++ header only file
 #ifndef IGB_SDK_UTIL_TEXT_H
 #define IGB_SDK_UTIL_TEXT_H
 
