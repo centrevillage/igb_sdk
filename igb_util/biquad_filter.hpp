@@ -6,10 +6,11 @@
 #include <cmath>
 #include <igb_util/algorithm.hpp>
 #include <igb_util/math.hpp>
+#include <igb_util/dsp_tbl_func.hpp>
 
 namespace igb {
 
-template<uint32_t sampling_rate>
+template<uint32_t sampling_rate, bool use_dsp_tbl = false>
 struct BiQuadFilter {
   struct Context {
     float x1 = 0.0f;
@@ -24,6 +25,27 @@ struct BiQuadFilter {
   float b1 = 0.0f;
   float b2 = 0.0f;
 
+  inline static float freq2w0(float freq) {
+    if (use_dsp_tbl) {
+      return freq / (float)sampling_rate;
+    }
+    return 2.0f * (float)igb::numbers::pi * freq / (float)sampling_rate;
+  }
+
+  inline static float _cos_w0(float w0) {
+    if (use_dsp_tbl) {
+      return igb::dsp_cos(w0);
+    }
+    return std::cos(w0);
+  }
+
+  inline static float _sin_w0(float w0) {
+    if (use_dsp_tbl) {
+      return igb::dsp_sin(w0);
+    }
+    return std::sin(w0);
+  }
+
   //LPF:  H(s) = 1 / (s^2 + s/Q + 1)
   //            b0 =  (1 - cos(w0))/2
   //            b1 =   1 - cos(w0)
@@ -32,9 +54,9 @@ struct BiQuadFilter {
   //            a1 =  -2*cos(w0)
   //            a2 =   1 - alpha
   void lpf(float freq, float q) {
-    float w0 = 2.0f * (float)igb::numbers::pi * freq / (float)sampling_rate;
-    float cos_w0 = std::cos(w0);
-    float sin_w0 = std::sin(w0);
+    float w0 = freq2w0(freq);
+    float cos_w0 = _cos_w0(w0);
+    float sin_w0 = _sin_w0(w0);
     float alpha = sin_w0 / (2.0f * q);
     float a0 = 1.0f + alpha;
     b1 = (1.0f - cos_w0) / a0;
@@ -51,9 +73,9 @@ struct BiQuadFilter {
   //            a1 =  -2*cos(w0)
   //            a2 =   1 - alpha
   void hpf(float freq, float q) {
-    float w0 = 2.0f * (float)igb::numbers::pi * freq / (float)sampling_rate;
-    float cos_w0 = std::cos(w0);
-    float sin_w0 = std::sin(w0);
+    float w0 = freq2w0(freq);
+    float cos_w0 = _cos_w0(w0);
+    float sin_w0 = _sin_w0(w0);
     float alpha = sin_w0 / (2.0f * q);
     float a0 = 1.0f + alpha;
     b1 = -(1.0f + cos_w0) / a0;
@@ -72,9 +94,9 @@ struct BiQuadFilter {
   //            a1 =  -2*cos(w0)
   //            a2 =   1 - alpha
   void bpf(float freq, float q) {
-    float w0 = 2.0f * (float)igb::numbers::pi * freq / (float)sampling_rate;
-    float cos_w0 = std::cos(w0);
-    float sin_w0 = std::sin(w0);
+    float w0 = freq2w0(freq);
+    float cos_w0 = _cos_w0(w0);
+    float sin_w0 = _sin_w0(w0);
     float alpha = sin_w0 / (2.0f * q);
     float a0 = 1.0f + alpha;
     b1 = 0;
@@ -94,9 +116,9 @@ struct BiQuadFilter {
   //            a1 =  -2*cos(w0)
   //            a2 =   1 - alpha
   void bpf_0db_peak(float freq, float q) {
-    float w0 = 2.0f * (float)igb::numbers::pi * freq / (float)sampling_rate;
-    float cos_w0 = std::cos(w0);
-    float sin_w0 = std::sin(w0);
+    float w0 = freq2w0(freq);
+    float cos_w0 = _cos_w0(w0);
+    float sin_w0 = _sin_w0(w0);
     float alpha = sin_w0 / (2.0f * q);
     float a0 = 1.0f + alpha;
     b1 = 0;
@@ -114,9 +136,9 @@ struct BiQuadFilter {
   //            a1 =  -2*cos(w0)
   //            a2 =   1 - alpha
   void notch(float freq, float q) {
-    float w0 = 2.0f * (float)igb::numbers::pi * freq / (float)sampling_rate;
-    float cos_w0 = std::cos(w0);
-    float sin_w0 = std::sin(w0);
+    float w0 = freq2w0(freq);
+    float cos_w0 = _cos_w0(w0);
+    float sin_w0 = _sin_w0(w0);
     float alpha = sin_w0 / (2.0f * q);
     float a0 = 1.0f + alpha;
     b0 = b2 = 1.0f / a0;
@@ -133,9 +155,9 @@ struct BiQuadFilter {
   //            a1 =  -2*cos(w0)
   //            a2 =   1 - alpha
   void apf(float freq , float q) {
-    float w0 = 2.0f * (float)igb::numbers::pi * freq / (float)sampling_rate;
-    float cos_w0 = std::cos(w0);
-    float sin_w0 = std::sin(w0);
+    float w0 = freq2w0(freq);
+    float cos_w0 = _cos_w0(w0);
+    float sin_w0 = _sin_w0(w0);
     float alpha = sin_w0 / (2.0f * q);
     float a0 = 1.0f + alpha;
     b0 = (1.0f - alpha) / a0;
@@ -154,10 +176,10 @@ struct BiQuadFilter {
   //            a1 =  -2*cos(w0)
   //            a2 =   1 - alpha/A
   void peakingEq(float freq, float q, float gain) {
+    float w0 = freq2w0(freq);
     float amp = std::pow(10.0f, gain / 40.0f);
-    float w0 = 2.0f * (float)igb::numbers::pi * freq / (float)sampling_rate;
-    float cos_w0 = std::cos(w0);
-    float sin_w0 = std::sin(w0);
+    float cos_w0 = _cos_w0(w0);
+    float sin_w0 = _sin_w0(w0);
     float alpha = sin_w0 / (2.0f * q);
     float a0 = 1.0f + alpha / amp;
     b0 = (1.0f + alpha * amp) / a0;
@@ -178,9 +200,9 @@ struct BiQuadFilter {
   //            a2 =        (A+1) + (A-1)*cos(w0) - 2*sqrt(A)*alpha
   void lowShelf(float freq, float q, float gain) {
     float amp = std::pow(10.0f, gain / 40.0f);
-    float w0 = 2.0f * (float)igb::numbers::pi * freq / (float)sampling_rate;
-    float cos_w0 = std::cos(w0);
-    float sin_w0 = std::sin(w0);
+    float w0 = freq2w0(freq);
+    float cos_w0 = _cos_w0(w0);
+    float sin_w0 = _sin_w0(w0);
     float alpha = sin_w0 / (2.0f * q);
     float sqrt_amp = std::sqrt(amp);
     float a0 = (amp + 1.0f) + (amp - 1.0f) * cos_w0 + 2.0f * sqrt_amp * alpha;
@@ -202,9 +224,9 @@ struct BiQuadFilter {
   //            a2 =        (A+1) - (A-1)*cos(w0) - 2*sqrt(A)*alpha
   void highShelf(float freq, float q, float gain) {
     float amp = std::pow(10.0f, gain / 40.0f);
-    float w0 = 2.0f * (float)igb::numbers::pi * freq / (float)sampling_rate;
-    float cos_w0 = std::cos(w0);
-    float sin_w0 = std::sin(w0);
+    float w0 = freq2w0(freq);
+    float cos_w0 = _cos_w0(w0);
+    float sin_w0 = _sin_w0(w0);
     float alpha = sin_w0 / (2.0f * q);
     float sqrt_amp = std::sqrt(amp);
     float a0 = (amp + 1.0f) + (amp - 1.0f) * cos_w0 + 2.0f * sqrt_amp * alpha;

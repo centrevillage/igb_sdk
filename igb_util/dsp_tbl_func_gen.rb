@@ -39,7 +39,7 @@ const float dsp_func_sinusoid_tbl[] = {
     EOS
     sample_size.times do |i|
       file.puts <<-EOS
-  #{'%.20f' % sinusoid(i.to_f / (sample_size-1).to_f)},
+  #{'%.20f' % sinusoid(i.to_f / sample_size.to_f)},
       EOS
     end
     file.puts <<-EOS

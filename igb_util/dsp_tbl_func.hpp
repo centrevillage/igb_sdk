@@ -20,7 +20,7 @@ extern const float dsp_func_exp_tbl[dsp_func_tbl_size];
 extern const float dsp_func_perlin_5order_tbl[dsp_func_tbl_size];
 
 IGB_FAST_INLINE float dsp_read_tbl(const float* tbl, float x /* 0.0 ~ 1.0 */) {
-  x -= (uint32_t)x;
+  x -= (int32_t)x;
   if (x < 0.0f) {
     x += 1.0f;
   }
@@ -39,7 +39,7 @@ IGB_FAST_INLINE float dsp_read_tbl(const float* tbl, float x /* 0.0 ~ 1.0 */) {
 }
 
 IGB_FAST_INLINE float dsp_read_tbl_cyclic(const float* tbl, float x /* 0.0 ~ 1.0 */) {
-  x -= (uint32_t)x;
+  x -= (int32_t)x;
   if (x < 0.0f) {
     x += 1.0f;
   }
@@ -55,7 +55,7 @@ IGB_FAST_INLINE float dsp_read_tbl_cyclic(const float* tbl, float x /* 0.0 ~ 1.0
 }
 
 IGB_FAST_INLINE float dsp_read_tbl_fast(const float* tbl, float x /* 0.0 ~ 1.0 */) {
-  x -= (uint32_t)x;
+  x -= (int32_t)x;
   if (x < 0.0f) {
     x += 1.0f;
   }
@@ -65,6 +65,9 @@ IGB_FAST_INLINE float dsp_read_tbl_fast(const float* tbl, float x /* 0.0 ~ 1.0 *
 
 IGB_FAST_INLINE float dsp_sin(float x /* 0.0 ~ 1.0 */) {
   return dsp_read_tbl_cyclic(dsp_func_sinusoid_tbl, x);
+}
+IGB_FAST_INLINE float dsp_cos(float x /* 0.0 ~ 1.0 */) {
+  return dsp_read_tbl_cyclic(dsp_func_sinusoid_tbl, x + 0.25f);
 }
 IGB_FAST_INLINE float dsp_sigmoid(float x) {
   return dsp_read_tbl(dsp_func_sigmoid_tbl, x);
@@ -85,6 +88,9 @@ IGB_FAST_INLINE float dsp_perlin_5order(float x /* -1.0 ~ 1.0 */) {
 }
 IGB_FAST_INLINE float dsp_sin_fast(float x /* 0.0 ~ 1.0 */) {
   return dsp_read_tbl_fast(dsp_func_sinusoid_tbl, x);
+}
+IGB_FAST_INLINE float dsp_cos_fast(float x /* 0.0 ~ 1.0 */) {
+  return dsp_read_tbl_fast(dsp_func_sinusoid_tbl, x + 0.25f);
 }
 IGB_FAST_INLINE float dsp_sigmoid_fast(float x) {
   return dsp_read_tbl_fast(dsp_func_sigmoid_tbl, x);
