@@ -9,7 +9,7 @@
 namespace igb {
 namespace sdk {
 
-template<typename SPI_TYPE, typename GPIO_PIN_TYPE, typename WAIT_FUNC = NullFunctor>
+template<typename SPI_TYPE, typename GPIO_PIN_TYPE, uint8_t address_size = 24, typename WAIT_FUNC = NullFunctor>
 struct FramMb85rSPI {
   SPI_TYPE spi;
   GPIO_PIN_TYPE cs_pin;
@@ -110,8 +110,15 @@ struct FramMb85rSPI {
   inline void _processRead() {
     cs_pin.low();
     _writeByte(FRAM_CMD_READ);
-    _writeByte((_ram_address >> 16) & 0xFF);
-    _writeByte((_ram_address >> 8) & 0xFF);
+    if (address_size > 24) {
+      _writeByte((_ram_address >> 24) & 0xFF);
+    }
+    if (address_size > 16) {
+      _writeByte((_ram_address >> 16) & 0xFF);
+    }
+    if (address_size > 8) {
+      _writeByte((_ram_address >> 8) & 0xFF);
+    }
     _writeByte(_ram_address & 0xFF);
     for (size_t i=0; i<block_size && _ram_buf_index < _ram_buf_size; ++i) {
       _ram_target_buf[_ram_buf_index++] = _readByte();
@@ -133,8 +140,15 @@ struct FramMb85rSPI {
 
     cs_pin.low();
     _writeByte(FRAM_CMD_WRITE);
-    _writeByte((_ram_address >> 16) & 0xFF);
-    _writeByte((_ram_address >> 8) & 0xFF);
+    if (address_size > 24) {
+      _writeByte((_ram_address >> 24) & 0xFF);
+    }
+    if (address_size > 16) {
+      _writeByte((_ram_address >> 16) & 0xFF);
+    }
+    if (address_size > 8) {
+      _writeByte((_ram_address >> 8) & 0xFF);
+    }
     _writeByte(_ram_address & 0xFF);
 
     for (size_t i=0; i<block_size && _ram_buf_index < _ram_buf_size; ++i) {
