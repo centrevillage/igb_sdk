@@ -20,4 +20,27 @@
 #define IGB_SET_BIT(REG, BIT)     ((REG) = (REG) | (BIT))
 #define IGB_MODIFY_REG(REG, CLEARMASK, SETMASK) (REG = ((IGB_READ_REG(REG)) & (~(CLEARMASK))) | (SETMASK))
 
+// David Mazières FOR_EACH implementation
+// from: https://www.scs.stanford.edu/~dm/blog/va-opt.html
+#define IGB_PARENS ()
+// Rescan macro tokens 256 times
+#define IGB_EXPAND(arg) IGB_EXPAND1(IGB_EXPAND1(IGB_EXPAND1(IGB_EXPAND1(arg))))
+#define IGB_EXPAND1(arg) IGB_EXPAND2(IGB_EXPAND2(IGB_EXPAND2(IGB_EXPAND2(arg))))
+#define IGB_EXPAND2(arg) IGB_EXPAND3(IGB_EXPAND3(IGB_EXPAND3(IGB_EXPAND3(arg))))
+#define IGB_EXPAND3(arg) IGB_EXPAND4(IGB_EXPAND4(IGB_EXPAND4(IGB_EXPAND4(arg))))
+#define IGB_EXPAND4(arg) arg
+#define IGB_FOR_EACH(macro, ...) \
+  __VA_OPT__(IGB_EXPAND(IGB_FOR_EACH_HELPER(macro, __VA_ARGS__)))
+#define IGB_FOR_EACH_HELPER(macro, a1, ...) \
+  macro(a1) \
+  __VA_OPT__(IGB_FOR_EACH_AGAIN IGB_PARENS (macro, __VA_ARGS__))
+#define IGB_FOR_EACH_AGAIN() IGB_FOR_EACH_HELPER
+
+#define IGB_FOR_EACH_WITH_IDX(macro, ...) \
+  __VA_OPT__(IGB_EXPAND(IGB_FOR_EACH_WITH_IDX_HELPER(macro, 0, __VA_ARGS__)))
+#define IGB_FOR_EACH_WITH_IDX_HELPER(macro, idx, a1, ...) \
+  macro(a1, idx) \
+  __VA_OPT__(IGB_FOR_EACH_WITH_IDX_AGAIN IGB_PARENS (macro, (idx+1), __VA_ARGS__))
+#define IGB_FOR_EACH_WITH_IDX_AGAIN() IGB_FOR_EACH_WITH_IDX_HELPER
+
 #endif /* IGB_STM32_UTIL_MACRO_H */
