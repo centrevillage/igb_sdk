@@ -22,7 +22,7 @@ struct MemAccessor {
     uint32_t mem_address;
     size_t buf_size;
     std::function<size_t(uint8_t* buf, size_t size)> serialize_func = [](uint8_t* buf, size_t size){ return 0; };
-    std::function<void(void)> complete_func = [](){};
+    std::function<void(void)> complete_func = nullptr;
   };
 
   RingBuf<ReqInfo, request_buf_size> requests;
@@ -45,12 +45,16 @@ struct MemAccessor {
 
           memory.requestRead(buf, r.buf_size, r.mem_address, [this, &r](){
             r.serialize_func(buf, data_buf_size);
-            r.complete_func();
+            if (r.complete_func) {
+              r.complete_func();
+            }
           });
         } else { // write
           r.serialize_func(buf, data_buf_size);
           memory.requestWrite(buf, r.buf_size, r.mem_address, [this, &r](){
-            r.complete_func();
+            if (r.complete_func) {
+              r.complete_func();
+            }
           });
         }
       }
