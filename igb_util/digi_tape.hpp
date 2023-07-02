@@ -97,7 +97,7 @@ struct DigiTapeStereo {
   double pos = 0.0;
   double tape_head_read_pos = 16.0;
 
-  std::pair<float, float> dummy_buf = std::make_pair(0.0f, 0.0f);
+  std::pair<float, float> dummy_buf = {0.0f, 0.0f};
   std::pair<float, float>* buf = nullptr;
   size_t tape_size = 1;
 
@@ -179,7 +179,7 @@ struct DigiTapeStereo {
 
     std::pair<float, float> v1 = *(buf + read_pos_u32);
     std::pair<float, float> v2 = *(buf + read_pos_u32_next);
-    return std::make_pair<float, float>(v1.first * (1.0 - pos_frac) + v2.first * pos_frac, v1.second * (1.0 - pos_frac) + v2.second * pos_frac);
+    return {v1.first * (1.0 - pos_frac) + v2.first * pos_frac, v1.second * (1.0 - pos_frac) + v2.second * pos_frac};
   }
 };
 
