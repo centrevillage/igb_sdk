@@ -1,5 +1,4 @@
-#ifndef IGB_SDK_UTIL_MIDI_STM32_H
-#define IGB_SDK_UTIL_MIDI_STM32_H
+#pragma once
 
 
 #include <optional>
@@ -145,4 +144,3 @@ struct MidiStm32 {
 }
 }
 
-#endif /* IGB_SDK_UTIL_MIDI_STM32_H */

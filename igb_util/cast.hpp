@@ -1,5 +1,4 @@
-#ifndef IGB_UTIL_CAST_H
-#define IGB_UTIL_CAST_H
+#pragma once
 
 #include <type_traits>
 
@@ -14,4 +13,3 @@ namespace igb {
   }
 }
 
-#endif /* IGB_UTIL_CAST_H */

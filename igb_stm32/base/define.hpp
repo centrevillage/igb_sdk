@@ -1,5 +1,4 @@
-#ifndef IGB_STM32_BASE_DEFINE_H
-#define IGB_STM32_BASE_DEFINE_H
+#pragma once
 
 /* #!ruby
 %W(
@@ -727,4 +726,3 @@ end
 #define ADC_COMMON ADC1_COMMON
 #endif
 
-#endif /* IGB_STM32_BASE_DEFINE_H */

@@ -1,5 +1,4 @@
-#ifndef IGB_UTIL_DYNAMIC_REG_H
-#define IGB_UTIL_DYNAMIC_REG_H
+#pragma once
 
 namespace igb {
 
@@ -223,4 +222,3 @@ struct DRegEnumWO {
 
 }
 
-#endif /* IGB_UTIL_DYNAMIC_REG_H */

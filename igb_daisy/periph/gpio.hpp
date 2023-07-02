@@ -1,5 +1,4 @@
-#ifndef IGB_DAISY_PERIPH_GPIO_H
-#define IGB_DAISY_PERIPH_GPIO_H
+#pragma once
 
 #include <igb_util/macro.hpp>
 #include <igb_stm32/base/mcu/stm32h750xx.hpp>
@@ -46,4 +45,3 @@ constexpr IGB_FAST_INLINE stm32::GpioPinType daisy_pin_to_stm32_pin(DaisyGpioPin
 
 }
 
-#endif /* IGB_DAISY_PERIPH_GPIO_H */

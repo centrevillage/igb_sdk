@@ -1,5 +1,4 @@
-#ifndef IGB_UTIL_REG_H
-#define IGB_UTIL_REG_H
+#pragma once
 
 #include <igb_util/macro.hpp>
 
@@ -247,4 +246,3 @@ struct RegEnumWO {
 
 }
 
-#endif /* IGB_UTIL_REG_H */

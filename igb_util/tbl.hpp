@@ -1,5 +1,4 @@
-#ifndef IGB_UTIL_TBL_H
-#define IGB_UTIL_TBL_H
+#pragma once
 
 #include <cstdint>
 
@@ -10,4 +9,3 @@ extern const uint32_t euclid_tbl_32[32];
 }
 
 
-#endif /* IGB_UTIL_TBL_H */

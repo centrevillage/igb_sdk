@@ -1,5 +1,4 @@
-#ifndef IGB_STM32_PERIPH_SYSTICK_H
-#define IGB_STM32_PERIPH_SYSTICK_H
+#pragma once
 
 #include <igb_stm32/base.hpp>
 #include <igb_util/cast.hpp>
@@ -110,4 +109,3 @@ static IGB_FAST_INLINE void delay_msec(uint32_t msec) {
 
 }
 
-#endif /* IGB_STM32_PERIPH_SYSTICK_H */

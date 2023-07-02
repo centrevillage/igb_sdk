@@ -1,5 +1,4 @@
-#ifndef IGB_STM32_PERIPH_FLASH_H
-#define IGB_STM32_PERIPH_FLASH_H
+#pragma once
 
 #include <igb_stm32/base.hpp>
 #include <igb_util/macro.hpp>
@@ -96,4 +95,3 @@ struct FlashCtrl {
 }
 }
 
-#endif /* IGB_STM32_PERIPH_FLASH_H */

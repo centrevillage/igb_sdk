@@ -1,5 +1,4 @@
-#ifndef IGB_STM32_BASE_MCU_H
-#define IGB_STM32_BASE_MCU_H
+#pragma once
 
 #include <igb_stm32/base/define.hpp>
 #include <igb_util/macro.hpp>
@@ -14,4 +13,3 @@
 
 #include STM32_BASE_MCU_HPP_FILE(STM32_MCU)
 
-#endif /* IGB_STM32_BASE_MCU_H */

@@ -1,5 +1,4 @@
-#ifndef IGB_DAISY_PERIPH_I2C_H
-#define IGB_DAISY_PERIPH_I2C_H
+#pragma once
 
 #include <igb_stm32/base/mcu/stm32h750xx.hpp>
 #include <igb_stm32/periph/i2c.hpp>
@@ -14,4 +13,3 @@ typedef stm32::I2c<
   > DaisyI2c;
 }
 
-#endif /* IGB_DAISY_PERIPH_I2C_H */

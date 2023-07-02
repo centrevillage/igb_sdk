@@ -1,5 +1,4 @@
-#ifndef IGB_UTIL_CONVERSION_H
-#define IGB_UTIL_CONVERSION_H
+#pragma once
 
 #include <igb_util/macro.hpp>
 #include <functional>
@@ -20,4 +19,3 @@ IGB_FAST_INLINE auto create_bits(auto&& container, auto&& f) {
 
 }
 
-#endif /* IGB_UTIL_CONVERSION_H */

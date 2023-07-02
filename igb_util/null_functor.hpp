@@ -1,5 +1,4 @@
-#ifndef IGB_UTIL_NULL_FUNCTOR_H
-#define IGB_UTIL_NULL_FUNCTOR_H
+#pragma once
 
 namespace igb {
 
@@ -9,4 +8,3 @@ struct NullFunctor {
 
 }
 
-#endif /* IGB_UTIL_NULL_FUNCTOR_H */

@@ -1,5 +1,4 @@
-#ifndef IGB_SDK_DEVICE_MULTIPLEXED_ADC_HPP
-#define IGB_SDK_DEVICE_MULTIPLEXED_ADC_HPP
+#pragma once
 
 #include <array>
 #include <functional>
@@ -129,4 +128,3 @@ struct MultiplexedAdc {
 }
 
 
-#endif /* IGB_SDK_DEVICE_MULTIPLEXED_ADC_HPP */

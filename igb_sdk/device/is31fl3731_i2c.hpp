@@ -1,5 +1,4 @@
-#ifndef IGB_SDK_DEVICE_IS31FL3731_I2C_H
-#define IGB_SDK_DEVICE_IS31FL3731_I2C_H
+#pragma once
 
 #include <igb_sdk/base.hpp>
 #include <igb_util/ring_buf.hpp>
@@ -183,4 +182,3 @@ struct Is31Fl3731I2c {
 }
 }
 
-#endif /* IGB_SDK_DEVICE_IS31FL3731_I2C_H */

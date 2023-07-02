@@ -1,5 +1,4 @@
-#ifndef IGB_STM32_UTIL_MACRO_H
-#define IGB_STM32_UTIL_MACRO_H
+#pragma once
 
 #define UNWRAP(id) id
 
@@ -47,4 +46,3 @@
 #define IGB_ARG_COUNT(...) \
   (IGB_FOR_EACH(IGB_PLUS_ONE, __VA_ARGS__))
 
-#endif /* IGB_STM32_UTIL_MACRO_H */

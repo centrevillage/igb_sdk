@@ -1,5 +1,4 @@
-#ifndef IGB_SDK_DEVICE_OLED_SSD1306_H
-#define IGB_SDK_DEVICE_OLED_SSD1306_H
+#pragma once
 
 #include <igb_stm32/periph/systick.hpp>
 #include <igb_sdk/base.hpp>
@@ -222,4 +221,3 @@ struct OledSsd1306 {
 }
 }
 
-#endif /* IGB_SDK_DEVICE_OLED_SSD1306_H */

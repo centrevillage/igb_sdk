@@ -1,5 +1,4 @@
-#ifndef IGB_UTIL_RING_BUF_H
-#define IGB_UTIL_RING_BUF_H
+#pragma once
 
 #include <optional>
 #include <igb_util/macro.hpp>
@@ -80,4 +79,3 @@ struct RingBuf256 {
 
 }
 
-#endif /* IGB_UTIL_RING_BUF_H */

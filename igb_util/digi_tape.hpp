@@ -1,5 +1,4 @@
-#ifndef IGB_UTIL_DIGI_TAPE_H
-#define IGB_UTIL_DIGI_TAPE_H
+#pragma once
 
 #include <cstdint>
 #include <cstddef>
@@ -186,4 +185,3 @@ struct DigiTapeStereo {
 
 }
 
-#endif /* IGB_UTIL_DIGI_TAPE_H */

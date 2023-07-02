@@ -1,5 +1,4 @@
-#ifndef IGB_UTIL_BITMAGIC_H
-#define IGB_UTIL_BITMAGIC_H
+#pragma once
 
 #include <igb_util/macro.hpp>
 
@@ -62,4 +61,3 @@ static IGB_FAST_INLINE auto reset_most_right1(auto bits) -> decltype(bits) {
 
 }
 
-#endif /* IGB_UTIL_BITMAGIC_H */

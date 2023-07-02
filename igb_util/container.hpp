@@ -1,5 +1,4 @@
-#ifndef IGB_UTIL_CONTAINER_H
-#define IGB_UTIL_CONTAINER_H
+#pragma once
 
 namespace igb {
 
@@ -77,4 +76,3 @@ public:
 
 }
 
-#endif /* IGB_UTIL_CONTAINER_H */

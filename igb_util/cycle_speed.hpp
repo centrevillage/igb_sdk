@@ -1,5 +1,4 @@
-#ifndef IGB_UTIL_CYCLE_SPEED_H
-#define IGB_UTIL_CYCLE_SPEED_H
+#pragma once
 
 #include <cstdint>
 #include <igb_util/macro.hpp>
@@ -25,4 +24,3 @@ IGB_FAST_INLINE float cycle_speed_pitch_to_delta_f(float pitch_oct_v, uint32_t o
 
 }
 
-#endif /* IGB_UTIL_CYCLE_SPEED_H */

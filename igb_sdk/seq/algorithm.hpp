@@ -1,5 +1,4 @@
-#ifndef IGB_SDK_SEQ_ALGORITHM_H
-#define IGB_SDK_SEQ_ALGORITHM_H
+#pragma once
 
 namespace igb {
 namespace sdk {
@@ -68,4 +67,3 @@ struct SeqForwardAlgorithm {
 }
 }
 
-#endif /* IGB_SDK_SEQ_ALGORITHM_H */

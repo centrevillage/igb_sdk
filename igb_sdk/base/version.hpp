@@ -1,5 +1,4 @@
-#ifndef IGB_SDK_BASE_VERSION_H
-#define IGB_SDK_BASE_VERSION_H
+#pragma once
 
 #define IGB_SDK_VERSION 0
 
@@ -11,4 +10,3 @@ namespace sdk {
 }
 }
 
-#endif /* IGB_SDK_BASE_VERSION_H */

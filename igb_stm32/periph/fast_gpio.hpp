@@ -1,5 +1,4 @@
-#ifndef IGB_STM32_PERIPH_FAST_GPIO_H
-#define IGB_STM32_PERIPH_FAST_GPIO_H
+#pragma once
 
 #include <tuple>
 #include <igb_stm32/periph/gpio.hpp>
@@ -405,4 +404,3 @@ struct FastGpioPin {
 }
 
 
-#endif /* IGB_STM32_PERIPH_FAST_GPIO_H */

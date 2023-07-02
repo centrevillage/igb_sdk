@@ -1,5 +1,4 @@
-#ifndef IGB_STM32_PERIPH_I2C_H
-#define IGB_STM32_PERIPH_I2C_H
+#pragma once
 
 #include <stddef.h>
 #include <optional>
@@ -496,4 +495,3 @@ struct I2c {
 } /* stm32 */
 } /* igb */
 
-#endif /* IGB_STM32_PERIPH_I2C_H */

@@ -1,5 +1,4 @@
-#ifndef IGB_UTIL_FOR_EACH_H
-#define IGB_UTIL_FOR_EACH_H
+#pragma once
 
 #include <tuple>
 
@@ -16,4 +15,3 @@ void for_each_tuple(const T& tuple_val, auto&& func) {
 
 }
 
-#endif /* IGB_UTIL_FOR_EACH_H */

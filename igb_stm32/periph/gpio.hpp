@@ -1,5 +1,4 @@
-#ifndef IGB_STM32_PERIPH_GPIO_H
-#define IGB_STM32_PERIPH_GPIO_H
+#pragma once
 
 #include <igb_stm32/base.hpp>
 #include <igb_stm32/periph/syscfg.hpp>
@@ -299,4 +298,3 @@ struct GpioPin {
 } // namespace stm32
 } // namespace igb
 
-#endif /* IGB_STM32_PERIPH_GPIO_H */

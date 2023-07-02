@@ -1,5 +1,4 @@
-#ifndef IGB_SDK_UTIL_SOFT_TIMER_H
-#define IGB_SDK_UTIL_SOFT_TIMER_H
+#pragma once
 
 #include <igb_sdk/base.hpp>
 #include <array>
@@ -109,4 +108,3 @@ struct SoftTimer {
 }
 }
 
-#endif /* IGB_SDK_UTIL_SOFT_TIMER_H */

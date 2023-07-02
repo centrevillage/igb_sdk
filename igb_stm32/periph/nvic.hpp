@@ -1,5 +1,4 @@
-#ifndef IGB_STM32_PERIPH_NVIC_H
-#define IGB_STM32_PERIPH_NVIC_H
+#pragma once
 
 #include <igb_stm32/base.hpp>
 
@@ -123,4 +122,3 @@ struct NvicIrqn {
 }
 }
 
-#endif /* IGB_STM32_PERIPH_NVIC_H */

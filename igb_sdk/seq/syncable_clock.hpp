@@ -1,5 +1,4 @@
-#ifndef IGB_SDK_SEQ_SYNCABLE_CLOCK_H
-#define IGB_SDK_SEQ_SYNCABLE_CLOCK_H
+#pragma once
 
 #include <functional>
 #include <numeric>
@@ -370,4 +369,3 @@ struct SeqSyncableClock {
 }
 
 
-#endif /* IGB_SDK_SEQ_SYNCABLE_CLOCK_H */

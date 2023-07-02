@@ -1,5 +1,4 @@
-#ifndef IGB_SDK_UI_TOUCH_H
-#define IGB_SDK_UI_TOUCH_H
+#pragma once
 
 #include <igb_sdk/base.hpp>
 #include <igb_util/cast.hpp>
@@ -203,4 +202,3 @@ using TouchRot3DialWithCenterAbs = TouchClippedValue<TouchRot3DialWithCenter, TO
 }
 }
 
-#endif /* IGB_SDK_UI_TOUCH_H */

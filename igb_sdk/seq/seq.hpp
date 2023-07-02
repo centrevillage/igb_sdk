@@ -1,5 +1,4 @@
-#ifndef IGB_SDK_SEQ_SEQ_H
-#define IGB_SDK_SEQ_SEQ_H
+#pragma once
 
 #include <igb_sdk/base.hpp>
 #include <array>
@@ -236,4 +235,3 @@ struct SyncSequencer {
 }
 }
 
-#endif /* IGB_SDK_SEQ_SEQ_H */

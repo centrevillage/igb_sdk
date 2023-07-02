@@ -1,5 +1,4 @@
-#ifndef IGB_IDK_UI_LED_H
-#define IGB_IDK_UI_LED_H
+#pragma once
 
 #include <igb_sdk/base.hpp>
 #include <array>
@@ -72,4 +71,3 @@ struct LedMatrix {
 } // sdk
 } // igb
 
-#endif /* IGB_IDK_UI_LED_H */

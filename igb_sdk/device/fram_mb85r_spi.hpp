@@ -1,5 +1,4 @@
-#ifndef IGB_SDK_DEVICE_FRAM_MB85R_SPI_H
-#define IGB_SDK_DEVICE_FRAM_MB85R_SPI_H
+#pragma once
 
 #include <igb_sdk/base.hpp>
 #include <functional>
@@ -168,4 +167,3 @@ struct FramMb85rSPI {
 }
 }
 
-#endif /* IGB_SDK_DEVICE_FRAM_MB85R_SPI_H */

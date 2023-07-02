@@ -1,5 +1,4 @@
-#ifndef IGB_UTIL_DELAY_LINE_H
-#define IGB_UTIL_DELAY_LINE_H
+#pragma once
 
 #include <cstdint>
 #include <cstddef>
@@ -47,4 +46,3 @@ struct DelayLine {
 
 }
 
-#endif /* IGB_UTIL_DELAY_LINE_H */

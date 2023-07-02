@@ -1,5 +1,4 @@
-#ifndef IGB_STM32_PERIPH_ADC_H
-#define IGB_STM32_PERIPH_ADC_H
+#pragma once
 
 #include <stddef.h>
 
@@ -801,4 +800,3 @@ struct Adc {
 }
 }
 
-#endif /* IGB_STM32_PERIPH_ADC_H */

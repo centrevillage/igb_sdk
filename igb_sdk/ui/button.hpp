@@ -1,5 +1,4 @@
-#ifndef IGB_SDK_UI_BUTTON_H
-#define IGB_SDK_UI_BUTTON_H
+#pragma once
 
 #include <igb_sdk/base.hpp>
 #include <array>
@@ -109,4 +108,3 @@ struct ButtonMatrix {
 } // sdk
 } // igb
 
-#endif /* IGB_SDK_UI_BUTTON_H */

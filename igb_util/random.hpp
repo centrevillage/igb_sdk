@@ -1,5 +1,4 @@
-#ifndef IGB_UTIL_RANDOM_H
-#define IGB_UTIL_RANDOM_H
+#pragma once
 
 #include <cstdint>
 
@@ -34,4 +33,3 @@ extern RandomXorshift random;
 
 }
 
-#endif /* IGB_UTIL_RANDOM_H */

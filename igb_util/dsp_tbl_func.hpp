@@ -1,5 +1,4 @@
-#ifndef IGB_UTIL_DSP_TBL_FUNC_H
-#define IGB_UTIL_DSP_TBL_FUNC_H
+#pragma once
 
 #include <cstdint>
 #include <igb_util/macro.hpp>
@@ -112,4 +111,3 @@ IGB_FAST_INLINE float dsp_perlin_5order_fast(float x /* -1.0 ~ 1.0 */) {
 
 }
 
-#endif /* IGB_UTIL_DSP_TBL_FUNC_H */

@@ -1,5 +1,4 @@
-#ifndef IGB_STM32_PERIPH_DAC_H
-#define IGB_STM32_PERIPH_DAC_H
+#pragma once
 
 #include <stddef.h>
 
@@ -198,4 +197,3 @@ struct Dac {
 }
 }
 
-#endif /* IGB_STM32_PERIPH_DAC_H */

@@ -1,5 +1,4 @@
-#ifndef IGB_STM32_PERIPH_TIM_H
-#define IGB_STM32_PERIPH_TIM_H
+#pragma once
 
 #include <tuple>
 
@@ -405,4 +404,3 @@ struct Tim {
 } // namespace stm32
 } // namespace igb
 
-#endif /* IGB_STM32_PERIPH_TIM_H */

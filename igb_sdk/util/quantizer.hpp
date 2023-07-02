@@ -1,5 +1,4 @@
-#ifndef IGB_SDK_UTIL_QUANTIZER_H
-#define IGB_SDK_UTIL_QUANTIZER_H
+#pragma once
 
 #include <stdint.h>
 #include <algorithm>
@@ -75,4 +74,3 @@ struct ScaleQuantizer {
 }
 }
 
-#endif /* IGB_SDK_UTIL_QUANTIZER_H */

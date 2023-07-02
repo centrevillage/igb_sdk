@@ -1,5 +1,4 @@
-#ifndef IGB_DAISY_PERIPH_SPI_H
-#define IGB_DAISY_PERIPH_SPI_H
+#pragma once
 
 
 #include <igb_stm32/base/mcu/stm32h750xx.hpp>
@@ -17,4 +16,3 @@ typedef stm32::Spi<
 
 }
 
-#endif /* IGB_DAISY_PERIPH_SPI_H */

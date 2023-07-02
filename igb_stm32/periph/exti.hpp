@@ -1,5 +1,4 @@
-#ifndef IGB_STM32_PERIPH_EXTI_H
-#define IGB_STM32_PERIPH_EXTI_H
+#pragma once
 
 #include <igb_stm32/base.hpp>
 #include <igb_stm32/periph/gpio.hpp>
@@ -305,4 +304,3 @@ struct ExtiCtrl {
 }
 }
 
-#endif /* IGB_STM32_PERIPH_EXTI_H */

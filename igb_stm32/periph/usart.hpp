@@ -1,5 +1,4 @@
-#ifndef IGB_STM32_PERIPH_USART_H
-#define IGB_STM32_PERIPH_USART_H
+#pragma once
 
 #include <stddef.h>
 #include <optional>
@@ -514,4 +513,3 @@ struct Usart {
 }
 }
 
-#endif /* IGB_STM32_PERIPH_USART_H */

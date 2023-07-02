@@ -1,5 +1,4 @@
-#ifndef IGB_STM32_PERIPH_DMA_H
-#define IGB_STM32_PERIPH_DMA_H
+#pragma once
 
 #include <igb_stm32/base.hpp>
 #include <igb_util/cast.hpp>
@@ -197,4 +196,3 @@ struct Dma {
 #undef IGB_DMA_REG_ADDR
 #undef IGB_DMA
 
-#endif /* IGB_STM32_PERIPH_DMA_H */

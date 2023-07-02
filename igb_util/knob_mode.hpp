@@ -1,5 +1,4 @@
-#ifndef IGB_UTIL_KNOB_MODE_H
-#define IGB_UTIL_KNOB_MODE_H
+#pragma once
 
 #include <cstdint>
 #include <optional>
@@ -53,4 +52,3 @@ struct KnobMode {
 
 }
 
-#endif /* IGB_UTIL_KNOB_MODE_H */

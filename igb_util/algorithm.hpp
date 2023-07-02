@@ -1,5 +1,4 @@
-#ifndef IGB_UTIL_ALGORITHM_H
-#define IGB_UTIL_ALGORITHM_H
+#pragma once
 
 // std lib algorithm for specific compilers
 
@@ -17,4 +16,3 @@ constexpr T lerp(T a, T b, T t) noexcept {
 
 }
 
-#endif /* IGB_UTIL_ALGORITHM_H */

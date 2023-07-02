@@ -1,5 +1,4 @@
-#ifndef IGB_STM32_PERIPH_SPI_H
-#define IGB_STM32_PERIPH_SPI_H
+#pragma once
 
 #include <igb_stm32/base.hpp>
 #include <igb_util/cast.hpp>
@@ -787,4 +786,3 @@ struct Spi {
 }
 }
 
-#endif /* IGB_STM32_PERIPH_SPI_H */

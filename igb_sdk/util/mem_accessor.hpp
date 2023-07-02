@@ -1,5 +1,4 @@
-#ifndef IGB_SDK_UTIL_MEM_ACCESSOR_H
-#define IGB_SDK_UTIL_MEM_ACCESSOR_H
+#pragma once
 
 #include <functional>
 #include <igb_util/ring_buf.hpp>
@@ -74,4 +73,3 @@ struct MemAccessor {
 }
 }
 
-#endif /* IGB_SDK_UTIL_MEM_ACCESSOR_H */

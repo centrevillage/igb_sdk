@@ -1,5 +1,4 @@
-#ifndef IGB_SDK_UTIL_HARD_TIMER_STM32_H
-#define IGB_SDK_UTIL_HARD_TIMER_STM32_H
+#pragma once
 
 #include <cmath>
 #include <array>
@@ -340,4 +339,3 @@ struct HardCcTimerStm32 {
 }
 }
 
-#endif /* IGB_SDK_UTIL_HARD_TIMER_STM32_H */

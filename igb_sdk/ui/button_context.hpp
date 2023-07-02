@@ -1,5 +1,4 @@
-#ifndef IGB_SDK_UI_BUTTON_CONTEXT_H
-#define IGB_SDK_UI_BUTTON_CONTEXT_H
+#pragma once
 
 #include <functional>
 #include <utility>
@@ -99,4 +98,3 @@ struct ButtonContext {
 }
 }
 
-#endif /* IGB_SDK_UI_BUTTON_CONTEXT_H */

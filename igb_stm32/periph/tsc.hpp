@@ -1,5 +1,4 @@
-#ifndef IGB_STM32_PERIPH_TSC_H
-#define IGB_STM32_PERIPH_TSC_H
+#pragma once
 
 #include <functional>
 #include <igb_stm32/base.hpp>
@@ -637,4 +636,3 @@ struct Tsc {
 }
 }
 
-#endif /* IGB_STM32_PERIPH_TSC_H */

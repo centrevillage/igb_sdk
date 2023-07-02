@@ -1,5 +1,4 @@
-#ifndef IGB_UTIL_VALUE_STABILIZER_H
-#define IGB_UTIL_VALUE_STABILIZER_H
+#pragma once
 
 namespace igb {
 
@@ -55,4 +54,3 @@ struct ValueStabilizerMethod {
 
 }
 
-#endif /* IGB_UTIL_VALUE_STABILIZER_H */

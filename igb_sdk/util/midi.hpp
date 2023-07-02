@@ -1,5 +1,4 @@
-#ifndef IGB_SDK_UTIL_MIDI_H
-#define IGB_SDK_UTIL_MIDI_H
+#pragma once
 
 #include <igb_sdk/base.hpp>
 #include <igb_util/macro.hpp>
@@ -214,4 +213,3 @@ struct Midi {
 }
 }
 
-#endif /* IGB_SDK_UTIL_MIDI_H */

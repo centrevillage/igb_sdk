@@ -1,5 +1,4 @@
-#ifndef IGB_SDK_UI_BUTTON_HISTORY_H
-#define IGB_SDK_UI_BUTTON_HISTORY_H
+#pragma once
 
 #include <igb_sdk/base.hpp>
 #include <igb_util/ring_buf.hpp>
@@ -64,4 +63,3 @@ struct ButtonHistory {
 }
 }
 
-#endif /* IGB_SDK_UI_BUTTON_HISTORY_H */
