@@ -1,4 +1,6 @@
-const float dsp_func_sigmoid_tbl[] = {
+#pragma once
+
+constexpr inline float dsp_func_sigmoid_tbl[] = {
   -1.00000000000000000000,
   -0.99971235949507730734,
   -0.99942254295277954679,
@@ -1024,7 +1026,7 @@ const float dsp_func_sigmoid_tbl[] = {
   0.99971235949507719631,
   1.00000000000000000000,
 };
-const float dsp_func_sinusoid_tbl[] = {
+constexpr inline float dsp_func_sinusoid_tbl[] = {
   0.00000000000000000000,
   0.00613588464915447527,
   0.01227153828571992539,
@@ -2050,7 +2052,7 @@ const float dsp_func_sinusoid_tbl[] = {
   -0.01227153828572057244,
   -0.00613588464915447700,
 };
-const float dsp_func_log_tbl[] = {
+constexpr inline float dsp_func_log_tbl[] = {
   0.00000000000000000000,
   0.00380406357903238790,
   0.00757509579837599076,
@@ -3076,7 +3078,7 @@ const float dsp_func_log_tbl[] = {
   0.99961775457537949130,
   1.00000000000000000000,
 };
-const float dsp_func_exp_tbl[] = {
+constexpr inline float dsp_func_exp_tbl[] = {
   0.00000000000000000000,
   0.00038224542462050870,
   0.00076482757994755790,
@@ -4102,7 +4104,7 @@ const float dsp_func_exp_tbl[] = {
   0.99619593642096759822,
   1.00000000000000000000,
 };
-const float dsp_func_perlin_5order_tbl[] = {
+constexpr inline float dsp_func_perlin_5order_tbl[] = {
   1.00000000000000000000,
   0.99999999067312650425,
   0.99999992549445038126,

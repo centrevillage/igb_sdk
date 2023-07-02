@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <igb_util/macro.hpp>
 
 namespace igb {
 
@@ -27,9 +28,21 @@ struct RandomXorshift {
   inline float getf() {
     return (float)get() / (float)0xFFFFFFFF;
   }
+
+  // singleton
+  static RandomXorshift& instance() {
+    static RandomXorshift random;
+    return random;
+  }
 };
 
-extern RandomXorshift random;
+IGB_FAST_INLINE uint32_t rand_u32() {
+  return RandomXorshift::instance().get();
+}
+
+IGB_FAST_INLINE float rand_f() {
+  return RandomXorshift::instance().getf();
+}
 
 }
 

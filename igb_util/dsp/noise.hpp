@@ -22,8 +22,8 @@ struct PerlinNoise {
     sample_rate = _sample_rate;
     phase = 0.0f;
     changeFreq(_freq);
-    a1 = (igb::random.getf() - 0.5f) * a_max * 2.0f;
-    a2 = (igb::random.getf() - 0.5f) * a_max * 2.0f;
+    a1 = (igb::rand_f() - 0.5f) * a_max * 2.0f;
+    a2 = (igb::rand_f() - 0.5f) * a_max * 2.0f;
   }
 
   void changeFreq(float _freq) {
@@ -36,7 +36,7 @@ struct PerlinNoise {
     if (phase >= 1.0f) {
       phase -= (uint32_t)phase;
       a1 = a2;
-      a2 = (igb::random.getf() - 0.5f) * a_max * 2.0f;
+      a2 = (igb::rand_f() - 0.5f) * a_max * 2.0f;
     }
     float wavelet_v1 = igb::dsp_perlin_5order_fast(phase) * (phase * a1);
     float phase2 = -1.0f + phase;

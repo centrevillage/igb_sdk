@@ -12,11 +12,21 @@ constexpr uint16_t dsp_func_tbl_size = 256;
 constexpr uint16_t dsp_func_tbl_size = 1024;
 #endif
 
-extern const float dsp_func_sigmoid_tbl[dsp_func_tbl_size];
-extern const float dsp_func_sinusoid_tbl[dsp_func_tbl_size];
-extern const float dsp_func_log_tbl[dsp_func_tbl_size];
-extern const float dsp_func_exp_tbl[dsp_func_tbl_size];
-extern const float dsp_func_perlin_5order_tbl[dsp_func_tbl_size];
+#if defined(USE_SMALL_DSP_TABLE)
+
+#include "_dsp_tbl_func_256.hpp"
+
+#else
+
+#include "_dsp_tbl_func_1024.hpp"
+
+#endif
+
+//extern const float dsp_func_sigmoid_tbl[dsp_func_tbl_size];
+//extern const float dsp_func_sinusoid_tbl[dsp_func_tbl_size];
+//extern const float dsp_func_log_tbl[dsp_func_tbl_size];
+//extern const float dsp_func_exp_tbl[dsp_func_tbl_size];
+//extern const float dsp_func_perlin_5order_tbl[dsp_func_tbl_size];
 
 IGB_FAST_INLINE float dsp_read_tbl(const float* tbl, float x /* 0.0 ~ 1.0 */) {
   x -= (int32_t)x;
