@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cmath>
-#include <igb_util/delay_line.hpp>
+#include <igb_util/dsp/delay_line.hpp>
 
 namespace igb {
 

@@ -43,7 +43,7 @@ add_executable(
   src/test_ring_buf.cpp
   src/test_serializer.cpp
   src/test_dsp_tbl_func.cpp
-  ../../igb_util/dsp_tbl_func.cpp
+  ../../igb_util/dsp/dsp_tbl_func.cpp
 )
 target_link_libraries(igb_util_test PRIVATE igb_util Catch2::Catch2WithMain)
 

@@ -1,4 +1,4 @@
-#include <igb_util/cycle_speed.hpp>
+#include <igb_util/dsp/cycle_speed.hpp>
 
 namespace igb {
 

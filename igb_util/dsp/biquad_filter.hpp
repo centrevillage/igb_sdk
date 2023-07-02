@@ -6,7 +6,7 @@
 #include <cmath>
 #include <igb_util/algorithm.hpp>
 #include <igb_util/math.hpp>
-#include <igb_util/dsp_tbl_func.hpp>
+#include <igb_util/dsp/dsp_tbl_func.hpp>
 
 namespace igb {
 
