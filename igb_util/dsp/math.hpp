@@ -1,9 +1,9 @@
+#pragma once
+
 #include <cmath>
 #include <igb_util/macro.hpp>
 #include <igb_util/math.hpp>
 #include <igb_util/dsp/config.hpp>
-
-#pragma once
 
 namespace igb::dsp {
 
