@@ -3,7 +3,9 @@
 #define UNWRAP(id) id
 
 #define IGB_FAST_INLINE inline __attribute__((always_inline, optimize("Ofast"))) 
+#define IGB_INLINE inline __attribute__((always_inline)) 
 #define IGB_SIZE_OPTIMIZE __attribute__((optimize("Os"))) 
+#define IGB_SIZE_INLINE inline __attribute__((always_inline, optimize("Os"))) 
 
 #define IGB_UNUSED __attribute__((unused))
 
