@@ -4,11 +4,11 @@
 #include <array>
 #include <igb_util/random.hpp>
 #include <igb_util/dsp/dsp_tbl_func.hpp>
+#include <igb_util/dsp/config.hpp>
 
-namespace igb {
+namespace igb::dsp {
 
 struct PerlinNoise {
-  float sample_rate = 48000.0f;
   float freq = 10.0f;
   float delta = 0.0f;
   float phase = 0.0f;
@@ -18,8 +18,7 @@ struct PerlinNoise {
 
   float a_max = 4.0f;
 
-  void init(float _sample_rate, float _freq) {
-    sample_rate = _sample_rate;
+  void init(float _freq) {
     phase = 0.0f;
     changeFreq(_freq);
     a1 = (igb::rand_f() - 0.5f) * a_max * 2.0f;
@@ -28,7 +27,7 @@ struct PerlinNoise {
 
   void changeFreq(float _freq) {
     freq = _freq;
-    delta = freq / sample_rate;
+    delta = freq / Config::getSamplingRateF();
   }
 
   float process() {
@@ -38,9 +37,9 @@ struct PerlinNoise {
       a1 = a2;
       a2 = (igb::rand_f() - 0.5f) * a_max * 2.0f;
     }
-    float wavelet_v1 = igb::dsp_perlin_5order_fast(phase) * (phase * a1);
+    float wavelet_v1 = igb::dsp::perlin_5order_fast(phase) * (phase * a1);
     float phase2 = -1.0f + phase;
-    float wavelet_v2 = igb::dsp_perlin_5order_fast(phase2) * (phase2 * a2);
+    float wavelet_v2 = igb::dsp::perlin_5order_fast(phase2) * (phase2 * a2);
     
     return std::lerp(wavelet_v1, wavelet_v2, phase);
   }
@@ -48,19 +47,17 @@ struct PerlinNoise {
 
 template<typename NoiseType = PerlinNoise, size_t order_size = 5>
 struct FractalNoise {
-  float sample_rate = 48000.0f;
   float freq = 10.0f;
   float decay = 0.5f;
 
   std::array<NoiseType, order_size> noises;
 
-  void init(float _sample_rate, float _freq, float _decay = 0.5f) {
-    sample_rate = _sample_rate;
+  void init(float _freq, float _decay = 0.5f) {
     decay = _decay;
     freq = _freq;
     float freq_tmp = freq;
     for (size_t i = 0; i < order_size; ++i) {
-      noises[i].init(sample_rate, freq_tmp);
+      noises[i].init(freq_tmp);
       freq_tmp *= 2.0f;
     }
   }

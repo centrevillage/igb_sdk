@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <igb_util/macro.hpp>
 
-namespace igb {
+namespace igb::dsp {
 
 constexpr inline uint16_t cycle_speed_table_count = 12*100;
 constexpr inline uint16_t cycle_speed_table[cycle_speed_table_count] = {

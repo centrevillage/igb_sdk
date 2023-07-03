@@ -5,7 +5,7 @@
 #include <utility>
 #include <igb_util/macro.hpp>
 
-namespace igb {
+namespace igb::dsp {
 
 struct DigiTape {
   double tape_speed = 1.0;

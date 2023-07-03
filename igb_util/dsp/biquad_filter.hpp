@@ -7,10 +7,10 @@
 #include <igb_util/algorithm.hpp>
 #include <igb_util/math.hpp>
 #include <igb_util/dsp/dsp_tbl_func.hpp>
+#include <igb_util/dsp/config.hpp>
 
-namespace igb {
+namespace igb::dsp {
 
-template<uint32_t sampling_rate, bool use_dsp_tbl = false>
 struct BiQuadFilter {
   struct Context {
     float x1 = 0.0f;
@@ -26,23 +26,14 @@ struct BiQuadFilter {
   float b2 = 0.0f;
 
   inline static float freq2w0(float freq) {
-    if (use_dsp_tbl) {
-      return freq / (float)sampling_rate;
-    }
-    return 2.0f * (float)igb::numbers::pi * freq / (float)sampling_rate;
+    return 2.0f * (float)igb::numbers::pi * freq / Config::getSamplingRateF();
   }
 
   inline static float _cos_w0(float w0) {
-    if (use_dsp_tbl) {
-      return igb::dsp_cos(w0);
-    }
     return std::cos(w0);
   }
 
   inline static float _sin_w0(float w0) {
-    if (use_dsp_tbl) {
-      return igb::dsp_sin(w0);
-    }
     return std::sin(w0);
   }
 

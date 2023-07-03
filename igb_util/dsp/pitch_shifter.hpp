@@ -3,13 +3,13 @@
 #include <cmath>
 #include <igb_util/dsp/delay_line.hpp>
 
-namespace igb {
+namespace igb::dsp {
 
 struct PitchShifter {
   size_t window_size = 0;
   size_t crossfade_duration = 0;
 
-  igb::DelayLine delay;
+  igb::dsp::DelayLine delay;
 
   size_t write_pos = 0;
   double pos_delta = 0.0f;

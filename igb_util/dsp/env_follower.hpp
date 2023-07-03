@@ -2,8 +2,11 @@
 
 #include <cmath>
 #include <igb_util/math.hpp>
+#include <igb_util/dsp/config.hpp>
+#include <igb_util/dsp/math.hpp>
 
-template<uint32_t sampling_rate>
+namespace igb::dsp {
+
 struct EnvFollower {
   float attack_coeff = 1.0f;
   float release_coeff = 1.0f;
@@ -18,11 +21,11 @@ struct EnvFollower {
   }
 
   void changeAttack(float attack_time) {
-    attack_coeff = igb::tau2pole(attack_time, sampling_rate);
+    attack_coeff = igb::dsp::tau2pole(attack_time);
   }
 
   void changeRelease(float release_time) {
-    release_coeff = igb::tau2pole(release_time, sampling_rate);
+    release_coeff = igb::dsp::tau2pole(release_time);
   }
 
   float process(Context& ctx, float x) {
@@ -32,3 +35,5 @@ struct EnvFollower {
     return ctx.y1;
   }
 };
+
+}

@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <igb_util/macro.hpp>
 
-namespace igb {
+namespace igb::dsp {
 
 struct DelayLine {
   size_t write_pos = 0;
