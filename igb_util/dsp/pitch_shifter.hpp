@@ -5,7 +5,8 @@
 
 namespace igb::dsp {
 
-struct PitchShifter {
+template <bool sin_interpolate>
+struct PitchShifterImpl {
   size_t window_size = 0;
   size_t crossfade_duration = 0;
 
@@ -42,12 +43,23 @@ struct PitchShifter {
     float d2 = delay.readF(pos + (double)window_size);
     pos_delta_cur = (1.0 - pos_filter_coeff) * pos_delta + pos_filter_coeff * pos_delta_cur;
     float rate = std::min(pos / (double)crossfade_duration, 1.0);
-    float y = d1 * rate + d2 * (1.0f - rate);
+
+    float y;
+    if (sin_interpolate) {
+      float rate_d1 = std::sin(igb::numbers::pi / 2.0f * rate); 
+      float rate_d2 = std::cos(igb::numbers::pi / 2.0f * rate);
+      y = d1 * rate_d1 + d2 * rate_d2;
+    } else {
+      y = d1 * rate + d2 * (1.0f - rate);
+    }
 
     delay.write(x);
 
     return y;
   }
 };
+
+typedef PitchShifterImpl<false> PitchShifter;
+
 
 }
