@@ -20,11 +20,11 @@ namespace gd32 {
 #define IGB_DAC_REG(member) ((DAC_TypeDef*)IGB_DAC_REG_ADDR(member))
 
 enum class DacTriggerSelect {
-  timer5_trgo = 0,
-  timer2_trgo = 1,
-  timer14_trgo = 3,
-  timer1_trgo = 4,
-  exti_line9 = 6,
+  timer5 = 0,
+  timer2 = 1,
+  timer14 = 3,
+  timer1 = 4,
+  extiLine9 = 6,
   software = 7,
 };
 
