@@ -286,7 +286,7 @@ struct Adc {
   static IGB_FAST_INLINE void prepareGpios() { }
 
   IGB_FAST_INLINE void _initCh(AdcPinConf pin_conf) {
-    uint32_t smp = static_cast<uint32_t>(pin_conf.sampling_time);
+    auto smp = pin_conf.sampling_time;
     switch (pin_conf.ch) {
       case AdcChannel::ch0:
         ch0SamplingTime(smp);
