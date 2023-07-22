@@ -428,34 +428,31 @@ struct Adc {
       IGB_MODIFY_REG(IGB_ADC->CTL0, (IGB_BIT(5) | IGB_BIT(6)), conf.interrupt_bits);
     }
 
-    resolution(conf.resolution);
-    dataAlign(conf.data_align);
-    externalTrigSelect(conf.external_trigger_select);
-    enableExternalTrigger(conf.enable_external_trigger);
     discontinuousConvMode(conf.discontinuous_conv_mode);
     discontinuousConvChannelCount(conf.discontinuous_conv_channel_count > 0UL ? (conf.discontinuous_conv_channel_count - 1UL) : 0UL);
     continuousConvMode(conf.continuous_conv_mode);
-    dma(conf.dma);
+    scanMode(conf.scanMode);
+    resolution(conf.resolution);
+    dataAlign(conf.data_align);
     enableVbat(conf.vbat);
     enableTsvr(conf.tsvr);
-    scanMode(conf.scanMode);
     enableRoutineChWatchDog(conf.watchDogRoutine);
     watchDogSingleCh(conf.watchDogSingle);
-
-    delay_msec(2);
-
     seqChLength((sizeof...(pin_confs)) - 1UL);
     _setSeqOrders(0, pin_confs...);
-
     _initChannels(pin_confs...);
+    externalTrigSelect(conf.external_trigger_select);
+    enableExternalTrigger(conf.enable_external_trigger);
+
+    enableAdc(true);
+
+    delay_msec(2);
 
     startCalibration();
 
     delay_msec(2);
 
-    enable();
-
-    delay_msec(2);
+    dma(conf.dma);
   }
 };
 
