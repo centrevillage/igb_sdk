@@ -3,8 +3,8 @@
 
 #include <tuple>
 #include <igb_gd32/periph/gpio.hpp>
-//#include <igb_stm32/periph/syscfg.hpp>
-//#include <igb_stm32/periph/exti.hpp>
+#include <igb_gd32/periph/syscfg.hpp>
+#include <igb_gd32/periph/exti.hpp>
 #include <igb_util/reg.hpp>
 #include <igb_util/macro.hpp>
 
@@ -312,78 +312,78 @@ struct FastGpioPin {
     port.enable();
   }
 
-  //IGB_FAST_INLINE void enableExti(ExtiTrigType trig_type, ExtiMode mode, uint8_t priority) {
-  //  SysCfg::enableBusClock();
+  IGB_FAST_INLINE void enableExti(ExtiTrigType trig_type, ExtiMode mode, uint8_t priority) {
+    SysCfg::enableBusClock();
 
-  //  switch (pin_idx) {
-  //    case 0:
-  //      SysCfg::exti0GpioPort(port_type);
-  //      ExtiCtrl::enableLine(ExtiLine::line0, trig_type, mode, priority);
-  //      break;
-  //    case 1:
-  //      SysCfg::exti1GpioPort(port_type);
-  //      ExtiCtrl::enableLine(ExtiLine::line1, trig_type, mode, priority);
-  //      break;
-  //    case 2:
-  //      SysCfg::exti2GpioPort(port_type);
-  //      ExtiCtrl::enableLine(ExtiLine::line2, trig_type, mode, priority);
-  //      break;
-  //    case 3:
-  //      SysCfg::exti3GpioPort(port_type);
-  //      ExtiCtrl::enableLine(ExtiLine::line3, trig_type, mode, priority);
-  //      break;
-  //    case 4:
-  //      SysCfg::exti4GpioPort(port_type);
-  //      ExtiCtrl::enableLine(ExtiLine::line4, trig_type, mode, priority);
-  //      break;
-  //    case 5:
-  //      SysCfg::exti5GpioPort(port_type);
-  //      ExtiCtrl::enableLine(ExtiLine::line5, trig_type, mode, priority);
-  //      break;
-  //    case 6:
-  //      SysCfg::exti6GpioPort(port_type);
-  //      ExtiCtrl::enableLine(ExtiLine::line6, trig_type, mode, priority);
-  //      break;
-  //    case 7:
-  //      SysCfg::exti7GpioPort(port_type);
-  //      ExtiCtrl::enableLine(ExtiLine::line7, trig_type, mode, priority);
-  //      break;
-  //    case 8:
-  //      SysCfg::exti8GpioPort(port_type);
-  //      ExtiCtrl::enableLine(ExtiLine::line8, trig_type, mode, priority);
-  //      break;
-  //    case 9:
-  //      SysCfg::exti9GpioPort(port_type);
-  //      ExtiCtrl::enableLine(ExtiLine::line9, trig_type, mode, priority);
-  //      break;
-  //    case 10:
-  //      SysCfg::exti10GpioPort(port_type);
-  //      ExtiCtrl::enableLine(ExtiLine::line10, trig_type, mode, priority);
-  //      break;
-  //    case 11:
-  //      SysCfg::exti11GpioPort(port_type);
-  //      ExtiCtrl::enableLine(ExtiLine::line11, trig_type, mode, priority);
-  //      break;
-  //    case 12:
-  //      SysCfg::exti12GpioPort(port_type);
-  //      ExtiCtrl::enableLine(ExtiLine::line12, trig_type, mode, priority);
-  //      break;
-  //    case 13:
-  //      SysCfg::exti13GpioPort(port_type);
-  //      ExtiCtrl::enableLine(ExtiLine::line13, trig_type, mode, priority);
-  //      break;
-  //    case 14:
-  //      SysCfg::exti14GpioPort(port_type);
-  //      ExtiCtrl::enableLine(ExtiLine::line14, trig_type, mode, priority);
-  //      break;
-  //    case 15:
-  //      SysCfg::exti15GpioPort(port_type);
-  //      ExtiCtrl::enableLine(ExtiLine::line15, trig_type, mode, priority);
-  //      break;
-  //    default:
-  //      break;
-  //  }
-  //}
+    switch (pin_idx) {
+      case 0:
+        SysCfg::exti0GpioPort(port_type);
+        ExtiCtrl::enableLine(ExtiLine::line0, trig_type, mode, priority);
+        break;
+      case 1:
+        SysCfg::exti1GpioPort(port_type);
+        ExtiCtrl::enableLine(ExtiLine::line1, trig_type, mode, priority);
+        break;
+      case 2:
+        SysCfg::exti2GpioPort(port_type);
+        ExtiCtrl::enableLine(ExtiLine::line2, trig_type, mode, priority);
+        break;
+      case 3:
+        SysCfg::exti3GpioPort(port_type);
+        ExtiCtrl::enableLine(ExtiLine::line3, trig_type, mode, priority);
+        break;
+      case 4:
+        SysCfg::exti4GpioPort(port_type);
+        ExtiCtrl::enableLine(ExtiLine::line4, trig_type, mode, priority);
+        break;
+      case 5:
+        SysCfg::exti5GpioPort(port_type);
+        ExtiCtrl::enableLine(ExtiLine::line5, trig_type, mode, priority);
+        break;
+      case 6:
+        SysCfg::exti6GpioPort(port_type);
+        ExtiCtrl::enableLine(ExtiLine::line6, trig_type, mode, priority);
+        break;
+      case 7:
+        SysCfg::exti7GpioPort(port_type);
+        ExtiCtrl::enableLine(ExtiLine::line7, trig_type, mode, priority);
+        break;
+      case 8:
+        SysCfg::exti8GpioPort(port_type);
+        ExtiCtrl::enableLine(ExtiLine::line8, trig_type, mode, priority);
+        break;
+      case 9:
+        SysCfg::exti9GpioPort(port_type);
+        ExtiCtrl::enableLine(ExtiLine::line9, trig_type, mode, priority);
+        break;
+      case 10:
+        SysCfg::exti10GpioPort(port_type);
+        ExtiCtrl::enableLine(ExtiLine::line10, trig_type, mode, priority);
+        break;
+      case 11:
+        SysCfg::exti11GpioPort(port_type);
+        ExtiCtrl::enableLine(ExtiLine::line11, trig_type, mode, priority);
+        break;
+      case 12:
+        SysCfg::exti12GpioPort(port_type);
+        ExtiCtrl::enableLine(ExtiLine::line12, trig_type, mode, priority);
+        break;
+      case 13:
+        SysCfg::exti13GpioPort(port_type);
+        ExtiCtrl::enableLine(ExtiLine::line13, trig_type, mode, priority);
+        break;
+      case 14:
+        SysCfg::exti14GpioPort(port_type);
+        ExtiCtrl::enableLine(ExtiLine::line14, trig_type, mode, priority);
+        break;
+      case 15:
+        SysCfg::exti15GpioPort(port_type);
+        ExtiCtrl::enableLine(ExtiLine::line15, trig_type, mode, priority);
+        break;
+      default:
+        break;
+    }
+  }
 
   IGB_FAST_INLINE void initInput(GpioPullMode pull, GpioSpeedMode speed) {
     setMode(GpioMode::input);

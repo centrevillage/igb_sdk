@@ -143,21 +143,21 @@ struct DmaInfo {
 };
 #endif
 
-//#ifdef GD32_PERIPHGRP_EXTI_EXISTS
-//struct ExtiInfo {
-//  const PeriphType      periph_type;
-//  EXTI_TypeDef* const   p_exti;
-//  const uint32_t        addr;
-//  const PeriphBusInfo   bus;
-//  const std::array<IRQn_Type, 16> line_irqns;
-//};
-//#endif
-//
-//#ifdef GD32_PERIPHGRP_SYSCFG_EXISTS
-//struct SysCfgInfo {
-//  const PeriphType      periph_type;
-//  SYSCFG_TypeDef* const p_syscfg;
-//  const uint32_t        addr;
-//  const PeriphBusInfo   bus;
-//};
-//#endif
+#ifdef GD32_PERIPHGRP_EXTI_EXISTS
+struct ExtiInfo {
+  const PeriphType      periph_type;
+  EXTI_TypeDef* const   p_exti;
+  const uint32_t        addr;
+  const PeriphBusInfo   bus;
+  const std::array<IRQn_Type, 16> line_irqns;
+};
+#endif
+
+#ifdef GD32_PERIPHGRP_SYSCFG_EXISTS
+struct SysCfgInfo {
+  const PeriphType      periph_type;
+  SYSCFG_TypeDef* const p_syscfg;
+  const uint32_t        addr;
+  const PeriphBusInfo   bus;
+};
+#endif

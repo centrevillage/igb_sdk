@@ -32,7 +32,7 @@
 #define DAC1_BASE               (APB1PERIPH_BASE + 0x00007400UL)
 
 // AHB2 peripherails
-//#define SYSCFG_BASE           (APB2PERIPH_BASE + 0x00000000UL)
+#define SYSCFG1_BASE           (APB2PERIPH_BASE + 0x00000000UL)
 //#define COMP1_BASE            (APB2PERIPH_BASE + 0x0000001CUL)
 //#define COMP2_BASE            (APB2PERIPH_BASE + 0x00000020UL)
 //#define COMP3_BASE            (APB2PERIPH_BASE + 0x00000024UL)
@@ -46,7 +46,7 @@
 //#define OPAMP3_BASE           (APB2PERIPH_BASE + 0x00000040UL)
 //#define OPAMP4_BASE           (APB2PERIPH_BASE + 0x00000044UL)
 //#define OPAMP_BASE            OPAMP1_BASE
-//#define EXTI_BASE             (APB2PERIPH_BASE + 0x00000400UL)
+#define EXTI1_BASE             (APB2PERIPH_BASE + 0x00000400UL)
 //#define TIM1_BASE             (APB2PERIPH_BASE + 0x00002C00UL)
 //#define TIM8_BASE             (APB2PERIPH_BASE + 0x00003400UL)
 //#define USART1_BASE           (APB2PERIPH_BASE + 0x00003800UL)
@@ -149,8 +149,8 @@
 //#define GD32_PERIPH_USART3_EXISTS 1
 //#define GD32_PERIPH_UART4_EXISTS 1
 //#define GD32_PERIPH_UART5_EXISTS 1
-//#define GD32_PERIPHGRP_EXTI_EXISTS 1
-//#define GD32_PERIPH_EXTI_EXISTS 1
+#define GD32_PERIPHGRP_EXTI_EXISTS 1
+#define GD32_PERIPH_EXTI_EXISTS 1
 //#define GD32_PERIPHGRP_PWR_EXISTS 1
 //#define GD32_PERIPH_PWR_EXISTS 1
 //#define GD32_PERIPHGRP_CAN_EXISTS 1
@@ -165,8 +165,8 @@
 //#define GD32_PERIPH_RTC_EXISTS 1
 //#define GD32_PERIPHGRP_DBGMCU_EXISTS 1
 //#define GD32_PERIPH_DBGMCU_EXISTS 1
-//#define GD32_PERIPHGRP_SYSCFG_EXISTS 1
-//#define GD32_PERIPH_SYSCFG_EXISTS 1
+#define GD32_PERIPHGRP_SYSCFG_EXISTS 1
+#define GD32_PERIPH_SYSCFG_EXISTS 1
 //#define GD32_PERIPHGRP_FMC_EXISTS 1
 //#define GD32_PERIPH_FMC_EXISTS 1
 //#define GD32_PERIPHGRP_NVIC_EXISTS 1
@@ -196,9 +196,9 @@ enum class PeriphGroupType : uint16_t {
   tim,
   //usart,
   spi,
-  //exti,
+  exti,
   //i2c,
-  //syscfg,
+  syscfg,
 };
 
 enum class PeriphType : uint16_t {
@@ -227,7 +227,9 @@ enum class PeriphType : uint16_t {
   usart0,
   usart1,
   usb,
-  dma1
+  dma1,
+  exti,
+  syscfg
 };
 
 enum class GpioType : uint8_t {
@@ -760,6 +762,22 @@ typedef struct {
 } GPIO_TypeDef ;
 
 typedef struct {
+  volatile uint32_t IMR;          /*!<EXTI Interrupt mask register,                             Address offset: 0x00 */
+  volatile uint32_t EMR;          /*!<EXTI Event mask register,                                 Address offset: 0x04 */
+  volatile uint32_t RTSR;         /*!<EXTI Rising trigger selection register ,                  Address offset: 0x08 */
+  volatile uint32_t FTSR;         /*!<EXTI Falling trigger selection register,                  Address offset: 0x0C */
+  volatile uint32_t SWIER;        /*!<EXTI Software interrupt event register,                   Address offset: 0x10 */
+  volatile uint32_t PR;           /*!<EXTI Pending register,                                    Address offset: 0x14 */
+} EXTI_TypeDef;
+
+typedef struct {
+  __IO uint32_t CFG0;        /*!< Address offset: 0x00 */
+  __IO uint32_t RESERVED0;   /*!< Address offset: 0x04 */
+  __IO uint32_t EXTISS[4];   /*!< Address offset:  0x14-0x08 */
+  __IO uint32_t CFG2;        /*!< Address offset: 0x18 */
+} SYSCFG_TypeDef;
+
+typedef struct {
   volatile uint32_t CR;
   volatile uint32_t CFGR;
   volatile uint32_t CIR;
@@ -1128,29 +1146,29 @@ constexpr struct PeriphInfo {
       .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 14},
     },
   };
-  //const ExtiInfo exti {
-  //  .periph_type = PeriphType::exti,
-  //  .p_exti = EXTI,
-  //  .addr = EXTI_BASE,
-  //  .line_irqns = {
-  //    EXTI0_IRQn,
-  //    EXTI1_IRQn,
-  //    EXTI2_TSC_IRQn,
-  //    EXTI3_IRQn,
-  //    EXTI4_IRQn,
-  //    EXTI9_5_IRQn,
-  //    EXTI9_5_IRQn,
-  //    EXTI9_5_IRQn,
-  //    EXTI9_5_IRQn,
-  //    EXTI9_5_IRQn,
-  //    EXTI15_10_IRQn,
-  //    EXTI15_10_IRQn,
-  //    EXTI15_10_IRQn,
-  //    EXTI15_10_IRQn,
-  //    EXTI15_10_IRQn,
-  //    EXTI15_10_IRQn,
-  //  },
-  //};
+  const ExtiInfo exti {
+    .periph_type = PeriphType::exti,
+    .p_exti = (EXTI_TypeDef*)EXTI1_BASE,
+    .addr = EXTI1_BASE,
+    .line_irqns = {
+      EXTI0_1_IRQn, // 0
+      EXTI0_1_IRQn, // 1
+      EXTI2_3_IRQn, // 2
+      EXTI2_3_IRQn, // 3
+      EXTI4_15_IRQn, // 4
+      EXTI4_15_IRQn, // 5
+      EXTI4_15_IRQn, // 6
+      EXTI4_15_IRQn, // 7
+      EXTI4_15_IRQn, // 8
+      EXTI4_15_IRQn, // 9
+      EXTI4_15_IRQn, // 10
+      EXTI4_15_IRQn, // 11
+      EXTI4_15_IRQn, // 12
+      EXTI4_15_IRQn, // 13
+      EXTI4_15_IRQn, // 14
+      EXTI4_15_IRQn  // 15
+    },
+  };
   const std::array<I2cInfo, 2> i2c {
     I2cInfo {
       .periph_type = PeriphType::i2c0,
@@ -1183,12 +1201,12 @@ constexpr struct PeriphInfo {
       .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 9},
     },
   };
-  //const SysCfgInfo syscfg {
-  //  .periph_type = PeriphType::syscfg,
-  //  .p_syscfg = SYSCFG,
-  //  .addr = SYSCFG_BASE,
-  //  .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 0},
-  //};
+  const SysCfgInfo syscfg {
+    .periph_type = PeriphType::syscfg,
+    .p_syscfg = (SYSCFG_TypeDef*)SYSCFG1_BASE,
+    .addr = SYSCFG1_BASE,
+    .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 0},
+  };
 } GD32_PERIPH_INFO;
 
 enum class GpioAf : uint8_t {
