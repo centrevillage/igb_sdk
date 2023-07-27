@@ -838,12 +838,12 @@ enum class TimDmaBurstLen : uint32_t {
 };
 
 
-enum class TimCcPolarity : uint32_t {
+enum class TimChPolarity : uint32_t {
   high = 0,
   low = 1
 };
 
-enum class TimCcMode : uint32_t {
+enum class TimChMode : uint32_t {
   output = 0,
   inputTi1,
   inputTi2,
@@ -861,11 +861,16 @@ enum class TimOutputCompareMode : uint32_t {
   pwmMOde2 = 7
 };
 
-enum class TimCcInputPrescaler : uint32_t {
+enum class TimChInputPrescaler : uint32_t {
   disable = 0,
   two = 1,
   four = 2,
   eight = 3,
+};
+
+enum class TimChOutputIdleState : uint32_t {
+  low = 0,
+  high = 1
 };
 
 struct TimConf {
@@ -978,8 +983,16 @@ struct Tim {
   Reg<addr_RCR> repetitionCounter;
   RegEnum<addr_SMCR, TIM_SMCR_SMS | TIM_SMCR_ECE, TimClockSrc> clockSrc;
   RegEnum<addr_CR2, TIM_CR2_MMS, TimTriggerOut> triggerOutput;
-  RegFlag<addr_SMCR, TIM_SMCR_MSM> enableMasterSlave;
+  RegFlag<addr_CR2, IGB_BIT(7)> enableTi1Xor;
+  RegEnum<addr_CR2, IGB_BIT(8), TimChOutputIdleState, 8> ch1OutputIdleState;
+  RegEnum<addr_CR2, IGB_BIT(9), TimChOutputIdleState, 9> ch1ComplementaryOutputIdleState;
+  RegEnum<addr_CR2, IGB_BIT(10), TimChOutputIdleState, 10> ch2OutputIdleState;
+  RegEnum<addr_CR2, IGB_BIT(11), TimChOutputIdleState, 11> ch2ComplementaryOutputIdleState;
+  RegEnum<addr_CR2, IGB_BIT(12), TimChOutputIdleState, 12> ch3OutputIdleState;
+  RegEnum<addr_CR2, IGB_BIT(13), TimChOutputIdleState, 13> ch3ComplementaryOutputIdleState;
+  RegEnum<addr_CR2, IGB_BIT(14), TimChOutputIdleState, 14> ch4OutputIdleState;
 
+  RegFlag<addr_SMCR, TIM_SMCR_MSM> enableMasterSlave;
   RegEnum<addr_SMCR, TIM_SMCR_ETP, TimEtrConfPolarity> etrConfPolarity;
   RegEnum<addr_SMCR, TIM_SMCR_ETPS, TimEtrConfPrescaler> etrConfPrescaler;
   RegEnum<addr_SMCR, TIM_SMCR_ETF, TimEtrConfFilter> etrConfFilter;
@@ -1004,66 +1017,66 @@ struct Tim {
 
   Reg<addr_CCMR1> reg_CCMR1; 
 
-  RegEnum<addr_CCMR1, IGB_BIT_MASK(2, 0), TimCcMode, 0> cc1Mode; 
+  RegEnum<addr_CCMR1, IGB_BIT_MASK(2, 0), TimChMode, 0> ch1Mode; 
   // output compare mode
-  RegFlag<addr_CCMR1, IGB_BIT(2)> enableCc1FastOutput; 
-  RegFlag<addr_CCMR1, IGB_BIT(3)> enableCc1Preload; 
-  RegEnum<addr_CCMR1, IGB_BIT_MASK(3, 4), TimOutputCompareMode, 4> cc1OutputCompareMode; 
-  RegFlag<addr_CCMR1, IGB_BIT(7)> enableCc1OutputClear; 
+  RegFlag<addr_CCMR1, IGB_BIT(2)> enableCh1FastOutput; 
+  RegFlag<addr_CCMR1, IGB_BIT(3)> enableCh1Preload; 
+  RegEnum<addr_CCMR1, IGB_BIT_MASK(3, 4), TimOutputCompareMode, 4> ch1OutputCompareMode; 
+  RegFlag<addr_CCMR1, IGB_BIT(7)> enableCh1OutputClear; 
   // input mode
-  RegEnum<addr_CCMR1, IGB_BIT_MASK(2, 2), TimCcInputPrescaler, 2> cc1InputPrescaler; 
-  RegValue<addr_CCMR1, IGB_BIT_MASK(4, 4), 4> cc1InputFilter; 
+  RegEnum<addr_CCMR1, IGB_BIT_MASK(2, 2), TimChInputPrescaler, 2> ch1InputPrescaler; 
+  RegValue<addr_CCMR1, IGB_BIT_MASK(4, 4), 4> ch1InputFilter; 
 
-  RegEnum<addr_CCMR1, IGB_BIT_MASK(2, 8), TimCcMode, 8> cc2Mode; 
+  RegEnum<addr_CCMR1, IGB_BIT_MASK(2, 8), TimChMode, 8> ch2Mode; 
   // output compare mode
-  RegFlag<addr_CCMR1, IGB_BIT(10)> enableCc2FastOutput; 
-  RegFlag<addr_CCMR1, IGB_BIT(11)> enableCc2Preload; 
-  RegEnum<addr_CCMR1, IGB_BIT_MASK(3, 12), TimOutputCompareMode, 12> cc2OutputCompareMode; 
-  RegFlag<addr_CCMR1, IGB_BIT(15)> enableCc2OutputClear; 
+  RegFlag<addr_CCMR1, IGB_BIT(10)> enableCh2FastOutput; 
+  RegFlag<addr_CCMR1, IGB_BIT(11)> enableCh2Preload; 
+  RegEnum<addr_CCMR1, IGB_BIT_MASK(3, 12), TimOutputCompareMode, 12> ch2OutputCompareMode; 
+  RegFlag<addr_CCMR1, IGB_BIT(15)> enableCh2OutputClear; 
   // input mode
-  RegEnum<addr_CCMR1, IGB_BIT_MASK(2, 10), TimCcInputPrescaler, 10> cc2InputPrescaler; 
-  RegValue<addr_CCMR1, IGB_BIT_MASK(4, 12), 12> cc2InputFilter; 
+  RegEnum<addr_CCMR1, IGB_BIT_MASK(2, 10), TimChInputPrescaler, 10> ch2InputPrescaler; 
+  RegValue<addr_CCMR1, IGB_BIT_MASK(4, 12), 12> ch2InputFilter; 
 
   Reg<addr_CCMR2> reg_CCMR2; 
 
-  RegEnum<addr_CCMR2, IGB_BIT_MASK(2, 0), TimCcMode, 0> cc3Mode; 
+  RegEnum<addr_CCMR2, IGB_BIT_MASK(2, 0), TimChMode, 0> ch3Mode; 
   // output compare mode
-  RegFlag<addr_CCMR2, IGB_BIT(2)> enableCc3FastOutput; 
-  RegFlag<addr_CCMR2, IGB_BIT(3)> enableCc3Preload; 
-  RegEnum<addr_CCMR2, IGB_BIT_MASK(3, 4), TimOutputCompareMode, 4> cc3OutputCompareMode; 
-  RegFlag<addr_CCMR2, IGB_BIT(7)> enableCc3OutputClear; 
+  RegFlag<addr_CCMR2, IGB_BIT(2)> enableCh3FastOutput; 
+  RegFlag<addr_CCMR2, IGB_BIT(3)> enableCh3Preload; 
+  RegEnum<addr_CCMR2, IGB_BIT_MASK(3, 4), TimOutputCompareMode, 4> ch3OutputCompareMode; 
+  RegFlag<addr_CCMR2, IGB_BIT(7)> enableCh3OutputClear; 
   // input mode
-  RegEnum<addr_CCMR2, IGB_BIT_MASK(2, 2), TimCcInputPrescaler, 2> cc3InputPrescaler; 
-  RegValue<addr_CCMR2, IGB_BIT_MASK(4, 4), 4> cc3InputFilter; 
+  RegEnum<addr_CCMR2, IGB_BIT_MASK(2, 2), TimChInputPrescaler, 2> ch3InputPrescaler; 
+  RegValue<addr_CCMR2, IGB_BIT_MASK(4, 4), 4> ch3InputFilter; 
 
-  RegEnum<addr_CCMR2, IGB_BIT_MASK(2, 8), TimCcMode, 8> cc4Mode; 
+  RegEnum<addr_CCMR2, IGB_BIT_MASK(2, 8), TimChMode, 8> ch4Mode; 
   // output compare mode
-  RegFlag<addr_CCMR2, IGB_BIT(10)> enableCc4FastOutput; 
-  RegFlag<addr_CCMR2, IGB_BIT(11)> enableCc4Preload; 
-  RegEnum<addr_CCMR2, IGB_BIT_MASK(3, 12), TimOutputCompareMode, 12> cc4OutputCompareMode; 
-  RegFlag<addr_CCMR2, IGB_BIT(15)> enableCc4OutputClear; 
+  RegFlag<addr_CCMR2, IGB_BIT(10)> enableCh4FastOutput; 
+  RegFlag<addr_CCMR2, IGB_BIT(11)> enableCh4Preload; 
+  RegEnum<addr_CCMR2, IGB_BIT_MASK(3, 12), TimOutputCompareMode, 12> ch4OutputCompareMode; 
+  RegFlag<addr_CCMR2, IGB_BIT(15)> enableCh4OutputClear; 
   // input mode
-  RegEnum<addr_CCMR2, IGB_BIT_MASK(2, 10), TimCcInputPrescaler, 10> cc4InputPrescaler; 
-  RegValue<addr_CCMR2, IGB_BIT_MASK(4, 12), 12> cc4InputFilter; 
+  RegEnum<addr_CCMR2, IGB_BIT_MASK(2, 10), TimChInputPrescaler, 10> ch4InputPrescaler; 
+  RegValue<addr_CCMR2, IGB_BIT_MASK(4, 12), 12> ch4InputFilter; 
 
   Reg<addr_CCER> reg_CCER; 
-  RegFlag<addr_CCER, IGB_BIT(0)> enableCc1;
-  RegEnum<addr_CCER, IGB_BIT_MASK(1, 1), TimCcPolarity, 1> cc1Polarity;
-  RegFlag<addr_CCER, IGB_BIT(2)> enableCc1ComplementaryOutput;
-  RegEnum<addr_CCER, IGB_BIT_MASK(1, 3), TimCcPolarity, 1> cc1ComplementaryOutputPolarity;
+  RegFlag<addr_CCER, IGB_BIT(0)> enableCh1;
+  RegEnum<addr_CCER, IGB_BIT_MASK(1, 1), TimChPolarity, 1> ch1Polarity;
+  RegFlag<addr_CCER, IGB_BIT(2)> enableCh1ComplementaryOutput;
+  RegEnum<addr_CCER, IGB_BIT_MASK(1, 3), TimChPolarity, 1> ch1ComplementaryOutputPolarity;
 
-  RegFlag<addr_CCER, IGB_BIT(4)> enableCc2;
-  RegEnum<addr_CCER, IGB_BIT_MASK(1, 5), TimCcPolarity, 5> cc2Polarity;
-  RegFlag<addr_CCER, IGB_BIT(6)> enableCc2ComplementaryOutput;
-  RegEnum<addr_CCER, IGB_BIT_MASK(1, 7), TimCcPolarity, 7> cc2ComplementaryOutputPolarity;
+  RegFlag<addr_CCER, IGB_BIT(4)> enableCh2;
+  RegEnum<addr_CCER, IGB_BIT_MASK(1, 5), TimChPolarity, 5> ch2Polarity;
+  RegFlag<addr_CCER, IGB_BIT(6)> enableCh2ComplementaryOutput;
+  RegEnum<addr_CCER, IGB_BIT_MASK(1, 7), TimChPolarity, 7> ch2ComplementaryOutputPolarity;
 
-  RegFlag<addr_CCER, IGB_BIT(8)> enableCc3;
-  RegEnum<addr_CCER, IGB_BIT_MASK(1, 9), TimCcPolarity, 9> cc3Polarity;
-  RegFlag<addr_CCER, IGB_BIT(10)> enableCc3ComplementaryOutput;
-  RegEnum<addr_CCER, IGB_BIT_MASK(1, 11), TimCcPolarity, 11> cc3ComplementaryOutputPolarity;
+  RegFlag<addr_CCER, IGB_BIT(8)> enableCh3;
+  RegEnum<addr_CCER, IGB_BIT_MASK(1, 9), TimChPolarity, 9> ch3Polarity;
+  RegFlag<addr_CCER, IGB_BIT(10)> enableCh3ComplementaryOutput;
+  RegEnum<addr_CCER, IGB_BIT_MASK(1, 11), TimChPolarity, 11> ch3ComplementaryOutputPolarity;
 
-  RegFlag<addr_CCER, IGB_BIT(12)> enableCc4;
-  RegEnum<addr_CCER, IGB_BIT_MASK(1, 13), TimCcPolarity, 13> cc4Polarity;
+  RegFlag<addr_CCER, IGB_BIT(12)> enableCh4;
+  RegEnum<addr_CCER, IGB_BIT_MASK(1, 13), TimChPolarity, 13> ch4Polarity;
 
   Reg<addr_DIER> reg_DIER;
 
