@@ -37,7 +37,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 add_subdirectory(../../igb_sdk igb_sdk)
 add_subdirectory(../lib/Catch2 Catch2)
 
-add_executable(igb_sdk_test src/test_quantizer.cpp)
+add_executable(igb_sdk_test src/test_quantizer.cpp src/test_button_history.cpp)
 target_link_libraries(igb_sdk_test PRIVATE igb_sdk Catch2::Catch2WithMain)
 
 #target_include_directories(igb_sdk PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../..)
