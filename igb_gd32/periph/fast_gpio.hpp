@@ -236,7 +236,7 @@ struct FastGpioPin {
   constexpr static auto pin_idx = extract_pin_idx(pin_type);
   constexpr static uint32_t pin_bit = 1UL << pin_idx;
   constexpr static auto port_type = extract_gpio_type(pin_type);
-  auto static port = FastGpioPort<port_type> {};
+  FastGpioPort<port_type> port = FastGpioPort<port_type> {};
 
   IGB_FAST_INLINE void setMode(GpioMode mode) {
     auto& v = std::get<pin_idx>(port.modes);
