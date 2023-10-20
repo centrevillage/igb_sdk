@@ -2,6 +2,7 @@
 
 #include <igb_gd32/base.hpp>
 #include <igb_util/macro.hpp>
+#include <igb_util/reg.hpp>
 
 namespace igb {
 namespace gd32 {
