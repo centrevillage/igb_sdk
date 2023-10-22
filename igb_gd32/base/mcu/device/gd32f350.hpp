@@ -2049,23 +2049,16 @@ constexpr std::optional<PeriphType> as_periph_type(TimType type) {
   }
   return std::nullopt;
 }
-// TODO:
-//template<>
-//constexpr std::optional<PeriphType> as_periph_type(UsartType type) {
-//  switch (type) {
-//    case UsartType::usart1:
-//      return PeriphType::usart1;
-//    case UsartType::usart2:
-//      return PeriphType::usart2;
-//    case UsartType::usart3:
-//      return PeriphType::usart3;
-//    case UsartType::uart4:
-//      return PeriphType::uart4;
-//    case UsartType::uart5:
-//      return PeriphType::uart5;
-//  }
-//  return std::nullopt;
-//}
+template<>
+constexpr std::optional<PeriphType> as_periph_type(UsartType type) {
+  switch (type) {
+    case UsartType::usart0:
+      return PeriphType::usart0;
+    case UsartType::usart1:
+      return PeriphType::usart1;
+  }
+  return std::nullopt;
+}
 template<>
 constexpr std::optional<PeriphType> as_periph_type(SpiType type) {
   switch (type) {
