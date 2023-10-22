@@ -87,16 +87,16 @@ struct I2cInfo {
 };
 #endif
 
-//#ifdef GD32_PERIPHGRP_USART_EXISTS
-//struct UsartInfo {
-//  const PeriphType   periph_type;
-//  USART_TypeDef* const p_usart;
-//  const uint32_t addr;
-//  const IRQn_Type irqn;
-//  const PeriphBusInfo bus;
-//};
-//#endif
-//
+#ifdef GD32_PERIPHGRP_USART_EXISTS
+struct UsartInfo {
+  const PeriphType   periph_type;
+  USART_TypeDef* const p_usart;
+  const uint32_t addr;
+  const IRQn_Type irqn;
+  const PeriphBusInfo bus;
+};
+#endif
+
 #ifdef GD32_PERIPHGRP_DAC_EXISTS
 struct DacInfo {
   const PeriphType   periph_type;

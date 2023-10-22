@@ -21,7 +21,7 @@
 //#define SPI2_BASE             (APB1PERIPH_BASE + 0x00003800UL)
 //#define SPI3_BASE             (APB1PERIPH_BASE + 0x00003C00UL)
 //#define I2S3ext_BASE          (APB1PERIPH_BASE + 0x00004000UL)
-//#define USART2_BASE           (APB1PERIPH_BASE + 0x00004400UL)
+#define USART1_BASE           (APB1PERIPH_BASE + 0x00004400UL)
 //#define USART3_BASE           (APB1PERIPH_BASE + 0x00004800UL)
 //#define UART4_BASE            (APB1PERIPH_BASE + 0x00004C00UL)
 //#define UART5_BASE            (APB1PERIPH_BASE + 0x00005000UL)
@@ -49,7 +49,7 @@
 #define EXTI1_BASE             (APB2PERIPH_BASE + 0x00000400UL)
 //#define TIM1_BASE             (APB2PERIPH_BASE + 0x00002C00UL)
 //#define TIM8_BASE             (APB2PERIPH_BASE + 0x00003400UL)
-//#define USART1_BASE           (APB2PERIPH_BASE + 0x00003800UL)
+#define USART0_BASE           (APB2PERIPH_BASE + 0x00003800UL)
 //#define TIM15_BASE            (APB2PERIPH_BASE + 0x00004000UL)
 //#define TIM16_BASE            (APB2PERIPH_BASE + 0x00004400UL)
 //#define TIM17_BASE            (APB2PERIPH_BASE + 0x00004800UL)
@@ -147,12 +147,9 @@
 //#define GD32_PERIPH_TIM7_EXISTS 1
 //#define GD32_PERIPH_TIM1_EXISTS 1
 //#define GD32_PERIPH_TIM8_EXISTS 1
-//#define GD32_PERIPHGRP_USART_EXISTS 1
-//#define GD32_PERIPH_USART1_EXISTS 1
-//#define GD32_PERIPH_USART2_EXISTS 1
-//#define GD32_PERIPH_USART3_EXISTS 1
-//#define GD32_PERIPH_UART4_EXISTS 1
-//#define GD32_PERIPH_UART5_EXISTS 1
+#define GD32_PERIPHGRP_USART_EXISTS 1
+#define GD32_PERIPH_USART0_EXISTS 1
+#define GD32_PERIPH_USART1_EXISTS 1
 #define GD32_PERIPHGRP_EXTI_EXISTS 1
 #define GD32_PERIPH_EXTI_EXISTS 1
 //#define GD32_PERIPHGRP_PWR_EXISTS 1
@@ -198,10 +195,10 @@ enum class PeriphGroupType : uint16_t {
   tsc,
   dma,
   tim,
-  //usart,
+  usart,
   spi,
   exti,
-  //i2c,
+  i2c,
   syscfg,
 };
 
@@ -314,34 +311,21 @@ constexpr static uint8_t to_idx(TimType type) {
   }
   return 0;
 }
-// TODO:
-//enum class UsartType : uint8_t {
-//  usart1 = 0,
-//  usart2,
-//  usart3,
-//  uart4,
-//  uart5,
-//};
-//constexpr static uint8_t to_idx(UsartType type) {
-//  switch (type) {
-//    case UsartType::usart1:
-//      return 0;
-//      break;
-//    case UsartType::usart2:
-//      return 1;
-//      break;
-//    case UsartType::usart3:
-//      return 2;
-//      break;
-//    case UsartType::uart4:
-//      return 3;
-//      break;
-//    case UsartType::uart5:
-//      return 4;
-//      break;
-//  }
-//  return 0;
-//}
+enum class UsartType : uint8_t {
+  usart0 = 0,
+  usart1,
+};
+constexpr static uint8_t to_idx(UsartType type) {
+  switch (type) {
+    case UsartType::usart0:
+      return 0;
+      break;
+    case UsartType::usart1:
+      return 1;
+      break;
+  }
+  return 0;
+}
 enum class SpiType : uint8_t {
   spi0 = 0,
   spi1,
@@ -908,6 +892,23 @@ typedef struct {
   volatile uint32_t CCR6;
 } TIM_TypeDef;
 
+
+typedef struct {
+  volatile uint32_t CTL0;    /*!< CR1: USART Control register 1,                 Address offset: 0x00 */
+  volatile uint32_t CTL1;    /*!< CR2: USART Control register 2,                 Address offset: 0x04 */
+  volatile uint32_t CTL2;    /*!< CR3: USART Control register 3,                 Address offset: 0x08 */
+  volatile uint32_t BAUD;    /*!< BRR: USART Baud rate register,                 Address offset: 0x0C */
+  volatile uint32_t GP;   /*!< GTPR: USART Guard time and prescaler register,  Address offset: 0x10 */
+  volatile uint32_t RT;   /*!< RTOR: USART Receiver Time Out register,         Address offset: 0x14 */
+  volatile uint32_t CMD;    /*!< RQR: USART Request register,                   Address offset: 0x18 */
+  volatile uint32_t STAT;    /*!< ISR: USART Interrupt and status register,      Address offset: 0x1C */
+  volatile uint32_t INTC;    /*!< ICR: USART Interrupt flag Clear register,      Address offset: 0x20 */
+  volatile uint16_t RDATA;    /*!< RDR: USART Receive Data register,              Address offset: 0x24 */
+  uint16_t  RESERVED1;  /*!< Reserved, 0x26                                                 */
+  volatile uint16_t TDATA;    /*!< TDR: USART Transmit Data register,             Address offset: 0x28 */
+  uint16_t  RESERVED2;  /*!< Reserved, 0x2A                                                 */
+} USART_TypeDef;
+
 #define GPIOA_ ((GPIO_TypeDef*)GPIOA_BASE)
 #define GPIOB_ ((GPIO_TypeDef*)GPIOB_BASE)
 #define GPIOC_ ((GPIO_TypeDef*)GPIOC_BASE)
@@ -1099,43 +1100,22 @@ constexpr struct PeriphInfo {
       .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 18},
     },
   };
-  //const std::array<UsartInfo, 5> usart {
-  //  UsartInfo {
-  //    .periph_type = PeriphType::usart1,
-  //    .p_usart = USART1,
-  //    .addr = USART1_BASE,
-  //    .irqn = USART1_IRQn,
-  //    .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 14},
-  //  },
-  //  UsartInfo {
-  //    .periph_type = PeriphType::usart2,
-  //    .p_usart = USART2,
-  //    .addr = USART2_BASE,
-  //    .irqn = USART2_IRQn,
-  //    .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 17},
-  //  },
-  //  UsartInfo {
-  //    .periph_type = PeriphType::usart3,
-  //    .p_usart = USART3,
-  //    .addr = USART3_BASE,
-  //    .irqn = USART3_IRQn,
-  //    .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 18},
-  //  },
-  //  UsartInfo {
-  //    .periph_type = PeriphType::uart4,
-  //    .p_usart = UART4,
-  //    .addr = UART4_BASE,
-  //    .irqn = UART4_IRQn,
-  //    .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 19},
-  //  },
-  //  UsartInfo {
-  //    .periph_type = PeriphType::uart5,
-  //    .p_usart = UART5,
-  //    .addr = UART5_BASE,
-  //    .irqn = UART5_IRQn,
-  //    .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 20},
-  //  },
-  //};
+  const std::array<UsartInfo, 2> usart {
+    UsartInfo {
+      .periph_type = PeriphType::usart0,
+      .p_usart = (USART_TypeDef*)USART0_BASE,
+      .addr = USART0_BASE,
+      .irqn = USART0_IRQn,
+      .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 14},
+    },
+    UsartInfo {
+      .periph_type = PeriphType::usart1,
+      .p_usart = (USART_TypeDef*)USART1_BASE,
+      .addr = USART1_BASE,
+      .irqn = USART1_IRQn,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 17},
+    },
+  };
   const std::array<SpiInfo, 2> spi {
     SpiInfo {
       .periph_type = PeriphType::spi0,
