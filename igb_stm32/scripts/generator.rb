@@ -566,6 +566,6 @@ if __FILE__ == $0
   #peripheral_names = get_periheral_names
   #puts "[peripheral names] #{peripheral_names}"
 
-  generator = CppSrcGenerator.new(:stm32f303xc)
+  generator = CppSrcGenerator.new(:stm32g431xx)
   generator.process
 end
