@@ -20,6 +20,10 @@ namespace stm32 {
 
 #include "h7/_rcc_enums.hpp"
 
+#elif defined(STM32G431xx)
+
+#include "g4/_rcc_enums.hpp"
+
 #endif
 
 struct RccCtrl {
@@ -55,7 +59,7 @@ struct RccCtrl {
     return (READ_BIT(RCC->CR, RCC_CR_HSIRDY) == (RCC_CR_HSIRDY));
   }
 
-#if defined(RCC_HSI48_SUPPORT)
+#if defined(STM32F3) && defined(RCC_HSI48_SUPPORT)
   static IGB_FAST_INLINE void enableHSI48() {
     IGB_SET_BIT(RCC->CR2, RCC_CR2_HSI48ON);
   }
@@ -160,7 +164,12 @@ struct RccCtrl {
 
 #include "h7/_rcc_methods.hpp"
 
+#elif defined(STM32G431xx)
+
+#include "g4/_rcc_methods.hpp"
+
 #endif
+
 };
 
 }

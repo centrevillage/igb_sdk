@@ -17,7 +17,7 @@ namespace igb {
 namespace stm32 {
 
 // TODO: other series
-#if defined(STM32F3)
+#if defined(STM32F3) || defined(STM32G431xx)
 
 enum class DmaStatus : uint32_t {
   globalInterrupt = 0b0001,
@@ -45,6 +45,9 @@ enum class DmaChannelType : uint32_t {
   ch5,
   ch6,
   ch7,
+#if defined(STM32G431xx)
+  ch8
+#endif
 };
 
 enum class DmaPeriphBitWidth: uint32_t {
@@ -185,7 +188,7 @@ struct Dma {
 
 };
 
-#endif /* defined(STM32F3) */
+#endif /* defined(STM32F3) || defined(STM32G431xx) */
 
 } /* stm32 */
 } /* igb */
