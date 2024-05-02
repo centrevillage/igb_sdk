@@ -177,7 +177,7 @@ struct ExtiConf {
 struct ExtiCtrl {
   constexpr static auto info = STM32_PERIPH_INFO.exti;
   constexpr static auto addr = STM32_PERIPH_INFO.exti.addr;
-#if defined(STM32H7)
+#if defined(STM32H7) || defined(STM32G431xx)
   // TODO: define IMR2,3
   constexpr static auto addr_IMR = IGB_EXTI_REG_ADDR(IMR1);
   constexpr static auto addr_EMR = IGB_EXTI_REG_ADDR(EMR1);
