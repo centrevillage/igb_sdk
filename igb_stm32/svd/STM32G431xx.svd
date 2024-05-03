@@ -2434,8 +2434,8 @@
                </fields>
             </register>
             <register>
-               <name>APB1RSTR1</name>
-               <displayName>APB1RSTR1</displayName>
+               <name>APB1RSTR</name>
+               <displayName>APB1RSTR</displayName>
                <description>APB1 peripheral reset register           1</description>
                <addressOffset>0x38</addressOffset>
                <size>0x20</size>
@@ -2793,25 +2793,25 @@
                      <bitWidth>1</bitWidth>
                   </field>
                   <field>
-                     <name>DAC1</name>
+                     <name>DAC1EN</name>
                      <description>AES accelerator clock               enable</description>
                      <bitOffset>16</bitOffset>
                      <bitWidth>1</bitWidth>
                   </field>
                   <field>
-                     <name>DAC2</name>
+                     <name>DAC2EN</name>
                      <description>HASH clock enable</description>
                      <bitOffset>17</bitOffset>
                      <bitWidth>1</bitWidth>
                   </field>
                   <field>
-                     <name>DAC3</name>
+                     <name>DAC3EN</name>
                      <description>Random Number Generator clock               enable</description>
                      <bitOffset>18</bitOffset>
                      <bitWidth>1</bitWidth>
                   </field>
                   <field>
-                     <name>DAC4</name>
+                     <name>DAC4EN</name>
                      <description>DAC4 clock enable</description>
                      <bitOffset>19</bitOffset>
                      <bitWidth>1</bitWidth>
@@ -2854,9 +2854,9 @@
                </fields>
             </register>
             <register>
-               <name>APB1ENR1</name>
-               <displayName>APB1ENR1</displayName>
-               <description>APB1ENR1</description>
+               <name>APB1ENR</name>
+               <displayName>APB1ENR</displayName>
+               <description>APB1ENR</description>
                <addressOffset>0x58</addressOffset>
                <size>0x20</size>
                <access>read-write</access>
@@ -2923,7 +2923,7 @@
                      <bitWidth>1</bitWidth>
                   </field>
                   <field>
-                     <name>SP3EN</name>
+                     <name>SPI3EN</name>
                      <description>SPI3 clock enable</description>
                      <bitOffset>15</bitOffset>
                      <bitWidth>1</bitWidth>

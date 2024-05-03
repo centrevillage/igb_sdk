@@ -471,6 +471,11 @@ class CppSrcGenerator
           DAC: :DAC1,
           DMA: :DMA1,
         }
+      when :stm32g431xx
+        {
+          ADC12:  [:ADC1, :ADC2], 
+          ADC345:  [:ADC3, :ADC4, :ADC5], 
+        }
       when :stm32f446xx
         {
           DAC: :DAC1,

@@ -78,13 +78,12 @@
 #define STM32_PERIPH_OPAMP_EXISTS 1
 #define STM32_PERIPHGRP_DAC_EXISTS 1
 #define STM32_PERIPH_DAC1_EXISTS 1
-#define STM32_PERIPH_DAC2_EXISTS 1
 #define STM32_PERIPH_DAC3_EXISTS 1
-#define STM32_PERIPH_DAC4_EXISTS 1
 #define STM32_PERIPHGRP_ADC_EXISTS 1
 #define STM32_PERIPH_ADC1_EXISTS 1
 #define STM32_PERIPH_ADC2_EXISTS 1
 #define STM32_PERIPH_ADC12_COMMON_EXISTS 1
+#define STM32_PERIPH_ADC345_COMMON_EXISTS 1
 #define STM32_PERIPHGRP_FMAC_EXISTS 1
 #define STM32_PERIPH_FMAC_EXISTS 1
 #define STM32_PERIPHGRP_CORDIC_EXISTS 1
@@ -848,20 +847,23 @@ constexpr static uint8_t extract_pin_idx(GpioPinType pin_type) {
 }
 
 enum class BusType : uint8_t {
-  ahb1 = 0,
+  apb1 = 0,
+  ahb1,
   ahb2,
   ahb3,
   apb2,
 };
 
-const std::array<__IO uint32_t*, 4> STM32_BUS_TO_ENR_ADDRESS = {
+const std::array<__IO uint32_t*, 5> STM32_BUS_TO_ENR_ADDRESS = {
+  &(RCC->APB1ENR1),
   &(RCC->AHB1ENR),
   &(RCC->AHB2ENR),
   &(RCC->AHB3ENR),
   &(RCC->APB2ENR),
 };
 
-const std::array<__IO uint32_t*, 4> STM32_BUS_TO_RSTR_ADDRESS = {
+const std::array<__IO uint32_t*, 5> STM32_BUS_TO_RSTR_ADDRESS = {
+  &(RCC->APB1RSTR1),
   &(RCC->AHB1RSTR),
   &(RCC->AHB2RSTR),
   &(RCC->AHB3RSTR),
@@ -876,16 +878,19 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::i2c1,
       .p_i2c = I2C1,
       .addr = I2C1_BASE,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 21},
     },
     I2cInfo {
       .periph_type = PeriphType::i2c2,
       .p_i2c = I2C2,
       .addr = I2C2_BASE,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 22},
     },
     I2cInfo {
       .periph_type = PeriphType::i2c3,
       .p_i2c = I2C3,
       .addr = I2C3_BASE,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 30},
     },
   };
   const RccInfo rcc {
@@ -952,6 +957,7 @@ constexpr struct PeriphInfo {
       .p_tim = TIM2,
       .addr = TIM2_BASE,
       .irqn = TIM2_IRQn,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 0},
     },
     TimInfo {
       .periph_type = PeriphType::tim3,
@@ -959,6 +965,7 @@ constexpr struct PeriphInfo {
       .p_tim = TIM3,
       .addr = TIM3_BASE,
       .irqn = TIM3_IRQn,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 1},
     },
     TimInfo {
       .periph_type = PeriphType::tim4,
@@ -966,6 +973,7 @@ constexpr struct PeriphInfo {
       .p_tim = TIM4,
       .addr = TIM4_BASE,
       .irqn = TIM4_IRQn,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 2},
     },
     TimInfo {
       .periph_type = PeriphType::tim6,
@@ -973,6 +981,7 @@ constexpr struct PeriphInfo {
       .p_tim = TIM6,
       .addr = TIM6_BASE,
       .irqn = TIM6_DAC_IRQn,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 4},
     },
     TimInfo {
       .periph_type = PeriphType::tim7,
@@ -980,6 +989,7 @@ constexpr struct PeriphInfo {
       .p_tim = TIM7,
       .addr = TIM7_BASE,
       .irqn = TIM7_IRQn,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 5},
     },
     TimInfo {
       .periph_type = PeriphType::tim8,
@@ -1027,24 +1037,29 @@ constexpr struct PeriphInfo {
       .p_usart = LPUART1,
       .addr = LPUART1_BASE,
       .irqn = USART1_IRQn,
+      // TODO: This bus info is dummy! bus clock enable flag exists in ENR2 register
+      .bus = PeriphBusInfo { BusType::apb2, (uint32_t)1 << 14},
     },
     UsartInfo {
       .periph_type = PeriphType::usart2,
       .p_usart = USART2,
       .addr = USART2_BASE,
       .irqn = USART2_IRQn,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 17},
     },
     UsartInfo {
       .periph_type = PeriphType::usart3,
       .p_usart = USART3,
       .addr = USART3_BASE,
       .irqn = USART3_IRQn,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 18},
     },
     UsartInfo {
       .periph_type = PeriphType::uart4,
       .p_usart = UART4,
       .addr = UART4_BASE,
       .irqn = UART4_IRQn,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 19},
     },
   };
   const std::array<SpiInfo, 3> spi {
@@ -1058,11 +1073,13 @@ constexpr struct PeriphInfo {
       .periph_type = PeriphType::spi2,
       .p_spi = SPI2,
       .addr = SPI2_BASE,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 14},
     },
     SpiInfo {
       .periph_type = PeriphType::spi3,
       .p_spi = SPI3,
       .addr = SPI3_BASE,
+      .bus = PeriphBusInfo { BusType::apb1, (uint32_t)1 << 15},
     },
   };
   const ExtiInfo exti {
@@ -1230,26 +1247,30 @@ constexpr struct PeriphInfo {
       .p_dac = DAC1,
       .addr = DAC1_BASE,
       .irqn = TIM6_DAC_IRQn,
+      .bus = PeriphBusInfo { BusType::ahb2, (uint32_t)1 << 16},
     },
     DacInfo {
       .periph_type = PeriphType::dac3,
       .p_dac = DAC3,
       .addr = DAC3_BASE,
       .irqn = TIM6_DAC_IRQn,
+      .bus = PeriphBusInfo { BusType::ahb2, (uint32_t)1 << 18},
     },
   };
-  const std::array<AdcInfo, 4> adc {
+  const std::array<AdcInfo, 2> adc {
     AdcInfo {
       .periph_type = PeriphType::adc1,
       .p_adc = ADC1,
       .addr = ADC1_BASE,
       .irqn = ADC1_2_IRQn,
+      .bus = PeriphBusInfo { BusType::ahb2, (uint32_t)1 << 13},
     },
     AdcInfo {
       .periph_type = PeriphType::adc2,
       .p_adc = ADC2,
       .addr = ADC2_BASE,
       .irqn = ADC1_2_IRQn,
+      .bus = PeriphBusInfo { BusType::ahb2, (uint32_t)1 << 13},
     },
   };
 } STM32_PERIPH_INFO;
