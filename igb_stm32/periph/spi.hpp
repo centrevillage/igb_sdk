@@ -193,7 +193,7 @@ enum class SpiFifoThreshold : uint32_t {
   _15data = SPI_CFG1_FTHLV_3 | SPI_CFG1_FTHLV_2 | SPI_CFG1_FTHLV_1,
   _16data = SPI_CFG1_FTHLV_3 | SPI_CFG1_FTHLV_2 | SPI_CFG1_FTHLV_1 | SPI_CFG1_FTHLV_0,
 };
-#elif defined(STM32F0) || defined(STM32F3)
+#elif defined(STM32F0) || defined(STM32F3) || defined(STM32G431xx)
 enum class SpiFifoThreshold : uint32_t {
   half = 0,
   quarter = SPI_CR2_FRXTH,
@@ -232,7 +232,7 @@ enum class SpiCrcWidth : uint32_t {
   _31bit = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_1),
   _32bit = (SPI_CFG1_CRCSIZE_4 | SPI_CFG1_CRCSIZE_3 | SPI_CFG1_CRCSIZE_2 | SPI_CFG1_CRCSIZE_1 | SPI_CFG1_CRCSIZE_0),
 };
-#elif defined(STM32F0) || defined(STM32F3)
+#elif defined(STM32F0) || defined(STM32F3) || defined(STM32G431xx)
 enum class SpiCrcWidth : uint32_t {
   _8bit = 0,
   _16bit = SPI_CR1_CRCL,
@@ -314,7 +314,7 @@ struct Spi {
 
 #if defined(STM32H7)
   RegEnum<IGB_SPI_REG_ADDR(CFG1), SPI_CFG1_FTHLV, SpiFifoThreshold> fifoThreshold;
-#elif defined(STM32F0) || defined(STM32F3)
+#elif defined(STM32F0) || defined(STM32F3) || defined(STM32G431xx)
   RegEnum<IGB_SPI_REG_ADDR(CR2), SPI_CR2_FRXTH, SpiFifoThreshold> rxFifoThreshold;
 #endif
 
@@ -326,7 +326,7 @@ struct Spi {
 
 #if defined(STM32H7)
   RegEnum<IGB_SPI_REG_ADDR(CFG1), SPI_CFG1_CRCSIZE, SpiCrcWidth> crcWidth;
-#elif defined(STM32F0) || defined(STM32F3)
+#elif defined(STM32F0) || defined(STM32F3) || defined(STM32G431xx)
   RegEnum<IGB_SPI_REG_ADDR(CR1), SPI_CR1_CRCL, SpiCrcWidth> crcWidth;
 #endif
 
@@ -369,7 +369,7 @@ struct Spi {
 
 #if defined(STM32H7)
   RegFlag<IGB_SPI_REG_ADDR(CFG2), SPI_CFG2_SSOM> nssPulseMng;
-#elif defined(STM32F0) || defined(STM32F3)
+#elif defined(STM32F0) || defined(STM32F3) || defined(STM32G431xx)
   RegFlag<IGB_SPI_REG_ADDR(CR2), SPI_CR2_NSSP> nssPulseMng;
 #endif
 
@@ -449,7 +449,7 @@ struct Spi {
 #endif
   }
 
-#if defined(STM32F0) || defined(STM32F3)
+#if defined(STM32F0) || defined(STM32F3) || defined(STM32G431xx)
   enum class DmaParityTarget : uint32_t {
     rx = SPI_CR2_RXDMAEN,
     tx = SPI_CR2_TXDMAEN,
@@ -666,7 +666,7 @@ struct Spi {
     transBitOrder(SpiBitOrder::msbFirst);
     mode(SpiMode::master);
     transDir(SpiTransDir::fullDuplex);
-#elif defined(STM32F0) || defined(STM32F3)
+#elif defined(STM32F0) || defined(STM32F3) || defined(STM32G431xx)
     transDir(SpiTransDir::fullDuplex);
     mode(SpiMode::master);
     dataWidth(SpiDataWidth::_8bit);
