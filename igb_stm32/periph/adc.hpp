@@ -25,7 +25,154 @@ namespace stm32 {
 #define IGB_ADC_COMMON_REG(member) ((ADC_Common_TypeDef*)IGB_ADC_REG_ADDR(member))
 
 // TODO: other series
-#if defined(STM32F3)
+#if defined(STM32F3) || defined(STM32G431xx)
+
+#if defined(STM32G431xx)
+
+#define ADC1_2_COMMON_BASE ADC12_COMMON_BASE
+#define ADC12_CSR_ADRDY_MST_Pos ADC_CSR_ADRDY_MST_Pos
+#define ADC12_CSR_ADRDY_MST_Msk ADC_CSR_ADRDY_MST_Msk
+#define ADC12_CSR_ADRDY_MST ADC_CSR_ADRDY_MST
+#define ADC12_CSR_ADRDY_EOSMP_MST_Pos ADC_CSR_EOSMP_MST_Pos
+#define ADC12_CSR_ADRDY_EOSMP_MST_Msk ADC_CSR_EOSMP_MST_Msk
+#define ADC12_CSR_ADRDY_EOSMP_MST ADC_CSR_EOSMP_MST
+#define ADC12_CSR_ADRDY_EOC_MST_Pos ADC_CSR_EOC_MST_Pos
+#define ADC12_CSR_ADRDY_EOC_MST_Msk ADC_CSR_EOC_MST_Msk
+#define ADC12_CSR_ADRDY_EOC_MST ADC_CSR_EOC_MST
+#define ADC12_CSR_ADRDY_EOS_MST_Pos ADC_CSR_EOS_MST_Pos
+#define ADC12_CSR_ADRDY_EOS_MST_Msk ADC_CSR_EOS_MST_Msk
+#define ADC12_CSR_ADRDY_EOS_MST ADC_CSR_EOS_MST
+#define ADC12_CSR_ADRDY_OVR_MST_Pos ADC_CSR_OVR_MST_Pos
+#define ADC12_CSR_ADRDY_OVR_MST_Msk ADC_CSR_OVR_MST_Msk
+#define ADC12_CSR_ADRDY_OVR_MST ADC_CSR_OVR_MST
+#define ADC12_CSR_ADRDY_JEOC_MST_Pos ADC_CSR_JEOC_MST_Pos
+#define ADC12_CSR_ADRDY_JEOC_MST_Msk ADC_CSR_JEOC_MST_Msk
+#define ADC12_CSR_ADRDY_JEOC_MST ADC_CSR_JEOC_MST
+#define ADC12_CSR_ADRDY_JEOS_MST_Pos ADC_CSR_JEOS_MST_Pos
+#define ADC12_CSR_ADRDY_JEOS_MST_Msk ADC_CSR_JEOS_MST_Msk
+#define ADC12_CSR_ADRDY_JEOS_MST ADC_CSR_JEOS_MST
+#define ADC12_CSR_AWD1_MST_Pos ADC_CSR_AWD1_MST_Pos
+#define ADC12_CSR_AWD1_MST_Msk ADC_CSR_AWD1_MST_Msk
+#define ADC12_CSR_AWD1_MST ADC_CSR_AWD1_MST
+#define ADC12_CSR_AWD2_MST_Pos ADC_CSR_AWD2_MST_Pos
+#define ADC12_CSR_AWD2_MST_Msk ADC_CSR_AWD2_MST_Msk
+#define ADC12_CSR_AWD2_MST ADC_CSR_AWD2_MST
+#define ADC12_CSR_AWD3_MST_Pos ADC_CSR_AWD3_MST_Pos
+#define ADC12_CSR_AWD3_MST_Msk ADC_CSR_AWD3_MST_Msk
+#define ADC12_CSR_AWD3_MST ADC_CSR_AWD3_MST
+#define ADC12_CSR_JQOVF_MST_Pos ADC_CSR_JQOVF_MST_Pos
+#define ADC12_CSR_JQOVF_MST_Msk ADC_CSR_JQOVF_MST_Msk
+#define ADC12_CSR_JQOVF_MST ADC_CSR_JQOVF_MST
+#define ADC12_CSR_ADRDY_SLV_Pos ADC_CSR_ADRDY_SLV_Pos
+#define ADC12_CSR_ADRDY_SLV_Msk ADC_CSR_ADRDY_SLV_Msk
+#define ADC12_CSR_ADRDY_SLV ADC_CSR_ADRDY_SLV
+#define ADC12_CSR_ADRDY_EOSMP_SLV_Pos ADC_CSR_EOSMP_SLV_Pos
+#define ADC12_CSR_ADRDY_EOSMP_SLV_Msk ADC_CSR_EOSMP_SLV_Msk
+#define ADC12_CSR_ADRDY_EOSMP_SLV ADC_CSR_EOSMP_SLV
+#define ADC12_CSR_ADRDY_EOC_SLV_Pos ADC_CSR_EOC_SLV_Pos
+#define ADC12_CSR_ADRDY_EOC_SLV_Msk ADC_CSR_EOC_SLV_Msk
+#define ADC12_CSR_ADRDY_EOC_SLV ADC_CSR_EOC_SLV
+#define ADC12_CSR_ADRDY_EOS_SLV_Pos ADC_CSR_EOS_SLV_Pos
+#define ADC12_CSR_ADRDY_EOS_SLV_Msk ADC_CSR_EOS_SLV_Msk
+#define ADC12_CSR_ADRDY_EOS_SLV ADC_CSR_EOS_SLV
+#define ADC12_CSR_ADRDY_OVR_SLV_Pos ADC_CSR_OVR_SLV_Pos
+#define ADC12_CSR_ADRDY_OVR_SLV_Msk ADC_CSR_OVR_SLV_Msk
+#define ADC12_CSR_ADRDY_OVR_SLV ADC_CSR_OVR_SLV
+#define ADC12_CSR_ADRDY_JEOC_SLV_Pos ADC_CSR_JEOC_SLV_Pos
+#define ADC12_CSR_ADRDY_JEOC_SLV_Msk ADC_CSR_JEOC_SLV_Msk
+#define ADC12_CSR_ADRDY_JEOC_SLV ADC_CSR_JEOC_SLV
+#define ADC12_CSR_ADRDY_JEOS_SLV_Pos ADC_CSR_JEOS_SLV_Pos
+#define ADC12_CSR_ADRDY_JEOS_SLV_Msk ADC_CSR_JEOS_SLV_Msk
+#define ADC12_CSR_ADRDY_JEOS_SLV ADC_CSR_JEOS_SLV
+#define ADC12_CSR_AWD1_SLV_Pos ADC_CSR_AWD1_SLV_Pos
+#define ADC12_CSR_AWD1_SLV_Msk ADC_CSR_AWD1_SLV_Msk
+#define ADC12_CSR_AWD1_SLV ADC_CSR_AWD1_SLV
+#define ADC12_CSR_AWD2_SLV_Pos ADC_CSR_AWD2_SLV_Pos
+#define ADC12_CSR_AWD2_SLV_Msk ADC_CSR_AWD2_SLV_Msk
+#define ADC12_CSR_AWD2_SLV ADC_CSR_AWD2_SLV
+#define ADC12_CSR_AWD3_SLV_Pos ADC_CSR_AWD3_SLV_Pos
+#define ADC12_CSR_AWD3_SLV_Msk ADC_CSR_AWD3_SLV_Msk
+#define ADC12_CSR_AWD3_SLV ADC_CSR_AWD3_SLV
+#define ADC12_CSR_JQOVF_SLV_Pos ADC_CSR_JQOVF_SLV_Pos
+#define ADC12_CSR_JQOVF_SLV_Msk ADC_CSR_JQOVF_SLV_Msk
+#define ADC12_CSR_JQOVF_SLV ADC_CSR_JQOVF_SLV
+#define ADC12_CCR_MULTI_Pos ADC_CCR_DUAL_Pos
+#define ADC12_CCR_MULTI_Msk ADC_CCR_DUAL_Msk
+#define ADC12_CCR_MULTI ADC_CCR_DUAL
+#define ADC12_CCR_MULTI_0 ADC_CCR_DUAL_0
+#define ADC12_CCR_MULTI_1 ADC_CCR_DUAL_1
+#define ADC12_CCR_MULTI_2 ADC_CCR_DUAL_2
+#define ADC12_CCR_MULTI_3 ADC_CCR_DUAL_3
+#define ADC12_CCR_MULTI_4 ADC_CCR_DUAL_4
+#define ADC12_CCR_DELAY_Pos ADC_CCR_DELAY_Pos
+#define ADC12_CCR_DELAY_Msk ADC_CCR_DELAY_Msk
+#define ADC12_CCR_DELAY ADC_CCR_DELAY
+#define ADC12_CCR_DELAY_0 ADC_CCR_DELAY_0
+#define ADC12_CCR_DELAY_1 ADC_CCR_DELAY_1
+#define ADC12_CCR_DELAY_2 ADC_CCR_DELAY_2
+#define ADC12_CCR_DELAY_3 ADC_CCR_DELAY_3
+#define ADC12_CCR_DMACFG_Pos ADC_CCR_DMACFG_Pos
+#define ADC12_CCR_DMACFG_Msk ADC_CCR_DMACFG_Msk
+#define ADC12_CCR_DMACFG ADC_CCR_DMACFG
+#define ADC12_CCR_MDMA_Pos ADC_CCR_MDMA_Pos
+#define ADC12_CCR_MDMA_Msk ADC_CCR_MDMA_Msk
+#define ADC12_CCR_MDMA ADC_CCR_MDMA
+#define ADC12_CCR_MDMA_0 ADC_CCR_MDMA_0
+#define ADC12_CCR_MDMA_1 ADC_CCR_MDMA_1
+#define ADC12_CCR_CKMODE_Pos ADC_CCR_CKMODE_Pos
+#define ADC12_CCR_CKMODE_Msk ADC_CCR_CKMODE_Msk
+#define ADC12_CCR_CKMODE ADC_CCR_CKMODE
+#define ADC12_CCR_CKMODE_0 ADC_CCR_CKMODE_0
+#define ADC12_CCR_CKMODE_1 ADC_CCR_CKMODE_1
+#define ADC12_CCR_VREFEN_Pos ADC_CCR_VREFEN_Pos
+#define ADC12_CCR_VREFEN_Msk ADC_CCR_VREFEN_Msk
+#define ADC12_CCR_VREFEN ADC_CCR_VREFEN
+#define ADC12_CCR_TSEN_Pos ADC_CCR_VSENSESEL_Pos
+#define ADC12_CCR_TSEN_Msk ADC_CCR_VSENSESEL_Msk
+#define ADC12_CCR_TSEN ADC_CCR_VSENSESEL
+#define ADC12_CCR_VBATEN_Pos ADC_CCR_VBATSEL_Pos
+#define ADC12_CCR_VBATEN_Msk ADC_CCR_VBATSEL_Msk
+#define ADC12_CCR_VBATEN ADC_CCR_VBATSEL
+#define ADC12_CDR_RDATA_MST_Pos ADC_CDR_RDATA_MST_Pos
+#define ADC12_CDR_RDATA_MST_Msk ADC_CDR_RDATA_MST_Msk
+#define ADC12_CDR_RDATA_MST ADC_CDR_RDATA_MST
+#define ADC12_CDR_RDATA_MST_0 ADC_CDR_RDATA_MST_0
+#define ADC12_CDR_RDATA_MST_1 ADC_CDR_RDATA_MST_1
+#define ADC12_CDR_RDATA_MST_2 ADC_CDR_RDATA_MST_2
+#define ADC12_CDR_RDATA_MST_3 ADC_CDR_RDATA_MST_3
+#define ADC12_CDR_RDATA_MST_4 ADC_CDR_RDATA_MST_4
+#define ADC12_CDR_RDATA_MST_5 ADC_CDR_RDATA_MST_5
+#define ADC12_CDR_RDATA_MST_6 ADC_CDR_RDATA_MST_6
+#define ADC12_CDR_RDATA_MST_7 ADC_CDR_RDATA_MST_7
+#define ADC12_CDR_RDATA_MST_8 ADC_CDR_RDATA_MST_8
+#define ADC12_CDR_RDATA_MST_9 ADC_CDR_RDATA_MST_9
+#define ADC12_CDR_RDATA_MST_10 ADC_CDR_RDATA_MST_10
+#define ADC12_CDR_RDATA_MST_11 ADC_CDR_RDATA_MST_11
+#define ADC12_CDR_RDATA_MST_12 ADC_CDR_RDATA_MST_12
+#define ADC12_CDR_RDATA_MST_13 ADC_CDR_RDATA_MST_13
+#define ADC12_CDR_RDATA_MST_14 ADC_CDR_RDATA_MST_14
+#define ADC12_CDR_RDATA_MST_15 ADC_CDR_RDATA_MST_15
+#define ADC12_CDR_RDATA_SLV_Pos ADC_CDR_RDATA_SLV_Pos
+#define ADC12_CDR_RDATA_SLV_Msk ADC_CDR_RDATA_SLV_Msk
+#define ADC12_CDR_RDATA_SLV ADC_CDR_RDATA_SLV
+#define ADC12_CDR_RDATA_SLV_0 ADC_CDR_RDATA_SLV_0
+#define ADC12_CDR_RDATA_SLV_1 ADC_CDR_RDATA_SLV_1
+#define ADC12_CDR_RDATA_SLV_2 ADC_CDR_RDATA_SLV_2
+#define ADC12_CDR_RDATA_SLV_3 ADC_CDR_RDATA_SLV_3
+#define ADC12_CDR_RDATA_SLV_4 ADC_CDR_RDATA_SLV_4
+#define ADC12_CDR_RDATA_SLV_5 ADC_CDR_RDATA_SLV_5
+#define ADC12_CDR_RDATA_SLV_6 ADC_CDR_RDATA_SLV_6
+#define ADC12_CDR_RDATA_SLV_7 ADC_CDR_RDATA_SLV_7
+#define ADC12_CDR_RDATA_SLV_8 ADC_CDR_RDATA_SLV_8
+#define ADC12_CDR_RDATA_SLV_9 ADC_CDR_RDATA_SLV_9
+#define ADC12_CDR_RDATA_SLV_10 ADC_CDR_RDATA_SLV_10
+#define ADC12_CDR_RDATA_SLV_11 ADC_CDR_RDATA_SLV_11
+#define ADC12_CDR_RDATA_SLV_12 ADC_CDR_RDATA_SLV_12
+#define ADC12_CDR_RDATA_SLV_13 ADC_CDR_RDATA_SLV_13
+#define ADC12_CDR_RDATA_SLV_14 ADC_CDR_RDATA_SLV_14
+#define ADC12_CDR_RDATA_SLV_15 ADC_CDR_RDATA_SLV_15
+
+#endif
 
 enum class AdcStatus : uint32_t {
   ready = ADC_ISR_ADRDY,
@@ -88,8 +235,8 @@ enum class AdcCalibrationType : uint32_t {
 
 enum class AdcRegulatorState : uint32_t {
   clear = 0,
-  enable = ADC_CR_ADVREGEN_0,
-  disable = ADC_CR_ADVREGEN_1,
+  enable = 1,
+  disable = 2,
 };
 
 enum class AdcDmaConfig : uint32_t {
@@ -125,6 +272,37 @@ enum class AdcJsqrMode : uint32_t {
   keepOld = 0,
   discardOld = ADC_CFGR_JQM
 };
+
+#if defined(STM32G431xx)
+enum class AdcOverSamplingRate : uint32_t {
+  x2 = 0,
+  x4,
+  x8,
+  x16,
+  x32,
+  x64,
+  x128,
+  x256
+};
+
+enum class AdcOverSamplingShift : uint32_t {
+  none = 0,
+  _1bit,
+  _2bit,
+  _3bit,
+  _4bit,
+  _5bit,
+  _6bit,
+  _7bit,
+  _8bit,
+};
+
+enum class AdcRegularOverSamplingMode : uint32_t {
+  continuous = 0,
+  discontinuous = 1
+};
+
+#endif
 
 enum class AdcCommonDualMode : uint32_t {
   independent = 0,
@@ -165,6 +343,23 @@ enum class AdcCommonClockMode : uint32_t {
   syncHclkDiv4 = ADC12_CCR_CKMODE_0 | ADC12_CCR_CKMODE_1,
 };
 
+#if defined(STM32G431xx)
+enum class AdcCommonPrescaler : uint32_t {
+  div1 = 0,
+  div2,
+  div4,
+  div6,
+  div8,
+  div10,
+  div12,
+  div16,
+  div32,
+  div64,
+  div128,
+  div256,
+};
+#endif
+
 struct AdcCommon {
   constexpr static auto addr = ADC1_2_COMMON_BASE;
 
@@ -176,6 +371,9 @@ struct AdcCommon {
   RegFlag<IGB_ADC_COMMON_REG_ADDR(CCR), ADC12_CCR_VREFEN> vrefint;
   RegFlag<IGB_ADC_COMMON_REG_ADDR(CCR), ADC12_CCR_TSEN> temperatureSensor;
   RegFlag<IGB_ADC_COMMON_REG_ADDR(CCR), ADC12_CCR_VBATEN> vbat;
+#if defined(STM32G431xx)
+  RegEnum<IGB_ADC_COMMON_REG_ADDR(CCR), ADC_CCR_PRESC_Msk, AdcCommonPrescaler, ADC_CCR_PRESC_Pos> prescaler;
+#endif
 
   RegValue<IGB_ADC_COMMON_REG_ADDR(CDR), ADC12_CDR_RDATA_MST_Msk, ADC12_CDR_RDATA_MST_Pos> masterData;
   RegValue<IGB_ADC_COMMON_REG_ADDR(CDR), ADC12_CDR_RDATA_SLV_Msk, ADC12_CDR_RDATA_SLV_Pos> slaveData;
@@ -257,6 +455,9 @@ struct Adc {
   constexpr static auto addr_ISR = IGB_ADC_REG_ADDR(ISR);
   constexpr static auto addr_IER = IGB_ADC_REG_ADDR(IER);
   constexpr static auto addr_CFGR = IGB_ADC_REG_ADDR(CFGR);
+#if defined(STM32G431xx)
+  constexpr static auto addr_CFGR2 = IGB_ADC_REG_ADDR(CFGR2);
+#endif
   constexpr static auto addr_SMPR1 = IGB_ADC_REG_ADDR(SMPR1);
   constexpr static auto addr_SMPR2 = IGB_ADC_REG_ADDR(SMPR2);
   constexpr static auto addr_TR1 = IGB_ADC_REG_ADDR(TR1);
@@ -286,7 +487,7 @@ struct Adc {
   RegFlag<addr_CR, ADC_CR_JADSTART> injectedConvStart;
   RegFlag<addr_CR, ADC_CR_ADSTP> convStop;
   RegFlag<addr_CR, ADC_CR_JADSTP> injectedConvStop;
-  RegEnum<addr_CR, ADC_CR_ADVREGEN, AdcRegulatorState> regulator;
+  RegEnum<addr_CR, (0x3UL << ADC_CR_ADVREGEN_Pos), AdcRegulatorState, ADC_CR_ADVREGEN_Pos> regulator;
   RegFlag<addr_CR, ADC_CR_ADCALDIF> differentialCalibration;
   RegFlag<addr_CR, ADC_CR_ADCAL> calibration;
 
@@ -309,6 +510,20 @@ struct Adc {
   RegFlag<addr_CFGR, ADC_CFGR_JAWD1EN> injectWatchdog1;
   RegFlag<addr_CFGR, ADC_CFGR_JAUTO> autoInjectGroupConv;
   RegValue<addr_CFGR, ADC_CFGR_AWD1CH_Msk, ADC_CFGR_AWD1CH_Pos> watchdog1Channel; // 0 == reserved, 1 = channel1, 18 = channel18
+#if defined(STM32G431xx)
+  RegFlag<addr_CFGR, ADC_CFGR_JQDIS> disableInjectQue;
+
+  RegFlag<addr_CFGR2, ADC_CFGR2_ROVSE> enableRegularOverSampling;
+  RegFlag<addr_CFGR2, ADC_CFGR2_JOVSE> enableInjectOverSampling;
+  RegEnum<addr_CFGR2, ADC_CFGR2_OVSR_Msk, AdcOverSamplingRate, ADC_CFGR2_OVSR_Pos> overSamplingRate;
+  RegEnum<addr_CFGR2, ADC_CFGR2_OVSS_Msk, AdcOverSamplingShift, ADC_CFGR2_OVSS_Pos> overSamplingShift;
+  RegFlag<addr_CFGR2, ADC_CFGR2_TROVS> triggerRegularOverSampling;
+  RegEnum<addr_CFGR2, ADC_CFGR2_ROVSM_Msk, AdcRegularOverSamplingMode, ADC_CFGR2_ROVSM_Pos> regularOverSamplingMode;
+  RegFlag<addr_CFGR2, ADC_CFGR2_GCOMP> enableGainCompensation;
+  RegFlag<addr_CFGR2, ADC_CFGR2_SWTRIG> triggerSampleTimeControlMode;
+  RegFlag<addr_CFGR2, ADC_CFGR2_BULB> enableBulbSamplingMode;
+  RegFlag<addr_CFGR2, ADC_CFGR2_SMPTRIG> enableTriggerSampleTimeControlMode;
+#endif
   
   RegValueRO<addr_DR, ADC_DR_RDATA_Msk, ADC_DR_RDATA_Pos> data; // read-only
 
