@@ -977,7 +977,7 @@ struct Adc {
 
     _initChannels(pin_confs...);
 
-    startCalibration(AdcCalibrationType::singleEnded);
+    startCalibration(AdcCalibrationType::singleEnded); // TODO: to be capable differencial
 
     delay_msec(2);
 
