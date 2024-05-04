@@ -6,6 +6,14 @@
 #include <array>
 #include <optional>
 
+
+#define FLASH_KEY1                0x45670123U
+#define FLASH_KEY2                0xCDEF89ABU
+#define FLASH_PDKEY1              0x04152637U
+#define FLASH_PDKEY2              0xFAFBFCFDU
+#define FLASH_OPTKEY1             0x08192A3BU
+#define FLASH_OPTKEY2             0x4C5D6E7FU
+
 #define STM32_PERIPHGRP_CRC_EXISTS 1
 #define STM32_PERIPH_CRC_EXISTS 1
 #define STM32_PERIPHGRP_IWDG_EXISTS 1

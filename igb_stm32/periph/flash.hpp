@@ -21,6 +21,15 @@ enum class FlashLatency {
 #endif
 };
 
+#if defined(STM32G431xx)
+enum class FlashBootMode {
+  hardwarePin = 0,
+  flash,
+  sram,
+  system
+};
+#endif
+
 struct FlashCtrl {
   static IGB_FAST_INLINE void setLatency(FlashLatency latency) {
     IGB_MODIFY_REG(FLASH->ACR, FLASH_ACR_LATENCY, static_cast<uint32_t>(latency));
@@ -32,9 +41,9 @@ struct FlashCtrl {
 
   static IGB_FAST_INLINE bool isBusy() {
 #if defined(STM32H7)
-    return FLASH->SR1 & 0x1UL;
+    return IGB_READ_BIT(FLASH->SR1, FLASH_SR_BSY);
 #else
-    return FLASH->SR & 0x1UL;
+    return IGB_READ_BIT(FLASH->SR, FLASH_SR_BSY);
 #endif
   }
 
@@ -50,7 +59,9 @@ struct FlashCtrl {
   static IGB_FAST_INLINE bool isPrefetchEnabled() {
     return (IGB_READ_BIT(FLASH->ACR, FLASH_ACR_PRFTBS) == (FLASH_ACR_PRFTBS));
   }
+#endif
 
+#if defined(STM32F0) || defined(STM32F3) || defined(STM32G431xx)
   static IGB_FAST_INLINE bool isLock() {
     return IGB_READ_BIT(FLASH->CR, FLASH_CR_LOCK);
   }
@@ -65,7 +76,74 @@ struct FlashCtrl {
   static IGB_FAST_INLINE void lock() {
     IGB_SET_BIT(FLASH->CR, FLASH_CR_LOCK);
   }
+#endif
 
+#if defined(STM32G431xx)
+  static IGB_FAST_INLINE void unlockOpt() {
+    IGB_WRITE_REG(FLASH->OPTKEYR, FLASH_OPTKEY1);
+    IGB_WRITE_REG(FLASH->OPTKEYR, FLASH_OPTKEY2);
+  }
+
+  static IGB_FAST_INLINE void setBootMode(FlashBootMode bootMode) {
+    while (isBusy()) {}
+
+    unlock();
+    unlockOpt();
+
+    switch (bootMode) {
+      case FlashBootMode::hardwarePin:
+        {
+          IGB_SET_BIT(FLASH->OPTR, FLASH_OPTR_nSWBOOT0);
+          IGB_CLEAR_BIT(FLASH->OPTR, FLASH_OPTR_nBOOT1);
+        }
+        break;
+      case FlashBootMode::flash:
+        {
+          IGB_CLEAR_BIT(FLASH->OPTR, FLASH_OPTR_nSWBOOT0);
+          IGB_SET_BIT(FLASH->OPTR, FLASH_OPTR_nBOOT0);
+          IGB_CLEAR_BIT(FLASH->OPTR, FLASH_OPTR_nBOOT1);
+        }
+        break;
+      case FlashBootMode::sram:
+        {
+          IGB_CLEAR_BIT(FLASH->OPTR, FLASH_OPTR_nSWBOOT0);
+          IGB_CLEAR_BIT(FLASH->OPTR, FLASH_OPTR_nBOOT0);
+          IGB_CLEAR_BIT(FLASH->OPTR, FLASH_OPTR_nBOOT1);
+        }
+        break;
+      case FlashBootMode::system:
+        {
+          IGB_CLEAR_BIT(FLASH->OPTR, FLASH_OPTR_nSWBOOT0);
+          IGB_CLEAR_BIT(FLASH->OPTR, FLASH_OPTR_nBOOT0);
+          IGB_SET_BIT(FLASH->OPTR, FLASH_OPTR_nBOOT1);
+        }
+        break;
+    }
+
+    IGB_SET_BIT(FLASH->CR, FLASH_CR_OPTSTRT);
+
+    while (isBusy()) {}
+
+    lock(); // lock & optlock
+
+    while (isBusy()) {}
+  }
+
+  static FlashBootMode getBootMode() {
+    if (IGB_READ_BIT(FLASH->OPTR, FLASH_OPTR_nBOOT1))  {
+      return FlashBootMode::system;
+    }
+    if (!IGB_READ_BIT(FLASH->OPTR, FLASH_OPTR_nSWBOOT0)) {
+      if (IGB_READ_BIT(FLASH->OPTR, FLASH_OPTR_nSWBOOT0)) {
+        return FlashBootMode::flash;
+      }
+      return FlashBootMode::sram;
+    }
+    return FlashBootMode::hardwarePin;
+  }
+#endif
+
+#if defined(STM32F0) || defined(STM32F3)
   static IGB_FAST_INLINE void erasePage(uint32_t addr) {
     while (isBusy()) {}
 
