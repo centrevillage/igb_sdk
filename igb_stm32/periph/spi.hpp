@@ -488,6 +488,7 @@ struct Spi {
   }
 
   IGB_FAST_INLINE uint8_t receiveU8sync(auto&& wait_func) {
+    //while (is(SpiState::busy)) { wait_func(); }
 #if defined(STM32H7)
     while (!is(SpiState::rxPacketAbailable)) { wait_func(); }
     return receiveU8();
@@ -509,6 +510,7 @@ struct Spi {
   }
 
   IGB_FAST_INLINE uint8_t receiveU16sync(auto&& wait_func) {
+    //while (is(SpiState::busy)) { wait_func(); }
 #if defined(STM32H7)
     while (!is(SpiState::rxPacketAbailable)) { wait_func(); }
     return receiveU16();
@@ -772,6 +774,109 @@ struct Spi {
 #endif
     enable();
   }
+
+  IGB_FAST_INLINE void initMasterInputOnly(SpiBaudratePrescaler prescaler, SpiDataWidth data_width = SpiDataWidth::_8bit) {
+    const auto& spi_info = STM32_PERIPH_INFO.spi[to_idx(type)];
+    spi_info.bus.enableBusClock();
+    prepareGpio(miso_pin);
+    prepareGpio(sck_pin);
+
+#if defined(STM32H7)
+    nssPolarity(SpiNssPolarity::low);
+    standard(SpiStandard::motorola);
+    fifoThreshold(SpiFifoThreshold::_1data);
+    nssPulseMng(false);
+
+    baudratePrescaler(prescaler);
+    crc(false);
+    dataWidth(data_width);
+
+    IGB_SET_BIT(IGB_SPI->CR1, SPI_CR1_SSI); // avoid a MODF Error
+
+    nssMode(SpiNssMode::soft);
+    clockPolarity(SpiClockPolarity::low);
+    clockPhase(SpiClockPhase::oneEdge);
+    transBitOrder(SpiBitOrder::msbFirst);
+    mode(SpiMode::master);
+    transDir(SpiTransDir::simplexRx);
+#if defined(SPI_I2SCFGR_I2SMOD)
+    IGB_CLEAR_BIT(IGB_SPI->I2SCFGR, SPI_I2SCFGR_I2SMOD);
+#endif
+    IGB_CLEAR_BIT(IGB_SPI->CR1, SPI_CR1_TCRCINI);
+    IGB_CLEAR_BIT(IGB_SPI->CR1, SPI_CR1_RCRCINI);
+    IGB_CLEAR_BIT(IGB_SPI->CFG2, SPI_CFG2_AFCNTR);
+    IGB_CLEAR_BIT(IGB_SPI->CFG2, SPI_CFG2_IOSWP);
+    IGB_MODIFY_REG(IGB_SPI->CFG2, 0xFFUL, 0x00UL);
+#else
+    baudratePrescaler(prescaler);
+    //transDir(SpiTransDir::simplexRx);
+    transDir(SpiTransDir::fullDuplex);
+    mode(SpiMode::master);
+    dataWidth(data_width);
+    clockPolarity(SpiClockPolarity::low);
+    clockPhase(SpiClockPhase::oneEdge);
+    nssMode(SpiNssMode::soft);
+    transBitOrder(SpiBitOrder::msbFirst);
+    crc(false);
+    crcPolynomial(7);
+    standard(SpiStandard::motorola);
+    rxFifoThreshold(SpiFifoThreshold::quarter);
+    nssPulseMng(false);
+#endif
+    enable();
+  };
+
+  IGB_FAST_INLINE void initMasterInputOnlyHardSS(GpioPinType cs_pin, SpiBaudratePrescaler prescaler, SpiDataWidth data_width = SpiDataWidth::_8bit) {
+    const auto& spi_info = STM32_PERIPH_INFO.spi[to_idx(type)];
+    spi_info.bus.enableBusClock();
+    prepareGpio(miso_pin);
+    prepareGpio(sck_pin);
+    prepareGpio(cs_pin);
+
+#if defined(STM32H7)
+    nssPolarity(SpiNssPolarity::low);
+    standard(SpiStandard::motorola);
+    fifoThreshold(SpiFifoThreshold::_1data);
+    nssPulseMng(true);
+
+    baudratePrescaler(prescaler);
+    crc(false);
+    dataWidth(data_width);
+
+    IGB_SET_BIT(IGB_SPI->CR1, SPI_CR1_SSI); // avoid a MODF Error
+
+    nssMode(SpiNssMode::hardOutput);
+    clockPolarity(SpiClockPolarity::low);
+    clockPhase(SpiClockPhase::oneEdge);
+    transBitOrder(SpiBitOrder::msbFirst);
+    mode(SpiMode::master);
+    transDir(SpiTransDir::simplexRx);
+#if defined(SPI_I2SCFGR_I2SMOD)
+    IGB_CLEAR_BIT(IGB_SPI->I2SCFGR, SPI_I2SCFGR_I2SMOD);
+#endif
+    IGB_CLEAR_BIT(IGB_SPI->CR1, SPI_CR1_TCRCINI);
+    IGB_CLEAR_BIT(IGB_SPI->CR1, SPI_CR1_RCRCINI);
+    IGB_CLEAR_BIT(IGB_SPI->CFG2, SPI_CFG2_AFCNTR);
+    IGB_CLEAR_BIT(IGB_SPI->CFG2, SPI_CFG2_IOSWP);
+    IGB_MODIFY_REG(IGB_SPI->CFG2, 0xFFUL, 0x00UL);
+#else
+    baudratePrescaler(prescaler);
+    transDir(SpiTransDir::simplexRx);
+    mode(SpiMode::master);
+    dataWidth(data_width);
+    clockPolarity(SpiClockPolarity::low);
+    clockPhase(SpiClockPhase::oneEdge);
+    nssMode(SpiNssMode::hardOutput);
+    transBitOrder(SpiBitOrder::msbFirst);
+    crc(false);
+    crcPolynomial(7);
+    standard(SpiStandard::motorola);
+    rxFifoThreshold(SpiFifoThreshold::quarter);
+    nssPulseMng(true);
+  #endif
+    enable();
+  }
+
 
   IGB_FAST_INLINE void init(SpiBaudratePrescaler prescaler = SpiBaudratePrescaler::div16) {
     // TODO: config default prescaler
