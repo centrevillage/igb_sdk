@@ -7,11 +7,15 @@
 
 namespace igb::dsp {
 
-IGB_FAST_INLINE float tau2pole(float tau) {
+IGB_FAST_INLINE float tau2pole(float tau, uint32_t sampling_rate) {
   if (tau < igb::numbers::epsilon_f) {
     return 0.0f;
   }
-  return std::exp(-1.0f / (tau * (float)Config::getSamplingRateF()));
+  return std::exp(-1.0f / (tau * (float)sampling_rate));
+}
+
+IGB_FAST_INLINE float tau2pole(float tau) {
+  return tau2pole(tau, Config::getSamplingRateF());
 }
 
 IGB_FAST_INLINE float linear2db(float g) {

@@ -20,8 +20,21 @@ struct EnvFollower {
     changeRelease(release_time);
   }
 
+  void init(float attack_time, float release_time, uint32_t sampling_rate) {
+    changeAttack(attack_time, sampling_rate);
+    changeRelease(release_time, sampling_rate);
+  }
+
+  void changeAttack(float attack_time, uint32_t sampling_rate) {
+    attack_coeff = igb::dsp::tau2pole(attack_time, sampling_rate);
+  }
+
   void changeAttack(float attack_time) {
     attack_coeff = igb::dsp::tau2pole(attack_time);
+  }
+
+  void changeRelease(float release_time, uint32_t sampling_rate) {
+    release_coeff = igb::dsp::tau2pole(release_time, sampling_rate);
   }
 
   void changeRelease(float release_time) {

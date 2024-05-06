@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 namespace igb::dsp {
 
 #if !defined(IGB_FIXED_SAMPLING_RATE)
