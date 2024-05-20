@@ -1,8 +1,12 @@
 #pragma once
 
 #include <igb_stm32/base.hpp>
-#include <igb_stm32/periph/syscfg.hpp>
-#include <igb_stm32/periph/exti.hpp>
+#if defined(STM32G031xx)
+  // TODO: impl exti
+#else
+# include <igb_stm32/periph/syscfg.hpp>
+# include <igb_stm32/periph/exti.hpp>
+#endif
 #include <igb_util/cast.hpp>
 #include <igb_util/macro.hpp>
 
@@ -191,6 +195,9 @@ struct GpioPin {
     // TODO: clock の無効化
   }
 
+#if defined(STM32G031xx)
+  // TODO:
+#else
   IGB_FAST_INLINE void enableExti(ExtiTrigType trig_type, ExtiMode mode, uint8_t priority) {
     SysCfg::enableBusClock();
 
@@ -263,6 +270,7 @@ struct GpioPin {
         break;
     }
   }
+#endif
 
   IGB_FAST_INLINE void initInput(GpioPullMode pull, GpioSpeedMode speed) {
     setMode(GpioMode::input);

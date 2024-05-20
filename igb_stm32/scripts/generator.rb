@@ -391,8 +391,8 @@ class CppSrcGenerator
   end
 
   def fetch_usart_irqn_name(peripheral_name)
-    number = peripheral_name.to_s.gsub(/\A.*(\d+)/, '\1').to_i
-    name = @svd_parser.search_interrupts(/US?ART#{number}/).keys.first
+    number = peripheral_name.to_s.gsub(/\A.*(\d+)/, '\1')&.to_i
+    name = @svd_parser.search_interrupts(/US?ART#{number || ''}/).keys.first
     name = name.gsub(/_EXTI\d+/, '')
     regulate_irqn_name(name)
   end
@@ -476,6 +476,11 @@ class CppSrcGenerator
           ADC12:  [:ADC1, :ADC2], 
           ADC345:  [:ADC3, :ADC4, :ADC5], 
         }
+      when :stm32g031xx
+        {
+          ADC: :ADC1,
+          DMA: :DMA1,
+        }
       when :stm32f446xx
         {
           DAC: :DAC1,
@@ -501,6 +506,8 @@ class CppSrcGenerator
       %W(I2S2ext I2S3ext SPI2 SPI3 SPI4 I2C2 I2C3 GPIOG GPIOH TIM20 ADC1_2 ADC3_4).include?(periph_name.to_s)
     when :stm32f446xx
       %W(C_ADC).include?(periph_name.to_s)
+    when :stm32g031xx
+      %W(LPUART).include?(periph_name.to_s)
     else
       false
     end
@@ -510,6 +517,7 @@ class CppSrcGenerator
     # AHBxLP系はRSTRレジスタがないなど特殊なのでひとまず対象外
     %i(
     AHB
+    APB
     APB1
     AHB1
     AHB2
@@ -520,18 +528,27 @@ class CppSrcGenerator
     APB2
     APB3
     APB4
+    IOP
     ).each do |bus_name|
-      if enr = @svd_parser.parsed[:RCC][:RCC][:registers][:"#{bus_name}ENR"]
-        @bus_names << bus_name
+      registers = @svd_parser.parsed[:RCC][:RCC][:registers]
+      enrs = [registers[:"#{bus_name}ENR"], registers[:"#{bus_name}ENR1"], registers[:"#{bus_name}ENR2"]]
+      enrs.each_with_index do |enr, idx|
+        next unless enr
+
+        _bus_name = bus_name.dup
+        if idx > 0
+          _bus_name = "#{bus_name}_#{idx}"
+        end
+        @bus_names << _bus_name
         enr[:fields].each do |field|
           bus_periph_name = field[:name][0..-3].to_sym
-          #puts "bus_name = #{bus_name}, bus_periph_name = #{bus_periph_name}"
+          #puts "_bus_name = #{_bus_name}, bus_periph_name = #{bus_periph_name}"
           if periph_name = bus_name_to_periph_name[bus_periph_name] || bus_periph_name
             [*periph_name].each do |pname|
               if group_name = @svd_parser.periph_to_group[pname]
                 if periph_struct = @cpp_structs[group_name].find {|elem| elem[:periph].to_sym == pname}
                   periph_struct[:bus] = {
-                    name: bus_name,
+                    name: _bus_name,
                     bit_offset: field[:bitOffset].to_i,
                   }
                 end
@@ -571,6 +588,6 @@ if __FILE__ == $0
   #peripheral_names = get_periheral_names
   #puts "[peripheral names] #{peripheral_names}"
 
-  generator = CppSrcGenerator.new(:stm32g431xx)
+  generator = CppSrcGenerator.new(:stm32g031xx)
   generator.process
 end

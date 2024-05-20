@@ -104,13 +104,23 @@ enum class BusType : uint8_t {
 
 const std::array<__IO uint32_t*, <%= @bus_names.size %>> STM32_BUS_TO_ENR_ADDRESS = {
 <% @bus_names.each_with_index do |bus_name, i| %>
+<%   if bus_name =~ /_\d+\z/ %>
+<%     name, idx = bus_name.split('_')  %>
+  &(RCC-><%= name %>ENR<%= idx %>),
+<%   else %>
   &(RCC-><%= bus_name %>ENR),
+<%   end %>
 <% end %>
 };
 
 const std::array<__IO uint32_t*, <%= @bus_names.size %>> STM32_BUS_TO_RSTR_ADDRESS = {
 <% @bus_names.each_with_index do |bus_name, i| %>
+<%   if bus_name =~ /_\d+\z/ %>
+<%     name, idx = bus_name.split('_')  %>
+  &(RCC-><%= name %>RSTR<%= idx %>),
+<%   else %>
   &(RCC-><%= bus_name %>RSTR),
+<%   end %>
 <% end %>
 };
 
