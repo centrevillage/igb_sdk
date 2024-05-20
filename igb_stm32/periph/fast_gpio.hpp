@@ -2,8 +2,12 @@
 
 #include <tuple>
 #include <igb_stm32/periph/gpio.hpp>
-#include <igb_stm32/periph/syscfg.hpp>
-#include <igb_stm32/periph/exti.hpp>
+#if defined(STM32G031xx)
+  // TODO: impl exti
+#else
+# include <igb_stm32/periph/syscfg.hpp>
+# include <igb_stm32/periph/exti.hpp>
+#endif
 #include <igb_util/reg.hpp>
 #include <igb_util/macro.hpp>
 
@@ -301,6 +305,9 @@ struct FastGpioPin {
     port.enable();
   }
 
+#if defined(STM32G031xx)
+  // TODO:
+#else
   IGB_FAST_INLINE void enableExti(ExtiTrigType trig_type, ExtiMode mode, uint8_t priority) {
     SysCfg::enableBusClock();
 
@@ -373,6 +380,7 @@ struct FastGpioPin {
         break;
     }
   }
+#endif
 
   IGB_FAST_INLINE void initInput(GpioPullMode pull, GpioSpeedMode speed) {
     setMode(GpioMode::input);

@@ -86,12 +86,12 @@ module NameConfig
     stm32f733xx: :STM32F7x3,
     stm32f730xx: :STM32F730,
     stm32f750xx: :STM32F750,
-    stm32g071xx: :STM32G07x,
-    stm32g081xx: :STM32G07x, # 対応するファイルがないが、とりあえず
-    stm32g070xx: :STM32G07x,
-    stm32g030xx: :STM32G07x, # 対応するファイルがないが、とりあえず
-    stm32g031xx: :STM32G07x, # 対応するファイルがないが、とりあえず
-    stm32g041xx: :STM32G07x, # 対応するファイルがないが、とりあえず
+    stm32g071xx: :STM32G071,
+    stm32g081xx: :STM32G081,
+    stm32g070xx: :STM32G070,
+    stm32g030xx: :STM32G030,
+    stm32g031xx: :STM32G031,
+    stm32g041xx: :STM32G041,
     stm32g431xx: :STM32G431xx,
     stm32g441xx: :STM32G441xx,
     stm32g471xx: :STM32G471xx,
