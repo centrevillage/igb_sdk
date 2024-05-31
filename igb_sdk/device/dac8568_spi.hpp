@@ -37,7 +37,7 @@ struct Dac8568SPI {
   IGB_FAST_INLINE void writeData(uint8_t ch /* 0 ~ 7 */, uint16_t data, LoadCmd load_cmd = LoadCmd::single) {
     cs_pin.low();
     _writeByte(as<uint8_t>(load_cmd));
-    _writeByte(ch << 12 | (data >> 12));
+    _writeByte(ch << 4 | (data >> 12));
     _writeByte((data >> 4) & 0xFF);
     _writeByte((data << 4) & 0xF0);
     cs_pin.high();
