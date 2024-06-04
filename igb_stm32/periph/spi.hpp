@@ -306,6 +306,7 @@ struct Spi {
   constexpr static auto miso_pin = MISO_PIN;
   constexpr static auto sck_pin = SCK_PIN;
   constexpr static auto addr = STM32_PERIPH_INFO.spi[to_idx(type)].addr;
+  constexpr static auto addr_DR = IGB_SPI_REG_ADDR(DR);
 
   IGB_FAST_INLINE static void enableBusClock() {
     const auto& spi_info = STM32_PERIPH_INFO.spi[to_idx(type)];
@@ -525,6 +526,7 @@ struct Spi {
     }
   }
 
+  // obsolete: use addr_DR
   IGB_FAST_INLINE uint32_t getRegAddr() {
     return (uint32_t) &(IGB_SPI->DR);
   }
