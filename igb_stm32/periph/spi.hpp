@@ -266,6 +266,39 @@ enum class SpiState : uint32_t {
 #endif
 };
 
+#if defined(STM32G431xx)
+// spi i2s
+enum class I2sChannelLength : uint32_t {
+  _16bit = 0,
+  _32bit
+};
+
+enum class I2sDataLength : uint32_t {
+  _16bit = 0,
+  _24bit,
+  _32bit
+};
+
+enum class I2sInActiveClockPolarity : uint32_t {
+  low = 0,
+  high
+};
+
+enum class I2sFormat : uint32_t {
+  i2s = 0,
+  leftJustified,
+  rightJustified,
+  pcm
+};
+
+enum class I2sMode : uint32_t {
+  slaveTx = 0,
+  slaveRx,
+  masterTx,
+  masterRx
+};
+#endif
+
 template<SpiType SPI_TYPE, GpioPinType MOSI_PIN, GpioPinType MISO_PIN, GpioPinType SCK_PIN>
 struct Spi {
   constexpr static auto type = SPI_TYPE;
@@ -273,6 +306,11 @@ struct Spi {
   constexpr static auto miso_pin = MISO_PIN;
   constexpr static auto sck_pin = SCK_PIN;
   constexpr static auto addr = STM32_PERIPH_INFO.spi[to_idx(type)].addr;
+
+  IGB_FAST_INLINE static void enableBusClock() {
+    const auto& spi_info = STM32_PERIPH_INFO.spi[to_idx(type)];
+    spi_info.bus.enableBusClock();
+  }
 
   IGB_FAST_INLINE void enable() { IGB_SPI->CR1 = IGB_SPI->CR1 | SPI_CR1_SPE; }
   IGB_FAST_INLINE void disable() { IGB_SPI->CR1 = IGB_SPI->CR1 & ~SPI_CR1_SPE; }
@@ -375,6 +413,24 @@ struct Spi {
 
 #if defined(STM32H7)
   RegEnum<IGB_SPI_REG_ADDR(CFG2), SPI_CFG2_SSIOP, SpiNssPolarity> nssPolarity;
+#endif
+
+#if defined(STM32G431xx)
+  // spi i2s
+  RegEnum<IGB_SPI_REG_ADDR(I2SCFGR), IGB_BIT(0), I2sChannelLength, 0> i2sChannelLength;
+  RegEnum<IGB_SPI_REG_ADDR(I2SCFGR), IGB_BIT_MASK(2, 1), I2sDataLength, 1> i2sDataLength;
+  RegEnum<IGB_SPI_REG_ADDR(I2SCFGR), IGB_BIT(3), I2sInActiveClockPolarity, 3> i2sInActiveClockPolarity;
+  RegEnum<IGB_SPI_REG_ADDR(I2SCFGR), IGB_BIT_MASK(2, 4), I2sFormat, 4> i2sFormat;
+  RegFlag<IGB_SPI_REG_ADDR(I2SCFGR), IGB_BIT(7)> i2sPcmSyncLongFrame;
+  RegEnum<IGB_SPI_REG_ADDR(I2SCFGR), IGB_BIT_MASK(2, 8), I2sMode, 8> i2sMode;
+  RegFlag<IGB_SPI_REG_ADDR(I2SCFGR), IGB_BIT(10)> i2sEnable;
+  RegFlag<IGB_SPI_REG_ADDR(I2SCFGR), IGB_BIT(11)> i2sSelect;
+  RegFlag<IGB_SPI_REG_ADDR(I2SCFGR), IGB_BIT(12)> i2sAsyncTransEnable;
+
+  RegValue<IGB_SPI_REG_ADDR(I2SPR), IGB_BIT_MASK(8, 0), 0> i2sPrescaler;
+  RegFlag<IGB_SPI_REG_ADDR(I2SPR), IGB_BIT(8)> i2sPrescalerOdd;
+  RegFlag<IGB_SPI_REG_ADDR(I2SPR), IGB_BIT(9)> i2sMasterClockOutEnable;
+
 #endif
 
   IGB_FAST_INLINE bool is(SpiState state) {
@@ -685,8 +741,7 @@ struct Spi {
   }
 
   IGB_FAST_INLINE void initMaster(SpiBaudratePrescaler prescaler = SpiBaudratePrescaler::div16) {
-    const auto& spi_info = STM32_PERIPH_INFO.spi[to_idx(type)];
-    spi_info.bus.enableBusClock();
+    enableBusClock();
     prepareGpio(mosi_pin);
     prepareGpio(miso_pin);
     prepareGpio(sck_pin);
@@ -697,8 +752,7 @@ struct Spi {
   }
 
   IGB_FAST_INLINE void initMasterOutOnly(SpiBaudratePrescaler prescaler) {
-    const auto& spi_info = STM32_PERIPH_INFO.spi[to_idx(type)];
-    spi_info.bus.enableBusClock();
+    enableBusClock();
     prepareGpio(mosi_pin);
     prepareGpio(sck_pin);
 
@@ -736,8 +790,7 @@ struct Spi {
   }
 
   IGB_FAST_INLINE void initMasterOutOnlyHardSS(GpioPinType cs_pin, SpiBaudratePrescaler prescaler) {
-    const auto& spi_info = STM32_PERIPH_INFO.spi[to_idx(type)];
-    spi_info.bus.enableBusClock();
+    enableBusClock();
     prepareGpio(mosi_pin);
     prepareGpio(sck_pin);
     prepareGpio(cs_pin);
@@ -776,8 +829,7 @@ struct Spi {
   }
 
   IGB_FAST_INLINE void initMasterInputOnly(SpiBaudratePrescaler prescaler, SpiDataWidth data_width = SpiDataWidth::_8bit) {
-    const auto& spi_info = STM32_PERIPH_INFO.spi[to_idx(type)];
-    spi_info.bus.enableBusClock();
+    enableBusClock();
     prepareGpio(miso_pin);
     prepareGpio(sck_pin);
 
@@ -827,8 +879,7 @@ struct Spi {
   };
 
   IGB_FAST_INLINE void initMasterInputOnlyHardSS(GpioPinType cs_pin, SpiBaudratePrescaler prescaler, SpiDataWidth data_width = SpiDataWidth::_8bit) {
-    const auto& spi_info = STM32_PERIPH_INFO.spi[to_idx(type)];
-    spi_info.bus.enableBusClock();
+    enableBusClock();
     prepareGpio(miso_pin);
     prepareGpio(sck_pin);
     prepareGpio(cs_pin);
