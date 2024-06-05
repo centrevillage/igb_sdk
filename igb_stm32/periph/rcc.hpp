@@ -24,6 +24,10 @@ namespace stm32 {
 
 #include "g4/_rcc_enums.hpp"
 
+#elif defined(STM32G031xx)
+
+#include "g0/_rcc_enums.hpp"
+
 #endif
 
 struct RccCtrl {
