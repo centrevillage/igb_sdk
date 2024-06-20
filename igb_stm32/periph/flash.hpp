@@ -42,6 +42,8 @@ struct FlashCtrl {
   static IGB_FAST_INLINE bool isBusy() {
 #if defined(STM32H7)
     return IGB_READ_BIT(FLASH->SR1, FLASH_SR_BSY);
+#elif defined(STM32G031xx)
+    return IGB_READ_BIT(FLASH->SR, FLASH_SR_BSY1);
 #else
     return IGB_READ_BIT(FLASH->SR, FLASH_SR_BSY);
 #endif
@@ -61,7 +63,7 @@ struct FlashCtrl {
   }
 #endif
 
-#if defined(STM32F0) || defined(STM32F3) || defined(STM32G431xx)
+#if defined(STM32F0) || defined(STM32F3) || defined(STM32G431xx) || defined(STM32G031xx)
   static IGB_FAST_INLINE bool isLock() {
     return IGB_READ_BIT(FLASH->CR, FLASH_CR_LOCK);
   }
@@ -162,6 +164,35 @@ struct FlashCtrl {
     FLASH->CR = FLASH->CR | FLASH_CR_PG;
 
     *(__IO uint16_t*)addr = data;
+
+    while (isBusy()) {}
+
+    FLASH->CR = FLASH->CR & ~FLASH_CR_PG;
+  }
+#elif defined(STM32G031xx)
+  static IGB_FAST_INLINE void erasePageByPageIdx(uint32_t page) {
+    while (isBusy()) {}
+
+    FLASH->CR = (FLASH->CR & ~FLASH_CR_PNB) | (page << FLASH_CR_PNB_Pos) | FLASH_CR_PER;
+    FLASH->CR = FLASH->CR | FLASH_CR_STRT;
+
+    while (isBusy()) {}
+  }
+
+  static IGB_FAST_INLINE void erasePage(uint32_t addr) {
+    erasePageByPageIdx((addr - 0x08000000UL) / 2048UL);
+  }
+
+  static IGB_FAST_INLINE void programU64(uint32_t addr, uint64_t data) {
+    while (isBusy()) {}
+
+    FLASH->CR = FLASH->CR | FLASH_CR_PG;
+
+    *(__IO uint32_t*)addr = (uint32_t)data;
+
+    __ISB();
+
+    *(__IO uint32_t*)(addr + 4UL) = (uint32_t)(data >> 32UL);
 
     while (isBusy()) {}
 
