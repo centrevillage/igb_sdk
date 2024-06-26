@@ -177,6 +177,8 @@ struct FlashCtrl {
     FLASH->CR = FLASH->CR | FLASH_CR_STRT;
 
     while (isBusy()) {}
+
+    FLASH->CR = (FLASH->CR & ~FLASH_CR_PER);
   }
 
   static IGB_FAST_INLINE void erasePage(uint32_t addr) {
