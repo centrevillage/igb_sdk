@@ -169,7 +169,7 @@ struct FlashCtrl {
 
     FLASH->CR = FLASH->CR & ~FLASH_CR_PG;
   }
-#elif defined(STM32G031xx)
+#elif defined(STM32G031xx) || defined(STM32G431xx)
   static IGB_FAST_INLINE void erasePageByPageIdx(uint32_t page) {
     while (isBusy()) {}
 
