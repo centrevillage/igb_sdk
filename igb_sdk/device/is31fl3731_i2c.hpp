@@ -126,6 +126,7 @@ struct Is31Fl3731I2c {
   void clearCurrentFrame() {
     movePage(_frame);
 
+
     for (uint8_t i = 0; i < 6; i++) {
       i2c.beginSending(_address_byte, 25);
       i2c.sendU8sync(0x24 + i * 24);
@@ -176,6 +177,10 @@ struct Is31Fl3731I2c {
       default:
         break;
     }
+  }
+
+  bool isCmdEmpty() const {
+    return _cmd_buf.size() == 0 && !_current_cmd;
   }
 };
 
