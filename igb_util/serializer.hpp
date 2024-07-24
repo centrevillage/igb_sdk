@@ -3,6 +3,7 @@
 #include <string.h>
 #include <cstddef>
 #include <cstdint>
+#include <array>
 #include <igb_util/macro.hpp>
 
 namespace igb {
@@ -156,6 +157,26 @@ struct Serializer {
     return sizeof(v);
   }
 
+  template<typename T, size_t array_size>
+  IGB_FAST_INLINE static size_t serialize(uint8_t* buf, const std::array<T, array_size>& values) {
+    for (const auto& v : values) {
+      buf += serialize(buf, v);
+    }
+    return size(values[0]) * array_size;
+  }
+
+  template<typename T, size_t array_size>
+  IGB_FAST_INLINE static size_t deserialize(uint8_t* buf, std::array<T, array_size>& values) {
+    for (auto& v : values) {
+      buf += deserialize(buf, v);
+    }
+    return size(values[0]) * array_size;
+  }
+
+  template<typename T, size_t array_size>
+  constexpr static size_t size(const std::array<T, array_size>& values) {
+    return size(values[0]) * array_size;
+  }
 
   template<typename T>
   constexpr static size_t serialize(uint8_t* buf, const T type) {
