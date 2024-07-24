@@ -240,7 +240,7 @@ struct I2c {
 
   IGB_FAST_INLINE std::optional<uint8_t> receiveU8sync(uint32_t timeout_msec = 1000) {
     uint32_t msec = current_msec();
-    while(!is(I2cStatus::txInterrupt)) {
+    while(!is(I2cStatus::rxNotEmpty)) {
       if (current_msec() - msec > timeout_msec) {
         return std::nullopt;
       }
@@ -249,7 +249,7 @@ struct I2c {
   }
 
   IGB_FAST_INLINE bool isReceivable() {
-    return is(I2cStatus::txInterrupt);
+    return is(I2cStatus::rxNotEmpty);
   }
 
   IGB_FAST_INLINE void sendU8(uint8_t value) {

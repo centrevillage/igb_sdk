@@ -13,16 +13,16 @@ template<typename I2C_TYPE>
 struct FramMb85Rc04I2c {
   I2C_TYPE i2c;
 
-  constexpr static size_t i2c_address_base = 0xA0;
+  constexpr static size_t i2c_address_base = 0x50;
   const size_t block_size = 128;
 
   uint8_t _address_byte = i2c_address_base;
 
   enum class Address : uint8_t {
     first  = i2c_address_base,
-    second = i2c_address_base | (1 << 2),
-    third  = i2c_address_base | (2 << 2),
-    fourth = i2c_address_base | (3 << 2)
+    second = i2c_address_base | (1 << 1),
+    third  = i2c_address_base | (2 << 1),
+    fourth = i2c_address_base | (3 << 1)
   };
 
   enum class AccessState : uint8_t {
@@ -110,7 +110,7 @@ struct FramMb85Rc04I2c {
     switch (_process_state) {
       case ProcessState::ready:
         {
-          i2c.beginSending(_address_byte | ((_ram_address & 0x100) ? 2 : 0), 1);
+          i2c.beginSending(_address_byte | ((_ram_address & 0x100) ? 1 : 0), 1);
           _process_state = ProcessState::begin;
         }
         break;
@@ -124,7 +124,7 @@ struct FramMb85Rc04I2c {
       case ProcessState::receiveHead:
         if (i2c.isTransferEnd()) {
           uint8_t process_size = std::min<uint32_t>(block_size, _ram_buf_size - _ram_buf_index);
-          i2c.beginReading(_address_byte | ((_ram_address & 0x100) ? 2 : 0), process_size);
+          i2c.beginReading(_address_byte | ((_ram_address & 0x100) ? 1 : 0), process_size);
           _process_state = ProcessState::transfer;
         }
         break;
@@ -160,7 +160,7 @@ struct FramMb85Rc04I2c {
       case ProcessState::ready:
         {
           uint8_t process_size = std::min<uint32_t>(block_size, _ram_buf_size - _ram_buf_index);
-          i2c.beginSending(_address_byte | ((_ram_address & 0x100) ? 2 : 0), process_size + 1);
+          i2c.beginSending(_address_byte | ((_ram_address & 0x100) ? 1 : 0), process_size + 1);
           _process_state = ProcessState::begin;
         }
         break;
