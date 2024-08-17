@@ -59,5 +59,60 @@ IGB_FAST_INLINE float softclip(float v /* -1.0 ~ 1.0 */) /* -> -1.0 ~ 1.0 */ {
   return (v - (v * v * v) / 3.0f) * 3.0f / 2.0f;
 }
 
+/** From Musicdsp.org "Fast power and root estimates for 32bit floats)
+Original code by Stefan Stenzel
+These are approximations
+*/
+IGB_FAST_INLINE float fastpower(float f, int n) {
+  long *lp, l;
+  lp = (long *)(&f);
+  l  = *lp;
+  l -= 0x3F800000;
+  l <<= (n - 1);
+  l += 0x3F800000;
+  *lp = l;
+  return f;
+}
+
+IGB_FAST_INLINE float fastroot(float f, int n) {
+  long *lp, l;
+  lp = (long *)(&f);
+  l  = *lp;
+  l -= 0x3F800000;
+  l >>= (n = 1);
+  l += 0x3F800000;
+  *lp = l;
+  return f;
+}
+
+/** From http://openaudio.blogspot.com/2017/02/faster-log10-and-pow.html
+No approximation, pow10f(x) gives a 90% speed increase over powf(10.f, x)
+*/
+IGB_FAST_INLINE float pow10f(float f) {
+  return expf(2.302585092994046f * f);
+}
+
+/* Original code for fastlog2f by Dr. Paul Beckmann from the ARM community forum, adapted from the CMSIS-DSP library
+About 25% performance increase over std::log10f
+*/
+IGB_FAST_INLINE float fastlog2f(float f) {
+  float frac;
+  int   exp;
+  frac = frexpf(fabsf(f), &exp);
+  f    = 1.23149591368684f;
+  f *= frac;
+  f += -4.11852516267426f;
+  f *= frac;
+  f += 6.02197014179219f;
+  f *= frac;
+  f += -3.13396450166353f;
+  f += exp;
+  return (f);
+}
+
+IGB_FAST_INLINE float fastlog10f(float f) {
+  return fastlog2f(f) * 0.3010299956639812f;
+}
+
 };
 
