@@ -26,12 +26,24 @@ TEST_CASE("bit_left_rotate_u16", "[bits, rotate]") {
   REQUIRE(igb::bit_left_rotate_u16(0b0010010010010010, 1) == 0b0100100100100100);
 }
 
+TEST_CASE("bit_left_rotate_u32", "[bits, rotate]") {
+  REQUIRE(igb::bit_left_rotate_u32(0b01010101001100110000111100100100, 1) == 0b10101010011001100001111001001000);
+}
+
 TEST_CASE("bit_left_rotate_with_length_u16", "[bits, rotate, length]") {
   REQUIRE(igb::bit_left_rotate_with_length_u16(0b0000000000110010, 2, 6) == 0b0000000000001011);
 }
 
+TEST_CASE("bit_left_rotate_with_length_u32", "[bits, rotate, length]") {
+  REQUIRE(igb::bit_left_rotate_with_length_u32(0b00000000001100110000111100100100, 2, 24) == 0b110011000011110010010000);
+}
+
 TEST_CASE("bit_right_rotate_u16", "[bits, rotate]") {
   REQUIRE(igb::bit_right_rotate_u16(0b0010010010010010, 2) == 0b1000100100100100);
+}
+
+TEST_CASE("bit_right_rotate_u32", "[bits, rotate]") {
+  REQUIRE(igb::bit_right_rotate_u32(0b00000000001100110000111100100100, 2) == 0b00000000000011001100001111001001);
 }
 
 TEST_CASE("extract_most_right1", "[bits]") {

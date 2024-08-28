@@ -40,6 +40,10 @@ inline uint16_t bit_left_rotate_u16(uint16_t bits, uint8_t rotate /* 0 to 15 */)
   return (bits << rotate) | (bits >> (16 - rotate));
 }
 
+inline uint32_t bit_left_rotate_u32(uint32_t bits, uint8_t rotate /* 0 to 31 */) {
+  return (bits << rotate) | (bits >> (32 - rotate));
+}
+
 inline uint16_t bit_left_rotate_with_length_u16(uint16_t bits, uint8_t rotate /* 0 to length */, uint8_t length /* 1.. 16 */) {
   if (length == 16) {
     return bit_left_rotate_u16(bits, rotate);
@@ -47,8 +51,19 @@ inline uint16_t bit_left_rotate_with_length_u16(uint16_t bits, uint8_t rotate /*
   return ((bits << rotate) | (bits >> (length - rotate))) & ((1<<(length)) - 1);
 }
 
+inline uint32_t bit_left_rotate_with_length_u32(uint32_t bits, uint8_t rotate /* 0 to length */, uint8_t length /* 1.. 32 */) {
+  if (length == 32) {
+    return bit_left_rotate_u32(bits, rotate);
+  }
+  return ((bits << rotate) | (bits >> (length - rotate))) & ((1<<(length)) - 1);
+}
+
 inline uint16_t bit_right_rotate_u16(uint16_t bits, uint8_t rotate /* 0 to 15 */) {
   return (bits >> rotate) | (bits << (16 - rotate));
+}
+
+inline uint32_t bit_right_rotate_u32(uint32_t bits, uint8_t rotate /* 0 to 31 */) {
+  return (bits >> rotate) | (bits << (32 - rotate));
 }
 
 static IGB_FAST_INLINE auto extract_most_right1(auto bits) -> decltype(bits) {
