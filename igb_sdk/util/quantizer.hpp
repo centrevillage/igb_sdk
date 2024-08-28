@@ -112,6 +112,19 @@ struct WeightedScaleQuantizer {
   void _reconstruct() {
     // reconstruct _scale_map
     // don't use float type for no-fpu mcu 
+
+    for (uint8_t i=12;i>0;--i) {
+      if (_scale_bit & (1 << i)) {
+        _max_note = (((max_octave-1)*12) + i) * resolution_rate;
+        break;
+      }
+    }
+    for (uint8_t i=0;i<12;++i) {
+      if (_scale_bit & (1 << i)) {
+        _min_note = i * resolution_rate;
+        break;
+      }
+    }
     
     uint16_t priority_sum = 0;
     for (uint8_t i = 0; i < 12; ++i) {
