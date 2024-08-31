@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <algorithm>
 #include <array>
+#include <igb_util/bitmagic.hpp>
 
 namespace igb {
 namespace sdk {
@@ -25,6 +26,28 @@ struct ScaleQuantizer {
 
   uint8_t quantize(uint16_t note /* 0 ~ 119 */) const noexcept {
     return std::clamp((int16_t)(note + _scale_map[note % 12]), _min_note, _max_note);
+  }
+
+  uint8_t quantize(uint16_t note /* 0 ~ 119 */, uint8_t rot) const noexcept {
+    int16_t nt = (int16_t)(note + _scale_map[(note + (12 - rot)) % 12]);
+    if (nt > max_octave * 12 - 1) {
+      uint16_t rot_scale_bit = igb::bit_left_rotate_with_length_u16(_scale_bit, rot, 12);
+      for (int8_t i = 11; i >= 0; --i) {
+        if (rot_scale_bit & (1 << i)) {
+          nt = (max_octave - 1) + i;
+          break;
+        }
+      }
+    } else if (nt < 0) {
+      uint16_t rot_scale_bit = igb::bit_left_rotate_with_length_u16(_scale_bit, rot, 12);
+      for (int8_t i = 0; i < 12; ++i) {
+        if (rot_scale_bit & (1 << i)) {
+          nt = i;
+          break;
+        }
+      }
+    }
+    return (uint8_t)nt;
   }
 
   void _reconstruct() {
@@ -80,7 +103,7 @@ struct WeightedScaleQuantizer {
   uint16_t _scale_bit = 0x0FFF;
   std::array<uint8_t, 12> _priorities; // 0~127
   constexpr static uint16_t _scale_map_size = 12 * resolution_rate;
-  std::array<int16_t, _scale_map_size> _scale_map;
+  std::array<uint16_t, 12> _key_range_sizes;
   int16_t _max_note = (max_octave * 12 * resolution_rate) - 1;
   int16_t _min_note = 0;
 
@@ -105,8 +128,20 @@ struct WeightedScaleQuantizer {
     }
   }
 
-  uint8_t quantize(uint16_t note /* 0 ~ 12 * 10 * resolution_rate  */) const noexcept {
-    return std::clamp((int16_t)(note + _scale_map[note % _scale_map_size]), _min_note, _max_note);
+  uint16_t quantize(uint16_t note, uint8_t rot = 0) const noexcept {
+    uint16_t key = note % _scale_map_size;
+    uint16_t sum = 0;
+    uint16_t nt = ((note / _scale_map_size) * _scale_map_size);
+    for (uint16_t i = 0; i < 12; ++i) {
+      uint8_t rot_idx = (i + 12 - (int16_t)rot) % 12;
+      sum += _key_range_sizes[rot_idx];
+      if (key < sum) {
+        nt += (i * resolution_rate);
+        break;
+      }
+    }
+
+    return (uint16_t)nt;
   }
 
   void _reconstruct() {
@@ -130,14 +165,13 @@ struct WeightedScaleQuantizer {
     for (uint8_t i = 0; i < 12; ++i) {
       priority_sum += _priorities[i];
     }
-    std::array<uint16_t, 12> key_range_sizes;
     uint16_t assigned_size = 0;
     for (uint16_t i = 0; i < 12; ++i) {
       if (_scale_bit & (1 << i)) {
-        key_range_sizes[i] = _priorities[i] * _scale_map_size / priority_sum;
-        assigned_size += key_range_sizes[i];
+        _key_range_sizes[i] = _priorities[i] * _scale_map_size / priority_sum;
+        assigned_size += _key_range_sizes[i];
       } else {
-        key_range_sizes[i] = 0;
+        _key_range_sizes[i] = 0;
       }
     }
     uint16_t remain_size = _scale_map_size - assigned_size;
@@ -147,24 +181,14 @@ struct WeightedScaleQuantizer {
       int8_t min_idx = -1;
       for (int8_t i = 0; i < 12; ++i) {
         if (_scale_bit & (1 << i)) {
-          if (key_range_sizes[i] < min_size) {
-            min_size = key_range_sizes[i];
+          if (_key_range_sizes[i] < min_size) {
+            min_size = _key_range_sizes[i];
             min_idx = i;
           }
         }
       }
       if (min_idx >= 0) {
-        key_range_sizes[min_idx] += 1;
-      }
-    }
-
-    uint16_t scale_map_idx = 0;
-    for (int16_t key = 0; key < 12; ++key) {
-      uint16_t key_range_size = key_range_sizes[key];
-      int16_t target_key_value = key * resolution_rate;
-      for (uint16_t j = 0; j < key_range_size; ++j) {
-        _scale_map[scale_map_idx] = -(scale_map_idx - target_key_value);
-        ++scale_map_idx;
+        _key_range_sizes[min_idx] += 1;
       }
     }
   }
