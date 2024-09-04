@@ -104,7 +104,7 @@ TEST_CASE("ScaleQuantizer::updateScale", "[scale_bit]") {
 
 
 TEST_CASE("WeightedScaleQuantizer::updateScale", "[priorities]") {
-  constexpr static size_t resolution = 8;
+  constexpr static size_t resolution = 32;
   WeightedScaleQuantizer<resolution> quantizer;
 
   SECTION("scale C(+)DE(+)F(-)A" ) {
@@ -125,10 +125,10 @@ TEST_CASE("WeightedScaleQuantizer::updateScale", "[priorities]") {
 
     quantizer.updateScale(priorities);
     std::cout << "WeightedScaleQuantizer (C(+)DE(+)F(-)A):" << std::endl;
-    //std::cout << "scale_map = ";
-    //for (const auto& e : quantizer._scale_map) {
-    //  std::cout << (int)e << ",";
-    //}
+    std::cout << "key range sizes = ";
+    for (const auto& sz : quantizer._key_range_sizes) {
+      std::cout << (int)sz << ",";
+    }
     std::cout << std::endl;
 
     REQUIRE((int)quantizer.quantize(0 * resolution) == 0 * resolution); // C
@@ -165,10 +165,10 @@ TEST_CASE("WeightedScaleQuantizer::updateScale", "[priorities]") {
 
     quantizer.updateScale(priorities);
     std::cout << "WeightedScaleQuantizer (E):" << std::endl;
-    //std::cout << "scale_map = ";
-    //for (const auto& e : quantizer._scale_map) {
-    //  std::cout << (int)e << ",";
-    //}
+    std::cout << "key range sizes = ";
+    for (const auto& sz : quantizer._key_range_sizes) {
+      std::cout << (int)sz << ",";
+    }
     std::cout << std::endl;
 
     for (uint16_t i = 0; i < 12; ++i) {
@@ -238,5 +238,30 @@ TEST_CASE("WeightedScaleQuantizer::updateScale", "[priorities]") {
     REQUIRE((int)quantizer1.quantize(9) == (int)quantizer2.quantize(9, rot));
     REQUIRE((int)quantizer1.quantize(10) == (int)quantizer2.quantize(10, rot));
     REQUIRE((int)quantizer1.quantize(11) == (int)quantizer2.quantize(11, rot));
+  }
+
+  SECTION("chromatic scale" ) {
+    std::array<uint8_t, 12> priorities = {
+      96, // C
+      64, // C#
+      96, // D 
+      64, // D#
+      64, // E
+      64, // F
+      64, // F#
+      96, // G
+      32, // G#
+      64, // A
+      32, // A#
+      64 // B
+    };
+
+    quantizer.updateScale(priorities);
+    std::cout << "WeightedScaleQuantizer chromatic:" << std::endl;
+    std::cout << "key range sizes = ";
+    for (const auto& sz : quantizer._key_range_sizes) {
+      std::cout << (int)sz << ",";
+    }
+    std::cout << std::endl;
   }
 }
