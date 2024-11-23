@@ -142,8 +142,29 @@ struct Midi {
   RingBuf256<uint8_t> tx_buffer;
   MidiEvent event;
 
+  uint8_t _use_running_status = false;
+  uint8_t _last_status = 0;
+
+  void useRunningStatus(bool flag) {
+    if (_use_running_status != flag) {
+      _use_running_status = flag;
+      _last_status = 0;
+    }
+  }
+
   IGB_FAST_INLINE void addEvent(auto&& event) {
-    tx_buffer.add(event.status);
+    if (_use_running_status) {
+      if (event.status < 0xF8) { // not realtime message
+        if (_last_status != event.status) {
+          tx_buffer.add(event.status);
+          _last_status = event.status;
+        }
+      } else { // realtime message
+        tx_buffer.add(event.status);
+      }
+    } else {
+      tx_buffer.add(event.status);
+    }
     if (event.data1 != MidiEvent::noData) {
       tx_buffer.add(event.data1);
     }
