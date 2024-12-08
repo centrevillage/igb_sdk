@@ -34,7 +34,7 @@ struct ScaleQuantizer {
       uint16_t rot_scale_bit = igb::bit_left_rotate_with_length_u16(_scale_bit, rot, 12);
       for (int8_t i = 11; i >= 0; --i) {
         if (rot_scale_bit & (1 << i)) {
-          nt = (max_octave - 1) + i;
+          nt = (max_octave - 1) * 12 + i;
           break;
         }
       }

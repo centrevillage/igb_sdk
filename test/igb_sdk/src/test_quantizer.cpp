@@ -99,6 +99,8 @@ TEST_CASE("ScaleQuantizer::updateScale", "[scale_bit]") {
     REQUIRE((int)quantizer1.quantize(9) == (int)quantizer2.quantize(9, rot));
     //REQUIRE((int)quantizer1.quantize(10) == (int)quantizer2.quantize(10, rot));
     REQUIRE((int)quantizer1.quantize(11) == (int)quantizer2.quantize(11, rot));
+
+    REQUIRE((int)quantizer1.quantize(124) == (int)quantizer2.quantize(124, rot));
   }
 }
 
