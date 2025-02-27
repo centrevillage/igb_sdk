@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <igb_util/macro.hpp>
 
 namespace igb {
@@ -34,6 +35,10 @@ inline uint8_t bit_index_u8(uint8_t bits) {
 
 inline uint16_t bit_index_u16(uint16_t bits) {
   return bit_count_u16((bits & (-bits)) - 1);
+}
+
+inline uint16_t bit_index_u32(uint16_t bits) {
+  return bit_count_u32((bits & (-bits)) - 1);
 }
 
 inline uint16_t bit_left_rotate_u16(uint16_t bits, uint8_t rotate /* 0 to 15 */) {
@@ -74,5 +79,12 @@ static IGB_FAST_INLINE auto reset_most_right1(auto bits) -> decltype(bits) {
   return bits & (bits - 1);
 }
 
+static IGB_FAST_INLINE void process_active_bits(auto bits, auto&& func) {
+  while (bits) {
+    auto active_bit = extract_most_right1(bits);
+    func(active_bit);
+    bits = reset_most_right1(bits);
+  }
 }
 
+}
