@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstdint>
+#include <igb_util/macro.hpp>
+
 namespace igb {
 
 #define IGB_ACC_DYNAMIC_REG_PTR ((volatile uint32_t *)(reg_addr))

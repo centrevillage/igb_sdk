@@ -2,7 +2,7 @@
 #ifndef IGB_STM32_BASE_MCU_DEVICE_STM32F446XX_H
 #define IGB_STM32_BASE_MCU_DEVICE_STM32F446XX_H
 
-#include <igb_stm32/base.hpp>
+#include <igb_stm32/base/cmsis.hpp>
 #include <array>
 #include <optional>
 
