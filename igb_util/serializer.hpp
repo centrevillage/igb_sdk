@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <array>
+#include <type_traits>
 #include <igb_util/macro.hpp>
 
 namespace igb {
@@ -158,6 +159,11 @@ struct Serializer {
   }
 
   template<typename T, size_t array_size>
+  constexpr static size_t size(const double v) {
+    return sizeof(v);
+  }
+
+  template<typename T, size_t array_size>
   IGB_FAST_INLINE static size_t serialize(uint8_t* buf, const std::array<T, array_size>& values) {
     for (const auto& v : values) {
       buf += serialize(buf, v);
@@ -179,19 +185,20 @@ struct Serializer {
   }
 
   template<typename T>
+  constexpr static size_t size(T& type) {
+    return type.serializedBufSize();
+  }
+
+  template<typename T>
   constexpr static size_t serialize(uint8_t* buf, const T type) {
-    return type.serialize(buf, type.serialized_buf_size);
+    return type.serialize(buf, size(type));
   }
 
   template<typename T>
   constexpr static size_t deserialize(uint8_t* buf, T& type) {
-    return type.deserialize(buf, type.serialized_buf_size);
+    return type.deserialize(buf, size(type));
   }
 
-  template<typename T>
-  constexpr static size_t size(T& type) {
-    return type.serialized_buf_size;
-  }
 };
 
 }
