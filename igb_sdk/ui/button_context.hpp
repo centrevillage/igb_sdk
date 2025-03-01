@@ -14,7 +14,6 @@ struct ButtonMethod {
   constexpr static uint32_t makeStateBits(auto&& id, auto&&... rest) {
     return ((uint32_t)1 << static_cast<uint32_t>(id)) | makeStateBits(rest...);
   }
-
   constexpr static uint32_t makeStateBits() {
     return 0;
   }
@@ -24,14 +23,11 @@ struct ButtonMethod {
   }
 
   constexpr static bool exactMatch(uint32_t state_bits, auto&& id, auto&&... rest) {
-    return state_bits == _exactMatch(id, rest...);
+    return state_bits == makeStateBits(id, rest...);
   }
 
-  constexpr static uint32_t _exactMatch(auto&& id, auto&&... rest) {
-    return ((uint32_t)1 << static_cast<uint32_t>(id)) | _exactMatch(rest...);
-  }
-  constexpr static uint32_t _exactMatch() {
-    return 0;
+  constexpr static bool contains(uint32_t state_bits, auto&& id, auto&&... rest) {
+    return state_bits & makeStateBits(id, rest...);
   }
 
   constexpr static bool match(uint32_t state_bits, auto&& state, auto&&... rest) {
