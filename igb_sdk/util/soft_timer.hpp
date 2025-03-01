@@ -26,6 +26,12 @@ struct SoftTimer {
     }
   }
 
+  void inactivateAll() {
+    for (auto& s : states) {
+      s.active = false;
+    }
+  }
+
   void activate(size_t timer_idx) {
     if (timer_idx < MAX_TIMER_SIZE) {
       states[timer_idx].active = true;
@@ -102,6 +108,34 @@ struct SoftTimer {
     s.active = false;
     s.callback = nullptr;
     return timer_idx;
+  }
+};
+
+struct SoftTimerSingle {
+  SoftTimer<1> base;
+
+  void inactivate() {
+    base.inactivate(0);
+  }
+
+  void activate() {
+    base.activate(0);
+  }
+
+  void changeInterval(uint32_t interval) {
+    base.changeInterval(0, interval);
+  }
+
+  size_t intervalCallback(uint32_t interval, uint32_t current_msec_, auto&& callback) {
+    return base.intervalCallback(interval, current_msec_, callback);
+  }
+
+  size_t oneshotCallback(uint32_t interval, uint32_t current_msec_, auto&& callback) {
+    return base.oneshotCallback(interval, current_msec_, callback);
+  }
+
+  void process(uint32_t current_msec_) {
+    base.process(current_msec_);
   }
 };
 
