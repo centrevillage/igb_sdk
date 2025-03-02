@@ -159,8 +159,13 @@ struct Serializer {
   }
 
   template<typename T, size_t array_size>
-  constexpr static size_t size(const double v) {
-    return sizeof(v);
+  constexpr static size_t size(const std::array<T, array_size>& values) {
+    return size(values[0]) * array_size;
+  }
+
+  template<typename T, size_t array_size1, size_t array_size2>
+  constexpr static size_t size(const std::array<std::array<T, array_size2>, array_size1>& values) {
+    return size(values[0][0]) * array_size1 * array_size2;
   }
 
   template<typename T, size_t array_size>
@@ -170,6 +175,13 @@ struct Serializer {
     }
     return size(values[0]) * array_size;
   }
+  template<typename T, size_t array_size1, size_t array_size2>
+  IGB_FAST_INLINE static size_t serialize(uint8_t* buf, const std::array<std::array<T, array_size2>, array_size1>& values) {
+    for (const auto& v : values) {
+      buf += serialize(buf, v);
+    }
+    return size(values[0][0]) * array_size1 * array_size2;
+  }
 
   template<typename T, size_t array_size>
   IGB_FAST_INLINE static size_t deserialize(uint8_t* buf, std::array<T, array_size>& values) {
@@ -178,10 +190,12 @@ struct Serializer {
     }
     return size(values[0]) * array_size;
   }
-
-  template<typename T, size_t array_size>
-  constexpr static size_t size(const std::array<T, array_size>& values) {
-    return size(values[0]) * array_size;
+  template<typename T, size_t array_size1, size_t array_size2>
+  IGB_FAST_INLINE static size_t deserialize(uint8_t* buf, std::array<std::array<T, array_size2>, array_size1>& values) {
+    for (auto& v : values) {
+      buf += deserialize(buf, v);
+    }
+    return size(values[0][0]) * array_size1 * array_size2;
   }
 
   template<typename T>
