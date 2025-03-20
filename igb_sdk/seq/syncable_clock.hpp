@@ -257,7 +257,7 @@ struct SeqSyncableClock {
     if (_ext_src_state.is_first_clock_arrived) {
       float t = state.expectedIntervalTick(_ext_src_state.expected_clock_interval_tick);
       state.interval_tick = t;
-      _timer.setIntervalTick(idx, state.interval_tick * 0.99f); // NOTE: the magic number 0,99 is to prevent ext&int clock collision
+      _timer.setIntervalTick(idx, state.interval_tick * 0.999f); // NOTE: the magic number 0,999 is to prevent ext&int clock collision
     }
     if (state.clk_count == 0) {
       // sync int&ext clock
