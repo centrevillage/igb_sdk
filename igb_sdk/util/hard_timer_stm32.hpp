@@ -334,6 +334,10 @@ struct HardCcTimerStm32 {
     cc3Handler();
     cc4Handler();
   }
+
+  IGB_FAST_INLINE void process() { // specialized api
+    // TODO: set next cc by current tick
+  }
 };
 
 }

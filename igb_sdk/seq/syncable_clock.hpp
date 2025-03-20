@@ -363,6 +363,11 @@ struct SeqSyncableClock {
     _timer.irqHandler();
     checkTimeout();
   }
+
+  inline void process() {
+    _timer.process();
+    checkTimeout();
+  }
 };
 
 }
