@@ -34,6 +34,9 @@ struct HardCcTimerStm32 {
       cc_value += interval_tick + getAdjestValue();
       update_count++;
     }
+    IGB_FAST_INLINE count_t getCcValue() const {
+      return cc_value;
+    }
   };
   std::array<CcState, cc_ch_count> _cc_states;
 
@@ -154,6 +157,10 @@ struct HardCcTimerStm32 {
     _startTimer(cc_idx);
   }
 
+  IGB_FAST_INLINE void start(uint8_t cc_idx, count_t t) { // general timer api
+    _startTimer(cc_idx, t);
+  }
+
   // DEPRECATED:
   IGB_FAST_INLINE void startSubTimer(uint8_t sub_timer_idx) { // specialized timer api
     if (sub_timer_idx < sub_timer_count) {
@@ -171,8 +178,12 @@ struct HardCcTimerStm32 {
   }
 
   IGB_FAST_INLINE void _startTimer(uint8_t cc_idx) {
+    _startTimer(cc_idx, _tim.count());
+  }
+
+  IGB_FAST_INLINE void _startTimer(uint8_t cc_idx, count_t t) {
     auto& state = _cc_states[cc_idx];
-    count_t cc_value = _tim.count() + state.interval_tick;
+    count_t cc_value = t + state.interval_tick;
     _setCcValue(cc_idx, cc_value);
     state.active = true;
     state.cc_value = cc_value;
@@ -186,6 +197,11 @@ struct HardCcTimerStm32 {
   IGB_FAST_INLINE void _stopTimer(uint8_t cc_idx) { // general timer api
     auto& state = _cc_states[cc_idx];
     state.active = false;
+  }
+
+  IGB_FAST_INLINE bool isStart(uint8_t cc_idx) const {
+    const auto& state = _cc_states[cc_idx];
+    return state.active;
   }
 
   IGB_FAST_INLINE void enableCh(uint8_t cc_idx) { // specialized api
@@ -259,6 +275,11 @@ struct HardCcTimerStm32 {
 
   IGB_FAST_INLINE count_t tick() { // specialized api
     return _tim.count();
+  }
+
+  IGB_FAST_INLINE count_t getCcTick(uint8_t cc_idx) { 
+    auto& state = _cc_states[cc_idx];
+    return state.getCcValue();
   }
 
   IGB_FAST_INLINE void _setCcValue(uint8_t cc_idx, count_t value) {
