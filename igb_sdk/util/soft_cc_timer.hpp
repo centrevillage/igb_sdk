@@ -5,14 +5,15 @@
 #include <cstddef>
 #include <array>
 #include <algorithm>
+#include <functional>
 #include <type_traits>
-#include <igb_stm32/periph/tim.hpp>
 #include <igb_util/tbl.hpp>
+#include <igb_util/macro.hpp>
 
 namespace igb {
 namespace sdk {
 
-template<typename TimCls, typename count_t /* uint16_t or uint32_t */, size_t cc_ch, uint32_t tim_base_clock>
+template<typename TimCls, typename count_t /* uint16_t or uint32_t */, size_t cc_ch, uint32_t tim_base_clock, typename float_t = float>
 struct SoftCcTimer {
   static_assert(std::is_same<count_t, uint16_t>::value || std::is_same<count_t, uint32_t>::value, "count_t must be uint16_t or uint32_t");
   static_assert(cc_ch >= 1, "cc ch size must be greater equal than 1.");
@@ -23,7 +24,7 @@ struct SoftCcTimer {
   TimCls _tim;
   struct CcState {
     count_t interval_tick = 0;
-    float interval_tick_f = 0.0f;
+    float_t interval_tick_f = 0.0f;
     count_t interval_tick_adj = 0;
     count_t cc_value = 0;
     uint32_t update_count = 0;
@@ -51,11 +52,11 @@ struct SoftCcTimer {
   };
   std::array<CcState, cc_ch_count> _cc_states;
 
-  constexpr IGB_FAST_INLINE static float secToTick(float interval_sec) {
-    return interval_sec * (float)tim_base_clock;
+  constexpr IGB_FAST_INLINE static float_t secToTick(float_t interval_sec) {
+    return interval_sec * (float_t)tim_base_clock;
   }
-  constexpr IGB_FAST_INLINE static float tickToSec(float tick) {
-    return tick / (float)tim_base_clock;
+  constexpr IGB_FAST_INLINE static float_t tickToSec(float_t tick) {
+    return tick / (float_t)tim_base_clock;
   }
 
   void init() { // general timer api
@@ -81,32 +82,32 @@ struct SoftCcTimer {
     _tim.stop();
   }
 
-  void setupTimer(uint8_t cc_idx, float interval_sec, auto&& update_func) { // general timer api
+  void setupTimer(uint8_t cc_idx, float_t interval_sec, auto&& update_func) { // general timer api
     auto& state = _cc_states[cc_idx];
     setIntervalSec(cc_idx, interval_sec);
     state.on_capture = update_func;
     state.active = false;
   }
 
-  IGB_FAST_INLINE void setIntervalSec(float interval_sec) { // general timer api
-    const float interval_tick_f = secToTick(interval_sec);
+  IGB_FAST_INLINE void setIntervalSec(float_t interval_sec) { // general timer api
+    const float_t interval_tick_f = secToTick(interval_sec);
     setIntervalTick(interval_tick_f);
   }
-  IGB_FAST_INLINE void setIntervalSec(uint8_t cc_idx, float interval_sec) { // specialized timer api
-    const float interval_tick_f = secToTick(interval_sec);
+  IGB_FAST_INLINE void setIntervalSec(uint8_t cc_idx, float_t interval_sec) { // specialized timer api
+    const float_t interval_tick_f = secToTick(interval_sec);
     setIntervalTick(cc_idx, interval_tick_f);
   }
   IGB_FAST_INLINE void setIntervalTick(count_t interval_tick) { // general timer api
     setIntervalTick(0, interval_tick);
   }
-  IGB_FAST_INLINE void setIntervalTick(float interval_tick_f) { // general timer api
+  IGB_FAST_INLINE void setIntervalTick(float_t interval_tick_f) { // general timer api
     setIntervalTick(0, interval_tick_f);
   }
-  IGB_FAST_INLINE float getIntervalSec(uint8_t cc_idx = 0) const { // general timer api
+  IGB_FAST_INLINE float_t getIntervalSec(uint8_t cc_idx = 0) const { // general timer api
     auto& state = _cc_states[cc_idx];
-    return std::round(tickToSec((float)state.interval_tick));
+    return std::round(tickToSec((float_t)state.interval_tick));
   }
-  IGB_FAST_INLINE float getIntervalTick(uint8_t cc_idx = 0) const { // general timer api
+  IGB_FAST_INLINE float_t getIntervalTick(uint8_t cc_idx = 0) const { // general timer api
     auto& state = _cc_states[cc_idx];
     return state.interval_tick_f;
   }
@@ -144,16 +145,16 @@ struct SoftCcTimer {
   IGB_FAST_INLINE void setIntervalTick(uint8_t cc_idx, count_t interval_tick) { // specialized api
     auto& state = _cc_states[cc_idx];
     state.interval_tick = interval_tick;
-    state.interval_tick_f = (float)interval_tick;
+    state.interval_tick_f = (float_t)interval_tick;
     state.interval_tick_adj = 0;
   }
-  IGB_FAST_INLINE void setIntervalTick(uint8_t cc_idx, float interval_tick_f) { // specialized api
+  IGB_FAST_INLINE void setIntervalTick(uint8_t cc_idx, float_t interval_tick_f) { // specialized api
     auto& state = _cc_states[cc_idx];
     if (interval_tick_f > 0.0f) {
       const auto tick_u32 = (count_t)interval_tick_f;
       state.interval_tick_f = interval_tick_f;
       state.interval_tick = tick_u32;
-      const auto mod = interval_tick_f - (float)tick_u32;
+      const auto mod = interval_tick_f - (float_t)tick_u32;
       state.interval_tick_adj = std::clamp(
           (count_t)(mod * 32.0f),
           (count_t)0, (count_t) 31);

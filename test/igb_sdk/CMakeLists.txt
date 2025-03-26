@@ -5,13 +5,13 @@ project(igb_sdk_test VERSION 1.0)
 #enable_language(ASM)
 
 unset(CMAKE_C_COMPILER CACHE)
-set(CMAKE_C_COMPILER "/usr/local/bin/g++-11")
+set(CMAKE_C_COMPILER "/usr/local/bin/g++-14")
 unset(CMAKE_CXX_COMPILER CACHE)
-set(CMAKE_CXX_COMPILER "/usr/local/bin/g++-11")
+set(CMAKE_CXX_COMPILER "/usr/local/bin/g++-14")
 unset(CMAKE_AS_COMPILER CACHE)
-set(CMAKE_AS_COMPILER "/usr/local/bin/g++-11")
+set(CMAKE_AS_COMPILER "/usr/local/bin/g++-14")
 unset(CMAKE_EXE_LINKER CACHE)
-set(CMAKE_EXE_LINKER "/usr/local/bin/g++-11")
+set(CMAKE_EXE_LINKER "/usr/local/bin/g++-14")
 
 unset(CMAKE_C_FLAGS CACHE)
 set(CMAKE_C_FLAGS "-Wall -Wl,--gc-sections,-Werror=return-type -fno-exceptions -MMD")
@@ -37,7 +37,12 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 add_subdirectory(../../igb_sdk igb_sdk)
 add_subdirectory(../lib/Catch2 Catch2)
 
-add_executable(igb_sdk_test src/test_quantizer.cpp src/test_button_history.cpp)
+add_executable(
+  igb_sdk_test
+  src/test_quantizer.cpp
+  src/test_button_history.cpp
+  src/test_syncable_mod_clock.cpp
+)
 target_link_libraries(igb_sdk_test PRIVATE igb_sdk Catch2::Catch2WithMain)
 
 #target_include_directories(igb_sdk PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../..)

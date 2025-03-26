@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cmath>
 #include <igb_util/macro.hpp>
 
 namespace igb::dsp {
@@ -89,7 +90,7 @@ IGB_FAST_INLINE float fastroot(float f, int n) {
 No approximation, pow10f(x) gives a 90% speed increase over powf(10.f, x)
 */
 IGB_FAST_INLINE float pow10f(float f) {
-  return expf(2.302585092994046f * f);
+  return std::expf(2.302585092994046f * f);
 }
 
 /* Original code for fastlog2f by Dr. Paul Beckmann from the ARM community forum, adapted from the CMSIS-DSP library
@@ -98,7 +99,7 @@ About 25% performance increase over std::log10f
 IGB_FAST_INLINE float fastlog2f(float f) {
   float frac;
   int   exp;
-  frac = frexpf(fabsf(f), &exp);
+  frac = std::frexpf(std::fabsf(f), &exp);
   f    = 1.23149591368684f;
   f *= frac;
   f += -4.11852516267426f;

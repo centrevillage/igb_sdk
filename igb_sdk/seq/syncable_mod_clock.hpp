@@ -40,7 +40,7 @@ enum class ClockSyncAlgorithm {
 //};
 
 // TimerCls = HardTimerStm32, etc...
-template<typename TimerCls, uint32_t out_clocks_size, uint32_t src_clocks_size, typename ClockModType, typename float_t, ClockSyncAlgorithm sync_algorithm>
+template<typename TimerCls, uint32_t out_clocks_size, uint32_t src_clocks_size, typename ClockModType, ClockSyncAlgorithm sync_algorithm = ClockSyncAlgorithm::jump, typename float_t = float>
 struct SeqSyncableModClock {
   constexpr static uint32_t timeout_tick = (uint32_t)TimerCls::secToTick(10.0f);
   static_assert(TimerCls::cc_ch_count >= (out_clocks_size + 1), "cc ch size is not sufficient.");
@@ -101,11 +101,13 @@ struct SeqSyncableModClock {
       if (clock_mod_cycle < 2) {
         return base_interval_tick;
       }
+      // NOTE: ここでclock mod の処理を行うのは間違い。
+      //       ipl_count が更新されるたびに処理すべき。 
       clock_mod_idx = (clock_mod_idx + 1) % clock_mod_cycle;
       float_t clock_mod_phase = (float_t)clock_mod_idx / (float_t)clock_mod_cycle;
       float_t phase_diff = clock_mod.getPhaseDiff(clock_mod_phase);
       float_t phase_diff_delta = phase_diff - prev_clock_mod_phase_diff;
-      float_t delta_mod_tick = phase_diff_delta * base_interval_tick * (float_t)clock_mod_cycle;
+      float_t delta_mod_tick = phase_diff_delta * base_interval_tick * (float_t)clock_mod_cycle * 0.5;
       interval_tick_result = std::clamp<float_t>(base_interval_tick - delta_mod_tick, 1.0, (float_t)0x7FFFFFFF);
       prev_clock_mod_phase_diff = phase_diff;
       return interval_tick_result;
@@ -213,7 +215,12 @@ struct SeqSyncableModClock {
     _clockStates[idx].interval_tick = TimerCls::secToTick(interval_sec);
     _clockStates[idx].on_update = conf.on_update;
     _timer.setIntervalTick(idx, _clockStates[idx].interval_tick);
-    _timer.setupTimer(idx, interval_sec, [this, idx](){onUpdateIntTimer(idx, _timer.getCcTick(idx));});
+    _timer.setupTimer(idx, interval_sec,
+      [this, idx](){
+        onUpdateIntTimer(idx, _timer.getCcTick(idx));
+        //onUpdateIntTimer(idx, tick());
+      }
+    );
   }
 
   inline void _initIntClock() {
@@ -221,7 +228,8 @@ struct SeqSyncableModClock {
     float_t interval_sec = bpmToIntervalSec(bpm, _src_confs[_selected_int_clock_idx].clock_per_beat);
     setIntIntervalSec(interval_sec);
     _timer.setupTimer(int_clock_cc_idx, interval_sec, [this](){
-      receiveClock(_selected_int_clock_idx, _timer.getCcTick(_selected_int_clock_idx));
+      receiveClock(_selected_int_clock_idx, _timer.getCcTick(int_clock_cc_idx));
+      //receiveClock(_selected_int_clock_idx, tick());
     });
   }
 
@@ -265,8 +273,11 @@ struct SeqSyncableModClock {
     }
     resetClocks();
     if (isIntClockEnabled()) {
-      for (auto& state : _clockStates) {
-        state.interval_tick = int_interval_tick * (float_t)(_src_confs[_selected_int_clock_idx].clock_per_beat) / (float_t)state.step_per_beat;
+      for (uint32_t idx = 0; idx < out_clocks_size; ++idx) {
+        auto& state = _clockStates[i];
+        //state.interval_tick = int_interval_tick * (float_t)state.clock_to_step_coeff;
+        state.interval_tick = state.expectedIntervalTick(int_interval_tick);
+        _timer.setIntervalTick(idx, state.interval_tick);
       }
       _timer.setIntervalTick(int_clock_cc_idx, int_interval_tick);
       uint32_t t = tick();
@@ -314,7 +325,7 @@ struct SeqSyncableModClock {
     }
 
     for (uint8_t i = 0; i < out_clocks_size; ++i) {
-      updateClockState(i, _tick);
+      updateClockState(i, t);
     }
 
     if (!_ext_src_state.is_first_clock_arrived) {
@@ -336,8 +347,9 @@ struct SeqSyncableModClock {
     auto& state = _clockStates[idx];
     if (state.clk_count == 0) {
       state.clk_count += state.clk_count_max;
-      if (!state.isStart()) {
+      if (!_timer.isStart(idx)) {
         _timer.start(idx, _tick);
+        onUpdateIntTimer(idx, _tick);
       }
       state.clk_count_0_tick = _tick;
     } else {
@@ -346,7 +358,6 @@ struct SeqSyncableModClock {
     if (_ext_src_state.is_first_clock_arrived) {
       const float_t t = state.expectedIntervalTick(_ext_src_state.expected_clock_interval_tick);
       const float_t phase_diff = state.calcPhaseDiff(_tick); // tickベースのクロック位相差
-      const float_t expected_clk_interval = (float_t)_ext_src_state.expected_clock_interval_tick;
       const float_t phase_diff_per_interval = phase_diff / t;
       float_t adj_rate = std::clamp<double>(1.0 + (phase_diff_per_interval * 0.3), 0.7, 1.3); // インターバル補正率
       state.interval_tick = t * adj_rate;
@@ -365,7 +376,7 @@ struct SeqSyncableModClock {
       state.on_update();
       state.ipl_count += state.ipl_count_max;
       state.clk_count += state.clk_count_max;
-      if (state.ipl_count != 0 && !state.isStart()) {
+      if (state.ipl_count != 0 && !_timer.isStart(idx)) {
         _timer.start(idx, _tick);
       }
       state.clk_count_0_tick = _tick;
@@ -459,6 +470,10 @@ struct SeqSyncableModClock {
   inline void setIntIntervalTick(float_t tick) {
     int_interval_tick = tick;
     _timer.setIntervalTick(int_clock_cc_idx, int_interval_tick);
+  }
+  inline void setClockModCycle(uint8_t idx, uint16_t cycle) {
+    auto& state = _clockStates[idx]; 
+    state.clock_mod_cycle = cycle;
   }
 
   inline uint32_t tick() {
