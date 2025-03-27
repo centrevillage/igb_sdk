@@ -70,7 +70,7 @@ TEST_CASE("SyncableModClock") {
             ++step;
             if (is_debug) {
               //std::cout << step << ",";
-              std::cout << clock._clockStates[0].interval_tick << "[" << clock.tick() << "]"<< ",";
+              std::cout << clock._clockStates[0].interval_tick << "[" << clock.tick() << "]" << "(" << clock._clockStates[0].clock_mod_idx << ")" << "<" << clock._clockStates[0].prev_clock_mod_phase_diff << ">" << ",";
             }
           }
         },
@@ -143,8 +143,8 @@ TEST_CASE("SyncableModClock") {
     // clock mod
     std::cout << "clock div/multi with clock mod ===" << std::endl;
     clock.setClockModCycle(0, 2);
+    clock.clockMod(0).setAmp(0.33);
     clock.start();
-    clock.clockMod(0).setAmp(0.1);
     for (uint16_t msec = 0; msec < 2000; ++msec) {
       clock.process();
       tim.countUp();
