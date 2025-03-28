@@ -14,7 +14,7 @@ unset(CMAKE_EXE_LINKER CACHE)
 set(CMAKE_EXE_LINKER "/usr/local/bin/g++-14")
 
 unset(CMAKE_C_FLAGS CACHE)
-set(CMAKE_C_FLAGS "-Wall -Wl,--gc-sections,-Werror=return-type -fno-exceptions -MMD")
+set(CMAKE_C_FLAGS "-DTEST -Wall -Wl,--gc-sections,-Werror=return-type -fno-exceptions -MMD")
 unset(CMAKE_CXX_FLAGS CACHE)
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -fno-use-cxa-atexit -fno-exceptions -fno-rtti")
 
