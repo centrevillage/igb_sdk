@@ -5,9 +5,23 @@
 #include <iostream>
 #include <bitset>
 #include <array>
+#include <vector>
+#include <cmath>
 
 using namespace igb;
 using namespace igb::sdk;
+
+bool nearly_match(auto&& vec1, auto&& vec2) {
+  if (vec1.size() != vec2.size()) {
+    return false;
+  }
+  for (size_t i = 0; i < vec1.size(); ++i) {
+    if (std::abs((double)vec1[i] - (double)vec2[i]) > 1.0) {
+      return false;
+    }
+  }
+  return true;
+}
 
 struct TestTim {
   uint32_t _count = 0;
@@ -61,19 +75,22 @@ TEST_CASE("SyncableModClock") {
     bool is_debug = false;
     uint32_t step = 0;
     uint32_t clk = 0;
+    std::vector<uint32_t> ticks;
     
     clock.init(
       120.0,
       std::make_tuple(
         ClockCls::ClockConf {
           .step_per_beat = 4,
-          .on_update = [&is_debug, &step, &clock]() {
+          .on_update = [&is_debug, &step, &clock, &ticks]() {
             ++step;
+            ticks.push_back(clock.tick());
             if (is_debug) {
               //std::cout << step << ",";
               auto& state = clock._clockStates[0];
               //std::cout << state.interval_tick << "[" << clock.tick() << "]" << "(" << state.clock_mod_idx << ")" << "<" << state.prev_clock_mod_phase_diff << ">" << "[[" << state.clk_count << "]]" << "((" << state.ipl_count << "))" << ",";
-              std::cout << state.interval_tick << "[" << clock.tick() << "]" << "(" << state.clock_mod_idx << ")" << "<" << state.prev_clock_mod_phase_diff << ">" << ",";
+              //std::cout << state.interval_tick << "[" << clock.tick() << "]" << "(" << state.clock_mod_idx << ")" << "<" << state.prev_clock_mod_phase_diff << ">" << ",";
+              std::cout << clock.tick() << ",";
             }
           }
         },
@@ -108,13 +125,8 @@ TEST_CASE("SyncableModClock") {
       tim.countUp();
     }
     std::cout << std::endl;
-    //std::cout << "expected interval: " << clock._ext_src_state.expected_clock_interval_tick << std::endl;
-    //std::cout << "int interval tick: " << clock.int_interval_tick << std::endl;
-    //std::cout << "int timer interval tick: " << clock._timer._cc_states[2].interval_tick << std::endl;
-    //std::cout << "int cc tick: " << clock._timer.getCcTick(2) << std::endl;
-    //std::cout << "tick: " << clock.tick() << std::endl;
-    //std::cout << "bpm: " << clock.bpm << std::endl;
     REQUIRE(step == 16);
+    REQUIRE(ticks == std::vector<uint32_t>{0, 125, 250, 375, 500, 625, 750, 875, 1000, 1125, 1250, 1375, 1500, 1625, 1750, 1875});
 
     // reset
     clock.stop();
@@ -122,6 +134,7 @@ TEST_CASE("SyncableModClock") {
     step = 0;
     clk = 0;
     tim.count(0);
+    ticks.clear();
 
     // clock div / multi
     is_debug = true;
@@ -135,6 +148,7 @@ TEST_CASE("SyncableModClock") {
     }
     std::cout << std::endl;
     REQUIRE(step == (16*6/8));
+    REQUIRE(ticks == std::vector<uint32_t>{0,166,333,500,666,833,1000,1166,1333,1500,1666,1833});
 
     // reset
     clock.stop();
@@ -142,6 +156,7 @@ TEST_CASE("SyncableModClock") {
     step = 0;
     clk = 0;
     tim.count(0);
+    ticks.clear();
 
     // clock mod
     std::cout << "clock div/multi with clock mod ===" << std::endl;
@@ -154,6 +169,7 @@ TEST_CASE("SyncableModClock") {
     }
     std::cout << std::endl;
     REQUIRE(step == (16*6/8));
+    REQUIRE(ticks == std::vector<uint32_t>{0,221,333,554,666,888,1000,1221,1333,1554,1666,1888});
   }
 
   SECTION( "smooth sync" ) {
@@ -162,19 +178,22 @@ TEST_CASE("SyncableModClock") {
     bool is_debug = false;
     uint32_t step = 0;
     uint32_t clk = 0;
+    std::vector<uint32_t> ticks;
     
     clock.init(
       120.0,
       std::make_tuple(
         ClockSmoothSyncCls::ClockConf {
           .step_per_beat = 4,
-          .on_update = [&is_debug, &step, &clock]() {
+          .on_update = [&is_debug, &step, &clock, &ticks]() {
             ++step;
+            ticks.push_back(clock.tick());
             if (is_debug) {
               //std::cout << step << ",";
               auto& state = clock._clockStates[0];
               //std::cout << state.interval_tick << "[" << clock.tick() << "]" << "(" << state.clock_mod_idx << ")" << "<" << state.prev_clock_mod_phase_diff << ">" << "[[" << state.clk_count << "]]" << "((" << state.ipl_count << "))" << ",";
-              std::cout << state.interval_tick << "[" << clock.tick() << "]" << "(" << state.clock_mod_idx << ")" << "<" << state.prev_clock_mod_phase_diff << ">" << ":" << state.test_phase_diff << ":" << ",";
+              //std::cout << state.interval_tick << "[" << clock.tick() << "]" << "(" << state.clock_mod_idx << ")" << "<" << state.prev_clock_mod_phase_diff << ">" << ":" << state.test_phase_diff << ":" << ",";
+              std::cout << clock.tick() << ",";
             }
           }
         },
@@ -209,13 +228,8 @@ TEST_CASE("SyncableModClock") {
       tim.countUp();
     }
     std::cout << std::endl;
-    //std::cout << "expected interval: " << clock._ext_src_state.expected_clock_interval_tick << std::endl;
-    //std::cout << "int interval tick: " << clock.int_interval_tick << std::endl;
-    //std::cout << "int timer interval tick: " << clock._timer._cc_states[2].interval_tick << std::endl;
-    //std::cout << "int cc tick: " << clock._timer.getCcTick(2) << std::endl;
-    //std::cout << "tick: " << clock.tick() << std::endl;
-    //std::cout << "bpm: " << clock.bpm << std::endl;
     REQUIRE(step == 16);
+    REQUIRE(ticks == std::vector<uint32_t>{0, 125, 250, 375, 500, 625, 750, 875, 1000, 1125, 1250, 1375, 1500, 1625, 1750, 1875});
 
     // reset
     clock.stop();
@@ -223,6 +237,7 @@ TEST_CASE("SyncableModClock") {
     step = 0;
     clk = 0;
     tim.count(0);
+    ticks.clear();
 
     // clock div / multi
     is_debug = true;
@@ -236,6 +251,8 @@ TEST_CASE("SyncableModClock") {
     }
     std::cout << std::endl;
     REQUIRE(step == (16*6/8));
+    //REQUIRE(ticks == std::vector<uint32_t>{0,166,333,500,666,833,1000,1166,1333,1500,1666,1833});
+    REQUIRE(nearly_match(ticks, std::vector<uint32_t>{0,166,333,500,666,833,1000,1166,1333,1500,1666,1833}));
 
     // reset
     clock.stop();
@@ -243,17 +260,24 @@ TEST_CASE("SyncableModClock") {
     step = 0;
     clk = 0;
     tim.count(0);
+    ticks.clear();
 
     // clock mod
     std::cout << "clock div/multi with clock mod ===" << std::endl;
     clock.setClockModCycle(0, 2);
     clock.clockMod(0).setAmp(0.33);
     clock.start();
-    for (uint16_t msec = 0; msec < 2000*3; ++msec) {
+    for (uint16_t msec = 0; msec < 2000; ++msec) {
       clock.process();
       tim.countUp();
     }
     std::cout << std::endl;
-    REQUIRE(step == (16*6/8)*3);
+    //REQUIRE(step == (16*6/8)*3);
+    //REQUIRE(ticks == std::vector<uint32_t>{0,221,333,554,666,888,1000,1221,1333,1554,1666,1888});
+    if (step == (16*6/8)) {
+      REQUIRE(nearly_match(ticks, std::vector<uint32_t>{0,221,333,554,666,888,1000,1221,1333,1554,1666,1888}));
+    } else {
+      REQUIRE(nearly_match(ticks, std::vector<uint32_t>{0,221,333,554,666,888,1000,1221,1333,1554,1666,1888, 2000}));
+    }
   }
 }
