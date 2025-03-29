@@ -64,9 +64,9 @@ struct TestClockMod {
   }
 };
 
-typedef SoftCcTimer<TestTim, uint32_t /* count_t */, 3 /* cc_ch */, 1000 /* tim_base_clock */, double>  TimerCls;
-typedef SeqSyncableModClock<TimerCls, 2 /* out_sise */, 1 /* src_size */, TestClockMod, ClockSyncAlgorithm::jump, double> ClockCls;
-typedef SeqSyncableModClock<TimerCls, 2 /* out_sise */, 1 /* src_size */, TestClockMod, ClockSyncAlgorithm::smooth, double> ClockSmoothSyncCls;
+typedef SoftCcTimer<TestTim, uint32_t /* count_t */, 3 /* cc_ch */, 1000 /* tim_base_clock */, float>  TimerCls;
+typedef SeqSyncableModClock<TimerCls, 2 /* out_sise */, 1 /* src_size */, TestClockMod, ClockSyncAlgorithm::jump, float> ClockCls;
+typedef SeqSyncableModClock<TimerCls, 2 /* out_sise */, 1 /* src_size */, TestClockMod, ClockSyncAlgorithm::smooth, float> ClockSmoothSyncCls;
 
 TEST_CASE("SyncableModClock") {
   SECTION( "jump sync" ) {
@@ -139,8 +139,10 @@ TEST_CASE("SyncableModClock") {
     // clock div / multi
     is_debug = true;
     std::cout << "clock div/multi ===" << std::endl;
-    clock.changeStepPerBeat(0, 6);
-    clock.changeClockDiv(0, 2);
+    //clock.changeStepPerBeat(0, 6);
+    //clock.changeClockDiv(0, 2);
+    clock.changeClockMulti(0, 3);
+    clock.changeClockDiv(0, 4);
     clock.start();
     for (uint16_t msec = 0; msec < 2000; ++msec) {
       clock.process();
@@ -242,8 +244,10 @@ TEST_CASE("SyncableModClock") {
     // clock div / multi
     is_debug = true;
     std::cout << "clock div/multi ===" << std::endl;
-    clock.changeStepPerBeat(0, 6);
-    clock.changeClockDiv(0, 2);
+    //clock.changeStepPerBeat(0, 6);
+    //clock.changeClockDiv(0, 2);
+    clock.changeClockMulti(0, 3);
+    clock.changeClockDiv(0, 4);
     clock.start();
     for (uint16_t msec = 0; msec < 2000; ++msec) {
       clock.process();

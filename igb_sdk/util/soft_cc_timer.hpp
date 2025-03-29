@@ -150,7 +150,7 @@ struct SoftCcTimer {
   }
   IGB_FAST_INLINE void setIntervalTick(uint8_t cc_idx, float_t interval_tick_f) { // specialized api
     auto& state = _cc_states[cc_idx];
-    if (interval_tick_f > 0.0f) {
+    if (interval_tick_f > 0.0f && interval_tick_f != state.interval_tick_f) {
       const auto tick_u32 = (count_t)interval_tick_f;
       state.interval_tick_f = interval_tick_f;
       state.interval_tick = tick_u32;

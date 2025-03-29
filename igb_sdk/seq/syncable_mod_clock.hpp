@@ -14,31 +14,6 @@ enum class ClockSyncAlgorithm {
   smooth
 };
 
-//- 位相補正処理
-//  - クロック抜けを防止するためにint&ext clock syncの処理を見直し
-//    - クロックの位相差を補正する処理を追加
-//      - クロックイベントの発行数が変化しないよう、位相遅れや進みを検出する
-//
-//- モジュレーション処理
-//  - クロックモジュレーションはモジュレータークラスを型パラメータに持つ
-//    - モジュレーターは0-1.0の区間の値を入力すると、位相の進み/遅れ量を返すファンクタ
-//  - 各クロックステートにクロックモジュレーション用のステートを追加する。
-//    - クロックモジュレーション用のステートは、メインステートとのクロック位相差がモジュレーション量に応じて変わるようにnextCcを調整する
-//
-//- リアルタイム変更時の例外処理
-//  - クロックモジュレーションのパラメータが変更された場合は現在の周期の再生が終わった直後に反映される
-//    - アプリケーション側の実装
-//      - ライブラリはモジュレーションの周期中の位置をコールバック関数の引数に渡す 
-//  - ステップレングスや手動＆外部トリガーリセットが途中で行われた場合、クロックモジュレーションされていないクロックを基準として処理を行う。結果として間に合わないクロックについてはスキップされる。
-//    - アプリケーションにはコールバック関数にmodクロックかnormalクロックかのフラグを引数として渡される
-//      - アプリケーションはモジュレーションの周期を、リセットのタイミングでリセットする義務を負う
-//        - モジュレーションのリセットが行われた時、モジュレーションステートはメインステートと同期される
-
-//template <class T>
-//concept ClockModifier = requires (T& x) {
-//  typename T::Config;
-//};
-
 // TimerCls = HardTimerStm32, etc...
 template<typename TimerCls, uint32_t out_clocks_size, uint32_t src_clocks_size, typename ClockModType, ClockSyncAlgorithm sync_algorithm = ClockSyncAlgorithm::jump, typename float_t = float>
 struct SeqSyncableModClock {
@@ -80,6 +55,7 @@ struct SeqSyncableModClock {
     float_t filter_coeff = 0.0f;
 
     uint16_t clock_div = 1;
+    uint16_t clock_mlt = 1;
 
     // for int&ext clock sync
     uint16_t clk_count = 0; // clear when received reset event
@@ -87,9 +63,8 @@ struct SeqSyncableModClock {
     uint16_t ipl_count = 0;
     uint16_t ipl_count_max = 0;
     float_t clock_to_step_coeff = 0.0f;
-    uint32_t clk_count_0_tick = 0;
-    uint32_t ipl_prev_tick = 0;
 
+    uint32_t ipl_prev_tick = 0;
     ClockModType clock_mod;
     uint16_t clock_mod_cycle = 0;
     uint16_t clock_mod_idx = 0;
@@ -147,9 +122,10 @@ struct SeqSyncableModClock {
 
     inline void _updateCompletionCount() {
       auto cpb = clock_per_beat * clock_div;
-      const auto gcd_num = std::gcd(step_per_beat, cpb);
+      auto spb = step_per_beat * clock_mlt;
+      const auto gcd_num = std::gcd(spb, cpb);
       if (isClockModulated()) {
-        uint16_t ipl_count_size = (step_per_beat / gcd_num);
+        uint16_t ipl_count_size = (spb / gcd_num);
         uint16_t lcm_num = std::lcm(clock_mod_cycle, ipl_count_size);
         uint16_t rate = lcm_num / ipl_count_size;
         ipl_count_size *= rate;
@@ -157,9 +133,9 @@ struct SeqSyncableModClock {
         ipl_count_max = ipl_count_size - 1;
       } else {
         clk_count_max = (cpb / gcd_num) - 1;
-        ipl_count_max = (step_per_beat / gcd_num) - 1;
+        ipl_count_max = (spb / gcd_num) - 1;
       }
-      clock_to_step_coeff = (float_t)(cpb) / (float_t)step_per_beat;
+      clock_to_step_coeff = (float_t)(cpb) / (float_t)spb;
     }
 
     inline void changeClockModCycle(uint16_t new_clock_mod_cycle) {
@@ -188,6 +164,13 @@ struct SeqSyncableModClock {
       }
     }
 
+    inline void changeClockMulti(uint16_t new_clock_mlt) {
+      if (new_clock_mlt > 0) {
+        clock_mlt = new_clock_mlt;
+        _updateCompletionCount();
+      }
+    }
+
     inline float_t getSpeedRate() const {
       return (float_t)(ipl_count_max + 1) / (float_t)(clk_count_max + 1);
     }
@@ -195,9 +178,6 @@ struct SeqSyncableModClock {
     inline float_t calcPhaseDiff(uint32_t _tick) const {
       uint32_t clk_count_from0 = ((clk_count_max - clk_count) + 1) % (clk_count_max + 1);
       float_t target_phase = (float_t)clk_count_from0 / (float_t)(clk_count_max + 1);
-      // NOTE: ここで interval_tick は clock modulation の結果毎回異なりうる！
-      //       クロックディバイドとクロックモジュレーションが有効な場合、
-      //       この問題により、現在の位相を正確に算出できない。
       float_t phase = current_phase + (((float_t)(_tick - ipl_prev_tick) / interval_tick)) * prev_interval_phase;
       float_t phase_diff = phase - target_phase;
       return phase_diff;
@@ -400,7 +380,6 @@ struct SeqSyncableModClock {
         _timer.start(idx, _tick);
       }
       state.clk_count = state.clk_count_max;
-      state.clk_count_0_tick = _tick;
     } else {
       state.clk_count--;
     }
@@ -415,16 +394,13 @@ struct SeqSyncableModClock {
         state.ipl_count--;
       }
       state.resetCounts();
-      state.nextClockModIdx();
-      state.interval_tick = state.clockModulatedIntervalTick(state.base_interval_tick);
-      _timer.setIntervalTick(idx, state.interval_tick);
+      updateIntTimerIntervalTick(idx);
       state.on_update();
       state.ipl_count = state.ipl_count_max;
       state.clk_count = state.clk_count_max;
       if (state.ipl_count != 0 && !_timer.isStart(idx)) {
         _timer.start(idx, _tick);
       }
-      state.clk_count_0_tick = _tick;
     } else {
       state.clk_count--;
     }
@@ -450,33 +426,45 @@ struct SeqSyncableModClock {
   }
 
   void onUpdateIntTimer(uint8_t clock_idx, uint32_t t) {
-    auto& state = _clockStates[clock_idx];
     if (sync_algorithm == ClockSyncAlgorithm::jump) {
-      if (state.ipl_count > 0) {
-        state.nextClockModIdx();
-        state.interval_tick = state.clockModulatedIntervalTick(state.base_interval_tick);
-        _timer.setIntervalTick(clock_idx, state.interval_tick);
-        state.on_update();
-        state.ipl_count--;
-      } else {
-        _timer.stop(clock_idx); 
-      }
+      _onUpdateIntTimerJumpSync(clock_idx);
     } else {
-      if (state.ipl_count == 0) {
-        state.current_phase = 0.0;
-        state.prev_interval_phase = 0.0;
-      }
-      state.nextClockModIdx();
-      state.interval_tick = state.clockModulatedIntervalTick(state.base_interval_tick) * state.adj_rate;
-      _timer.setIntervalTick(clock_idx, state.interval_tick);
-      state.on_update();
-      if (state.ipl_count > 0) {
-        state.ipl_count--;
-      } else {
-        state.ipl_count = state.ipl_count_max;
-      }
-      state.ipl_prev_tick = t;
+      _onUpdateIntTimerSmoothSync(clock_idx, t);
     }
+  }
+
+  inline void _onUpdateIntTimerJumpSync(uint8_t clock_idx) {
+    auto& state = _clockStates[clock_idx];
+    if (state.ipl_count > 0) {
+      updateIntTimerIntervalTick(clock_idx);
+      state.on_update();
+      state.ipl_count--;
+    } else {
+      _timer.stop(clock_idx); 
+    }
+  }
+
+  inline void _onUpdateIntTimerSmoothSync(uint8_t clock_idx, uint32_t t) {
+    auto& state = _clockStates[clock_idx];
+    if (state.ipl_count == 0) {
+      state.current_phase = 0.0;
+      state.prev_interval_phase = 0.0;
+    }
+    updateIntTimerIntervalTick(clock_idx);
+    state.on_update();
+    if (state.ipl_count > 0) {
+      state.ipl_count--;
+    } else {
+      state.ipl_count = state.ipl_count_max;
+    }
+    state.ipl_prev_tick = t;
+  }
+
+  inline void updateIntTimerIntervalTick(uint8_t clock_idx) {
+    auto& state = _clockStates[clock_idx];
+    state.nextClockModIdx();
+    state.interval_tick = state.clockModulatedIntervalTick(state.base_interval_tick) * state.adj_rate;
+    _timer.setIntervalTick(clock_idx, state.interval_tick);
   }
 
   void checkTimeout() {
@@ -498,6 +486,10 @@ struct SeqSyncableModClock {
 
   inline void changeClockDiv(uint8_t idx, uint8_t clock_div) {
     _clockStates[idx].changeClockDiv(clock_div);
+  }
+
+  inline void changeClockMulti(uint8_t idx, uint8_t clock_mlt) {
+    _clockStates[idx].changeClockMulti(clock_mlt);
   }
 
   constexpr static float_t bpmToIntervalSec(float_t _bpm, uint16_t step_per_beat) {
