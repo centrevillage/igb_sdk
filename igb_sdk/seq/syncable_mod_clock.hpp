@@ -24,6 +24,8 @@ struct SeqSyncableModClock {
   float_t bpm = 120.0f;
   float_t int_interval_tick = 0.0f;
 
+  std::function<void(uint32_t)> on_receive_clock = [](uint32_t t){};
+
   struct ClockConf {
     uint16_t step_per_beat = 4;
     std::function<void(void)> on_update = [](){};
@@ -69,6 +71,7 @@ struct SeqSyncableModClock {
     uint16_t clock_mod_cycle = 0;
     uint16_t clock_mod_idx = 0;
     float_t prev_clock_mod_phase_diff = 0.0;
+    float_t orig_interval_tick = 0.0;
     float_t base_interval_tick = 0.0;
     float_t adj_rate = 1.0;
     float_t current_phase = 0.0;
@@ -104,8 +107,13 @@ struct SeqSyncableModClock {
     }
 
     inline float_t expectedIntervalTick(float_t expected_clock_interval_tick) {
-      base_interval_tick = (float_t)expected_clock_interval_tick * (float_t)clock_to_step_coeff;
+      orig_interval_tick = expected_clock_interval_tick;
+      updateBaseIntervalTick();
       return base_interval_tick;
+    }
+
+    inline void updateBaseIntervalTick() {
+      base_interval_tick = orig_interval_tick * (float_t)clock_to_step_coeff;
     }
 
     inline void resetCounts() {
@@ -136,6 +144,7 @@ struct SeqSyncableModClock {
         ipl_count_max = (spb / gcd_num) - 1;
       }
       clock_to_step_coeff = (float_t)(cpb) / (float_t)spb;
+      updateBaseIntervalTick();
     }
 
     inline void changeClockModCycle(uint16_t new_clock_mod_cycle) {
@@ -188,11 +197,15 @@ struct SeqSyncableModClock {
 #if defined(TEST)
       test_phase_diff = phase_diff;
 #endif
-      adj_rate = std::clamp<float_t>(1.0 + (phase_diff * 0.8), 0.7, 1.3); // インターバル補正率
+      adj_rate = std::clamp<float_t>(1.0 + (phase_diff * 0.4), 0.5, 1.5); // インターバル補正率
     }
 
     inline bool isClockModulated() const {
       return (clock_mod_cycle > 1);
+    }
+
+    inline bool isSyncPosition() const {
+      return clk_count == 0;
     }
   };
 
@@ -350,6 +363,8 @@ struct SeqSyncableModClock {
       expectClockInterval(diff_tick);
     }
 
+    on_receive_clock(t);
+
     for (uint8_t i = 0; i < out_clocks_size; ++i) {
       updateClockState(i, t);
     }
@@ -372,6 +387,7 @@ struct SeqSyncableModClock {
   inline void _updateClockStateSmoothSync(uint8_t idx, uint32_t _tick) {
     auto& state = _clockStates[idx];
     if (_ext_src_state.is_first_clock_arrived) {
+      state.expectedIntervalTick(_ext_src_state.expected_clock_interval_tick);
       state.updateAdjRate(_tick);
     }
     if (state.clk_count == 0) {
@@ -439,7 +455,8 @@ struct SeqSyncableModClock {
       updateIntTimerIntervalTick(clock_idx);
       state.on_update();
       state.ipl_count--;
-    } else {
+    } 
+    if (state.ipl_count == 0) {
       _timer.stop(clock_idx); 
     }
   }

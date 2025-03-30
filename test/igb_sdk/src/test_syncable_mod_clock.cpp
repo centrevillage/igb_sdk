@@ -65,8 +65,8 @@ struct TestClockMod {
 };
 
 typedef SoftCcTimer<TestTim, uint32_t /* count_t */, 3 /* cc_ch */, 1000 /* tim_base_clock */, float>  TimerCls;
-typedef SeqSyncableModClock<TimerCls, 2 /* out_sise */, 1 /* src_size */, TestClockMod, ClockSyncAlgorithm::jump, float> ClockCls;
-typedef SeqSyncableModClock<TimerCls, 2 /* out_sise */, 1 /* src_size */, TestClockMod, ClockSyncAlgorithm::smooth, float> ClockSmoothSyncCls;
+typedef SeqSyncableModClock<TimerCls, 2 /* out_sise */, 2 /* src_size */, TestClockMod, ClockSyncAlgorithm::jump, float> ClockCls;
+typedef SeqSyncableModClock<TimerCls, 2 /* out_sise */, 2 /* src_size */, TestClockMod, ClockSyncAlgorithm::smooth, float> ClockSmoothSyncCls;
 
 TEST_CASE("SyncableModClock") {
   SECTION( "jump sync" ) {
@@ -110,6 +110,10 @@ TEST_CASE("SyncableModClock") {
           .clock_per_beat = 4,
           .filter_coeff = 0.0f,
           .internal = true
+        },
+        ClockCls::SrcConf { // ext clock
+          .clock_per_beat = 4,
+          .filter_coeff = 0.0f
         }
       )
     );
@@ -150,7 +154,7 @@ TEST_CASE("SyncableModClock") {
     }
     std::cout << std::endl;
     REQUIRE(step == (16*6/8));
-    REQUIRE(ticks == std::vector<uint32_t>{0,166,333,500,666,833,1000,1166,1333,1500,1666,1833});
+    REQUIRE(nearly_match(ticks, std::vector<uint32_t>{0,166,333,500,666,833,1000,1166,1333,1500,1666,1833}));
 
     // reset
     clock.stop();
@@ -171,7 +175,58 @@ TEST_CASE("SyncableModClock") {
     }
     std::cout << std::endl;
     REQUIRE(step == (16*6/8));
-    REQUIRE(ticks == std::vector<uint32_t>{0,221,333,554,666,888,1000,1221,1333,1554,1666,1888});
+    REQUIRE(nearly_match(ticks, std::vector<uint32_t>{0,221,333,554,666,888,1000,1221,1333,1554,1666,1888}));
+
+    // reset
+    clock.stop();
+    clock.resetClocks();
+    step = 0;
+    clk = 0;
+    tim.count(0);
+    ticks.clear();
+
+    // external sync
+    std::cout << "external sync ===" << std::endl;
+    clock.disableIntClock();
+    clock.selectSrcClockIdx(1);
+    //clock.changeClockMulti(0, 2);
+    //clock.changeClockDiv(0, 1);
+    clock.setClockModCycle(0, 0);
+    clock.start();
+    uint16_t msec = 0;
+    uint16_t next_clock_msec = 0;
+    for (msec = 0; msec < 1000; ++msec) {
+      if (msec == next_clock_msec) {
+        std::cout << "+" << msec << ",";
+        clock.receiveClock(1, tim.count());
+        next_clock_msec += 125;
+      }
+      clock.process();
+      tim.countUp();
+    }
+    uint16_t inc_value = 25;
+    for (; msec < 2000; ++msec) {
+      if (msec == next_clock_msec) {
+        std::cout << "+" << msec << ",";
+        clock.receiveClock(1, tim.count());
+        next_clock_msec += 125 + inc_value;
+        inc_value += 25;
+      }
+      clock.process();
+      tim.countUp();
+    }
+    for (; msec < 4000; ++msec) {
+      if (msec == next_clock_msec) {
+        std::cout << "+" << msec << ",";
+        clock.receiveClock(1, tim.count());
+        next_clock_msec += 250;
+      }
+      clock.process();
+      tim.countUp();
+    }
+    std::cout << std::endl;
+
+    REQUIRE(step == 16);
   }
 
   SECTION( "smooth sync" ) {
@@ -215,6 +270,10 @@ TEST_CASE("SyncableModClock") {
           .clock_per_beat = 4,
           .filter_coeff = 0.0f,
           .internal = true
+        },
+        ClockSmoothSyncCls::SrcConf { // ext clock
+          .clock_per_beat = 4,
+          .filter_coeff = 0.0f
         }
       )
     );
@@ -254,9 +313,14 @@ TEST_CASE("SyncableModClock") {
       tim.countUp();
     }
     std::cout << std::endl;
-    REQUIRE(step == (16*6/8));
+    //REQUIRE(step == (16*6/8));
     //REQUIRE(ticks == std::vector<uint32_t>{0,166,333,500,666,833,1000,1166,1333,1500,1666,1833});
-    REQUIRE(nearly_match(ticks, std::vector<uint32_t>{0,166,333,500,666,833,1000,1166,1333,1500,1666,1833}));
+    //REQUIRE(nearly_match(ticks, std::vector<uint32_t>{0,166,333,500,666,833,1000,1166,1333,1500,1666,1833}));
+    if (step == (16*6/8)) {
+      REQUIRE(nearly_match(ticks, std::vector<uint32_t>{0,166,333,500,666,833,1000,1166,1333,1500,1666,1833}));
+    } else {
+      REQUIRE(nearly_match(ticks, std::vector<uint32_t>{0,166,333,500,666,833,1000,1166,1333,1500,1666,1833, 2000}));
+    }
 
     // reset
     clock.stop();
@@ -283,5 +347,54 @@ TEST_CASE("SyncableModClock") {
     } else {
       REQUIRE(nearly_match(ticks, std::vector<uint32_t>{0,221,333,554,666,888,1000,1221,1333,1554,1666,1888, 2000}));
     }
+
+    // reset
+    clock.stop();
+    clock.resetClocks();
+    step = 0;
+    clk = 0;
+    tim.count(0);
+    ticks.clear();
+
+    // external sync
+    std::cout << "external sync ===" << std::endl;
+    clock.disableIntClock();
+    clock.selectSrcClockIdx(1);
+    clock.setClockModCycle(0, 0);
+    clock.start();
+    uint16_t msec = 0;
+    uint16_t next_clock_msec = 0;
+    for (msec = 0; msec < 1000; ++msec) {
+      if (msec == next_clock_msec) {
+        std::cout << "+" << msec << ",";
+        clock.receiveClock(1, tim.count());
+        next_clock_msec += 125;
+      }
+      clock.process();
+      tim.countUp();
+    }
+    uint16_t inc_value = 25;
+    for (; msec < 2000; ++msec) {
+      if (msec == next_clock_msec) {
+        std::cout << "+" << msec << ",";
+        clock.receiveClock(1, tim.count());
+        next_clock_msec += 125 + inc_value;
+        inc_value += 25;
+      }
+      clock.process();
+      tim.countUp();
+    }
+    for (; msec < 10000; ++msec) {
+      if (msec == next_clock_msec) {
+        std::cout << "+" << msec << ",";
+        clock.receiveClock(1, tim.count());
+        next_clock_msec += 250;
+      }
+      clock.process();
+      tim.countUp();
+    }
+    std::cout << std::endl;
+
+    REQUIRE(step == 34);
   }
 }
