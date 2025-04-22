@@ -7,6 +7,9 @@ struct TestStruct {
   uint8_t v2;
 
   constexpr static size_t serialized_buf_size = 2;
+  constexpr static size_t serializedBufSize() {
+    return serialized_buf_size;
+  }
   size_t serialize(uint8_t* buf, size_t sz) const {
     if (sz < serialized_buf_size) { return 0; }
     buf += igb::Serializer::serialize(buf, v1);
