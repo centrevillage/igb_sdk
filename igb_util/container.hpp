@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <string.h>
+
 namespace igb {
 
 template<typename T, typename N>
@@ -71,6 +74,20 @@ public:
 
   void clear(T group) noexcept {
     bit = bit & ~(1UL << static_cast<N>(group));
+  }
+
+  constexpr static size_t serializedBufSize() {
+    return sizeof(N);
+  }
+  size_t serialize(uint8_t* buf, size_t size) const {
+    if (size > serializedBufSize()) { return 0; }
+    memcpy(buf, &bit, sizeof(bit));
+    return serializedBufSize();
+  }
+  size_t deserialize(uint8_t* buf, size_t size) {
+    if (size < serializedBufSize()) { return 0; }
+    memcpy(&bit, buf, sizeof(bit));
+    return serializedBufSize();
   }
 };
 
