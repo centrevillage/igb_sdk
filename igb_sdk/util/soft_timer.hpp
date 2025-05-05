@@ -86,6 +86,10 @@ struct SoftTimer {
     }
   }
 
+  bool isActive(size_t timer_idx) const {
+    return states[timer_idx].state != State::inactive;
+  }
+
   size_t _getFreeState() {
     for (size_t i = 0; i < MAX_TIMER_SIZE; ++i) {
       auto& s = states[i];
@@ -109,6 +113,10 @@ struct SoftTimerSingle {
 
   void inactivate() {
     base.inactivate(0);
+  }
+
+  bool isActive() const {
+    return base.isActive(0);
   }
 
   void activate() {
