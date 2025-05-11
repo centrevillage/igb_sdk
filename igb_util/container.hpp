@@ -76,6 +76,10 @@ public:
     bit = bit & ~(1UL << static_cast<N>(group));
   }
 
+  void toggle(T group) noexcept {
+    bit = bit ^ (1UL << static_cast<N>(group));
+  }
+
   constexpr static size_t serializedBufSize() {
     return sizeof(N);
   }
