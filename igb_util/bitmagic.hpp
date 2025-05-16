@@ -37,7 +37,7 @@ inline uint16_t bit_index_u16(uint16_t bits) {
   return bit_count_u16((bits & (-bits)) - 1);
 }
 
-inline uint16_t bit_index_u32(uint16_t bits) {
+inline uint32_t bit_index_u32(uint32_t bits) {
   return bit_count_u32((bits & (-bits)) - 1);
 }
 
