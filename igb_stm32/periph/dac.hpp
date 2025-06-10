@@ -37,6 +37,9 @@ struct DacConf {
   bool dma = false;
   bool enable_underrun_it = false;
   uint16_t interrupt_priority = 1;
+#if defined(DAC_MCR_MODE1)
+  bool connect_internal = false;
+#endif
 };
 
 template<DacType DAC_TYPE>
@@ -182,7 +185,7 @@ struct Dac {
     ).update();
 #if defined(DAC_MCR_MODE1)
     (
-      mode1.val(conf.enable_buffer ? 0 : 0b010)
+      mode1.val((conf.enable_buffer ? 0 : 0b010) | (conf.connect_internal ? 1 : 0))
     ).update();
 #endif
   }
@@ -198,7 +201,7 @@ struct Dac {
     ).update();
 #if defined(DAC_MCR_MODE2)
     (
-      mode2.val(conf.enable_buffer ? 0 : 0b010)
+      mode2.val((conf.enable_buffer ? 0 : 0b010) | (conf.connect_internal ? 1 : 0))
     ).update();
 #endif
   }
