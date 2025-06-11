@@ -344,7 +344,7 @@ constexpr static uint8_t to_idx(DmaType type) {
 }
 enum class DacType : uint8_t {
   dac1 = 0,
-  dac3 = 2,
+  dac3,
 };
 constexpr static uint8_t to_idx(DacType type) {
   switch (type) {
@@ -352,7 +352,7 @@ constexpr static uint8_t to_idx(DacType type) {
       return 0;
       break;
     case DacType::dac3:
-      return 2;
+      return 1;
       break;
   }
   return 0;
