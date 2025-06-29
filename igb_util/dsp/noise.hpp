@@ -82,4 +82,36 @@ struct FractalNoise {
   }
 };
 
+// Voss-McCartney Algorithm
+// ref: https://www.firstpr.com.au/dsp/pink-noise/
+// ref: https://www.modwiggler.com/forum/viewtopic.php?t=283571
+struct PinkNoise {
+  constexpr static uint32_t order_size = 16;
+  uint32_t values[order_size];
+  uint32_t count = 0;
+  uint32_t sum = 0; 
+
+  void init() {
+    for (uint8_t i = 0; i < order_size; ++i) {
+      values[i] = igb::rand_u32();
+      sum += values[i];
+    }
+  }
+
+  uint32_t processU32() {
+    uint16_t num_zeroes = __builtin_ctz(count | ((uint32_t)1 << order_size));
+    sum -= values[num_zeroes];
+    values[num_zeroes] = igb::rand_u32() >> 8;
+    sum += values[num_zeroes];
+    ++count;
+    uint32_t total = sum + (igb::rand_u32() >> 8);
+    return total << 4;
+  }
+
+  float process() {
+    uint32_t v = processU32();
+    return (float)((float)v / (float)0xFFFFFFFFUL) * 2.0f - 1.0f;
+  }
+};
+
 }
