@@ -1,6 +1,8 @@
 #pragma once
 
 #include <optional>
+#include <cstddef>
+#include <cstdint>
 #include <igb_util/macro.hpp>
 
 namespace igb {
