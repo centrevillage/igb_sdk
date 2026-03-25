@@ -60,7 +60,7 @@ struct SoftCcTimer {
   }
 
   void init() { // general timer api
-    _tim.count(0);
+    //_tim.count(0);
     //const count_t period = (count_t)0xFFFFFFFF;
     //_tim.init(
     //  igb::stm32::TimConf {
