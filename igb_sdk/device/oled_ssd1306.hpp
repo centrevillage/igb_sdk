@@ -2,8 +2,7 @@
 
 #include <igb_stm32/periph/systick.hpp>
 #include <igb_sdk/base.hpp>
-#include <igb_sdk/font/bitmap/cvfont_5x8.h>
-#include <igb_sdk/font/bitmap/cvfont_8x16.h>
+#include <igb_sdk/font/bitmap/cvfont.hpp>
 
 namespace igb {
 namespace sdk {
@@ -180,7 +179,7 @@ struct OledSsd1306 {
       if (c < 32 || c > 126) {
         return; // null or meta char
       }
-      const uint16_t* image = cvfont_8_16[c-32];
+      const uint16_t* image = igb::font::cvfont_8_16[c-32];
       for (uint8_t x=0; x<8; ++x) {
         uint16_t bits = image[x];
         screen_buffer[((page)*screen_width)+(pos*8)+offset+x] = (uint8_t)bits;
@@ -202,7 +201,7 @@ struct OledSsd1306 {
       if (c < 32 || c > 126) {
         return; // null or meta char
       }
-      const uint8_t* image = cvfont_5_8[c-32];
+      const uint8_t* image = igb::font::cvfont_5_8[c-32];
       for (uint8_t x=0; x<5; ++x) {
         uint8_t bits = image[x];
         screen_buffer[((page)*screen_width)+(pos*5)+offset+x] = bits;
