@@ -644,6 +644,32 @@ struct Spi {
     sendBufU8sync(buffer, size, [](){});
   }
 
+#if defined(STM32H7)
+  // Start async DMA TX transfer. Call sendBufU8dmaEnd() from DMA TC callback.
+  template<typename DMA_STREAM>
+  IGB_FAST_INLINE void sendBufU8dmaStart(uint8_t* buffer, size_t size, DMA_STREAM& dma_stream) {
+    disable();
+    transferSize(size);
+    IGB_SET_BIT(IGB_SPI->CFG1, SPI_CFG1_TXDMAEN);
+    enable();
+    dma_stream.start(
+      reinterpret_cast<uint32_t>(buffer),
+      reinterpret_cast<uint32_t>(&IGB_SPI->TXDR),
+      static_cast<uint16_t>(size)
+    );
+    startMasterTransfer(true);
+  }
+
+  // Cleanup after DMA TC fires. Call from DMA TC ISR callback.
+  IGB_FAST_INLINE void sendBufU8dmaEnd() {
+    while (!is(SpiState::endOfTransfer)) {}
+    IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_EOTC);
+    IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_TXTFC);
+    disable();
+    IGB_CLEAR_BIT(IGB_SPI->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
+  }
+#endif
+
   IGB_FAST_INLINE void sendU16(uint16_t data) {
 #if defined(STM32H7)
 #if defined (__GNUC__)

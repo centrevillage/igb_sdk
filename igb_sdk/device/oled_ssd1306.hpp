@@ -9,25 +9,69 @@
 namespace igb {
 namespace sdk {
 
-template<typename SPI_TYPE, typename GPIO_PIN_TYPE, size_t screen_width = 128, size_t screen_height = 64, typename WAIT_FUNC = NullFunctor>
+// DMA_STREAM_TYPE: DmaStream<...> for async DMA update, NullFunctor (default) for sync.
+//
+// Async usage:
+//   1. Declare DmaStream and OledSsd1306 with DMA_STREAM_TYPE
+//   2. Register ISR: extern "C" void DMAx_StreamN_IRQHandler() { oled.dma_stream.handleIrq(); }
+//   3. Call oled.init() — this configures DMA stream and registers the completion callback
+//   4. Draw into screen_buffer, then call oled.process() to kick off the async update
+//   5. Before modifying screen_buffer again, check !oled.isBusy()
+template<typename SPI_TYPE, typename GPIO_PIN_TYPE, size_t screen_width = 128, size_t screen_height = 64, typename WAIT_FUNC = NullFunctor, typename DMA_STREAM_TYPE = NullFunctor>
 struct OledSsd1306 {
   SPI_TYPE spi;
   GPIO_PIN_TYPE cs_pin;
   GPIO_PIN_TYPE dc_pin;
   GPIO_PIN_TYPE reset_pin;
 
-  uint8_t screen_buffer[screen_width * screen_height / 8];
+  // 32-byte alignment required for SCB_CleanDCache_by_Addr
+  alignas(32) uint8_t screen_buffer[screen_width * screen_height / 8];
   uint8_t prev_screen_buffer[screen_width * screen_height / 8] = {};
 
   WAIT_FUNC _wait_func;
 
+  // DMA stream — only used when DMA_STREAM_TYPE != NullFunctor
+  DMA_STREAM_TYPE dma_stream;
+
+  volatile bool _dma_busy = false;
+  volatile bool _page_done = false;
+  uint8_t _current_page = 0;
+
   void init() {
     prepareGpio();
     sendInitCommands();
+    if constexpr (!std::is_same_v<DMA_STREAM_TYPE, NullFunctor>) {
+      // ISR only sets flag — all SPI operations happen in process() (main loop)
+      dma_stream.on_complete = [this]() {
+        _page_done = true;
+      };
+    }
+  }
+
+  bool isBusy() const {
+    if constexpr (!std::is_same_v<DMA_STREAM_TYPE, NullFunctor>) {
+      return _dma_busy;
+    }
+    return false;
   }
 
   void process() {
-    updateDiff();
+    if constexpr (!std::is_same_v<DMA_STREAM_TYPE, NullFunctor>) {
+      if (_dma_busy) {
+        if (_page_done) {
+          _page_done = false;
+          spi.sendBufU8dmaEnd();
+          cs_pin.high();
+          memcpy(&prev_screen_buffer[_current_page * screen_width],
+                 &screen_buffer[_current_page * screen_width], screen_width);
+          _startNextDmaPage(_current_page + 1);
+        }
+      } else {
+        _startNextDmaPage(0);
+      }
+    } else {
+      updateDiff();
+    }
   }
 
   void reset() {
@@ -117,7 +161,7 @@ struct OledSsd1306 {
     memcpy(prev_screen_buffer, screen_buffer, sizeof(screen_buffer));
   }
 
-  // 変更ページのみ送信する差分更新
+  // 変更ページのみ送信する差分更新 (sync)
   void updateDiff() {
     for (uint8_t i = 0; i < screen_height/8; ++i) {
       const size_t page_offset = screen_width * i;
@@ -128,6 +172,32 @@ struct OledSsd1306 {
       sendData(&screen_buffer[page_offset], screen_width);
       memcpy(&prev_screen_buffer[page_offset], &screen_buffer[page_offset], screen_width);
     }
+  }
+
+  // 変更ページを探してDMA転送を開始する。なければ完了。mainループから呼ぶこと(ISR不可)。
+  void _startNextDmaPage(uint8_t from) {
+    for (uint8_t page = from; page < screen_height / 8; ++page) {
+      const size_t page_offset = screen_width * page;
+      if (memcmp(&screen_buffer[page_offset], &prev_screen_buffer[page_offset], screen_width) != 0) {
+        _current_page = page;
+        _dma_busy = true;
+        sendCommand(0xB0 + page);
+        sendCommand(0x00);
+        sendCommand(0x10);
+        // D-Cache flush: ensure DMA reads CPU-written data from physical memory
+        SCB_CleanDCache_by_Addr(
+          reinterpret_cast<uint32_t*>(&screen_buffer[page_offset]),
+          static_cast<int32_t>(screen_width));
+        // Start DMA: CS stays low until process() calls sendBufU8dmaEnd() after _page_done
+        dc_pin.high();
+        cs_pin.low(); spi.sendU8sync(0, _wait_func); cs_pin.high();
+        cs_pin.low(); spi.sendU8sync(0, _wait_func); cs_pin.high();
+        cs_pin.low();
+        spi.sendBufU8dmaStart(&screen_buffer[page_offset], screen_width, dma_stream);
+        return;
+      }
+    }
+    _dma_busy = false;
   }
 
   void drawFillBG() {
