@@ -4,6 +4,7 @@
 #include <igb_sdk/base.hpp>
 #include <igb_sdk/font/bitmap/cvfont.hpp>
 #include <igb_util/null_functor.hpp>
+#include <cstring>
 
 namespace igb {
 namespace sdk {
@@ -16,6 +17,7 @@ struct OledSsd1306 {
   GPIO_PIN_TYPE reset_pin;
 
   uint8_t screen_buffer[screen_width * screen_height / 8];
+  uint8_t prev_screen_buffer[screen_width * screen_height / 8] = {};
 
   WAIT_FUNC _wait_func;
 
@@ -25,7 +27,7 @@ struct OledSsd1306 {
   }
 
   void process() {
-    updateScreen();
+    updateDiff();
   }
 
   void reset() {
@@ -85,6 +87,10 @@ struct OledSsd1306 {
     sendCommand(0x14); //
     sendCommand(0x2E); // stop scroll
     sendCommand(0xAF); // turn on SSD1306 panel
+
+    // clear screen
+    drawFillBG();
+    updateScreen();
   }
 
   void sendCommand(uint8_t byte) {
@@ -107,6 +113,20 @@ struct OledSsd1306 {
       sendCommand(0x00);
       sendCommand(0x10);
       sendData(&screen_buffer[screen_width*i], screen_width);
+    }
+    memcpy(prev_screen_buffer, screen_buffer, sizeof(screen_buffer));
+  }
+
+  // 変更ページのみ送信する差分更新
+  void updateDiff() {
+    for (uint8_t i = 0; i < screen_height/8; ++i) {
+      const size_t page_offset = screen_width * i;
+      if (memcmp(&screen_buffer[page_offset], &prev_screen_buffer[page_offset], screen_width) == 0) continue;
+      sendCommand(0xB0 + i);
+      sendCommand(0x00);
+      sendCommand(0x10);
+      sendData(&screen_buffer[page_offset], screen_width);
+      memcpy(&prev_screen_buffer[page_offset], &screen_buffer[page_offset], screen_width);
     }
   }
 
