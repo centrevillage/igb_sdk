@@ -3,11 +3,12 @@
 #include <igb_stm32/periph/systick.hpp>
 #include <igb_sdk/base.hpp>
 #include <igb_sdk/font/bitmap/cvfont.hpp>
+#include <igb_util/null_functor.hpp>
 
 namespace igb {
 namespace sdk {
 
-template<typename SPI_TYPE, typename GPIO_PIN_TYPE, size_t screen_width = 128, size_t screen_height = 64>
+template<typename SPI_TYPE, typename GPIO_PIN_TYPE, size_t screen_width = 128, size_t screen_height = 64, typename WAIT_FUNC = NullFunctor>
 struct OledSsd1306 {
   SPI_TYPE spi;
   GPIO_PIN_TYPE cs_pin;
@@ -15,6 +16,8 @@ struct OledSsd1306 {
   GPIO_PIN_TYPE reset_pin;
 
   uint8_t screen_buffer[screen_width * screen_height / 8];
+
+  WAIT_FUNC _wait_func;
 
   void init() {
     prepareGpio();
@@ -87,15 +90,15 @@ struct OledSsd1306 {
   void sendCommand(uint8_t byte) {
     cs_pin.low(); // select OLED
     dc_pin.low(); // command
-    spi.sendU8sync(byte);
+    spi.sendU8sync(byte, _wait_func);
     cs_pin.high(); // un-select OLED
   }
 
   void sendData(uint8_t* buf, size_t buff_size) {
     dc_pin.high(); // data
-    cs_pin.low(); spi.sendU8sync(0); cs_pin.high();
-    cs_pin.low(); spi.sendU8sync(0); cs_pin.high();
-    cs_pin.low(); spi.sendBufU8sync(buf, buff_size); cs_pin.high();
+    cs_pin.low(); spi.sendU8sync(0, _wait_func); cs_pin.high();
+    cs_pin.low(); spi.sendU8sync(0, _wait_func); cs_pin.high();
+    cs_pin.low(); spi.sendBufU8sync(buf, buff_size, _wait_func); cs_pin.high();
   }
 
   void updateScreen() {
