@@ -12,6 +12,8 @@ namespace stm32 {
 
 // DMAMUX1 request IDs (STM32H7xx RM Table 121)
 enum class DmaMux1ReqId : uint32_t {
+  adc1    = 9,
+  adc2    = 10,
   spi1_rx = 37,
   spi1_tx = 38,
   spi2_rx = 39,
@@ -129,6 +131,23 @@ struct DmaStream {
           | DMA_SxCR_MINC   // memory address increment
           | DMA_SxCR_TCIE   // transfer complete interrupt
           | DMA_SxCR_EN;    // enable stream
+  }
+
+  // Start periph→mem 16-bit circular DMA (RX, e.g. ADC)
+  void startRxCircular(uint32_t periph_addr, uint32_t mem_addr, uint16_t count) {
+    auto* s = p_stream();
+    IGB_CLEAR_BIT(s->CR, DMA_SxCR_EN);
+    while (s->CR & DMA_SxCR_EN) {}
+    ifcr_reg() = all_flags;
+    s->PAR  = periph_addr;
+    s->M0AR = mem_addr;
+    s->NDTR = count;
+    // periph→mem (no DIR), 16-bit×16-bit, mem increment, circular, enable
+    s->CR = DMA_SxCR_CIRC    // circular mode
+          | DMA_SxCR_MINC    // memory address increment
+          | DMA_SxCR_PSIZE_0 // periph 16-bit
+          | DMA_SxCR_MSIZE_0 // memory 16-bit
+          | DMA_SxCR_EN;
   }
 
   bool isBusy() const {
