@@ -1256,6 +1256,10 @@ struct AdcConf {
   uint32_t interrupt_bits = static_cast<uint32_t>(AdcInterruptType::endOfConversion);
   uint8_t interrupt_priority = 1;
   uint8_t lshift = 0; // CFGR2.LSHIFT[3:0]: left-shift result 0–15
+  // oversampling (CFGR2.ROVSE / OVSR / OVSS)
+  bool oversampling_enable = false;
+  AdcOverSamplingRate oversampling_rate = AdcOverSamplingRate::x1;
+  AdcOverSamplingShift oversampling_shift = AdcOverSamplingShift::none;
 };
 
 struct AdcCommon {
@@ -1547,6 +1551,9 @@ struct Adc {
   RegValue<addr_CALFACT2, ADC_CALFACT2_LINCALFACT_Msk, ADC_CALFACT2_LINCALFACT_Pos> linearityCalibrationFactor;
 
   IGB_FAST_INLINE void enable() {
+    // RM0433 §25.4.9: clear ADRDY (write-1-to-clear) before setting ADEN,
+    // to avoid false-ready detection on warm re-initialization.
+    IGB_SET_BIT(IGB_ADC->ISR, ADC_ISR_ADRDY);
     IGB_MODIFY_REG(IGB_ADC->CR, ADC_CR_BITS_PROPERTY_RS, ADC_CR_ADEN);
   }
 
@@ -1763,6 +1770,12 @@ struct Adc {
     ).update();
 
     lshift(conf.lshift);
+
+    if (conf.oversampling_enable) {
+      enableRegularOverSampling(true);
+      overSamplingRate(conf.oversampling_rate);
+      overSamplingShift(conf.oversampling_shift);
+    }
 
     AdcCommon adc_common;
     adc_common.clockMode(conf.clock_mode);
