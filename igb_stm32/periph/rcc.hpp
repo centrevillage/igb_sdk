@@ -71,6 +71,19 @@ struct RccCtrl {
   static IGB_FAST_INLINE void disableHSI48() {
     IGB_CLEAR_BIT(RCC->CR2, RCC_CR2_HSI48ON);
   }
+#elif defined(STM32H7)
+  // H7: HSI48 is controlled via RCC->CR (not CR2)
+  static IGB_FAST_INLINE void enableHSI48() {
+    IGB_SET_BIT(RCC->CR, RCC_CR_HSI48ON);
+  }
+
+  static IGB_FAST_INLINE void disableHSI48() {
+    IGB_CLEAR_BIT(RCC->CR, RCC_CR_HSI48ON);
+  }
+
+  static IGB_FAST_INLINE bool isReadyHSI48() {
+    return (READ_BIT(RCC->CR, RCC_CR_HSI48RDY) == RCC_CR_HSI48RDY);
+  }
 #endif
 
 #if defined(RCC_CR2_HSI14ON)
