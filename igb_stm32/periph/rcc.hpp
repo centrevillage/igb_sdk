@@ -169,6 +169,20 @@ struct RccCtrl {
   }
 #endif
 
+#if defined(STM32H7)
+  static IGB_FAST_INLINE void enableCSI()   { IGB_SET_BIT(RCC->CR, RCC_CR_CSION); }
+  static IGB_FAST_INLINE void disableCSI()  { IGB_CLEAR_BIT(RCC->CR, RCC_CR_CSION); }
+  static IGB_FAST_INLINE bool isReadyCSI()  { return READ_BIT(RCC->CR, RCC_CR_CSIRDY) == RCC_CR_CSIRDY; }
+
+  static IGB_FAST_INLINE void enablePLL2()  { IGB_SET_BIT(RCC->CR, RCC_CR_PLL2ON); }
+  static IGB_FAST_INLINE void disablePLL2() { IGB_CLEAR_BIT(RCC->CR, RCC_CR_PLL2ON); }
+  static IGB_FAST_INLINE bool isReadyPLL2() { return READ_BIT(RCC->CR, RCC_CR_PLL2RDY) == RCC_CR_PLL2RDY; }
+
+  static IGB_FAST_INLINE void enablePLL3()  { IGB_SET_BIT(RCC->CR, RCC_CR_PLL3ON); }
+  static IGB_FAST_INLINE void disablePLL3() { IGB_CLEAR_BIT(RCC->CR, RCC_CR_PLL3ON); }
+  static IGB_FAST_INLINE bool isReadyPLL3() { return READ_BIT(RCC->CR, RCC_CR_PLL3RDY) == RCC_CR_PLL3RDY; }
+#endif
+
 #if defined(STM32F3)
 
 #include "f3/_rcc_methods.hpp"
