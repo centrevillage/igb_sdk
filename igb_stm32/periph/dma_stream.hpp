@@ -38,6 +38,9 @@ template<DmaType DMA_TYPE, uint8_t STREAM_IDX>
 struct DmaStream {
   static_assert(STREAM_IDX < 8, "Stream index must be 0-7");
 
+  constexpr static auto type = DMA_TYPE;
+  constexpr static auto addr = STM32_PERIPH_INFO.dma[to_idx(type)].addr;
+
   // DMAMUX1 channel: DMA1 streams → ch0-7, DMA2 streams → ch8-15
   constexpr static uint8_t dmamux_ch_idx =
     (DMA_TYPE == DmaType::dma1 ? 0 : 8) + STREAM_IDX;
@@ -84,8 +87,10 @@ struct DmaStream {
   }
 
   DMAMUX_Channel_TypeDef* p_dmamux_ch() const {
+    //return reinterpret_cast<DMAMUX_Channel_TypeDef*>(
+    //  DMAMUX1_BASE + dmamux_ch_idx * sizeof(DMAMUX_Channel_TypeDef));
     return reinterpret_cast<DMAMUX_Channel_TypeDef*>(
-      DMAMUX1_BASE + dmamux_ch_idx * sizeof(DMAMUX_Channel_TypeDef));
+      DMAMUX1_BASE + dmamux_ch_idx * 4);
   }
 
   volatile uint32_t& isr_reg() const {
@@ -98,13 +103,14 @@ struct DmaStream {
     return (STREAM_IDX < 4) ? dma->LIFCR : dma->HIFCR;
   }
 
+  IGB_FAST_INLINE void enableBusClock() {
+    const auto& dma_info = STM32_PERIPH_INFO.dma[to_idx(type)];
+    dma_info.bus.enableBusClock();
+  }
+
   void init(DmaMux1ReqId req_id, uint32_t nvic_priority = 1) {
     // Enable DMA clock (DMAMUX1 is clocked via the same AHB1 bus)
-    if constexpr (DMA_TYPE == DmaType::dma1) {
-      IGB_SET_BIT(RCC->AHB1ENR, RCC_AHB1ENR_DMA1EN);
-    } else {
-      IGB_SET_BIT(RCC->AHB1ENR, RCC_AHB1ENR_DMA2EN);
-    }
+    enableBusClock();
 
     // Configure DMAMUX1 channel with request ID
     p_dmamux_ch()->CCR = static_cast<uint32_t>(req_id) & DMAMUX_CxCR_DMAREQ_ID_Msk;
@@ -114,8 +120,9 @@ struct DmaStream {
     NvicCtrl::enable(irqn);
   }
 
+  // TODO: refactoring: pass config struct value same as the dma.hpp
   // Start mem→periph 8-bit DMA transfer (TX only)
-  void start(uint32_t mem_addr, uint32_t periph_addr, uint16_t count) {
+  void startTx(uint32_t mem_addr, uint32_t periph_addr, uint16_t count) {
     auto* s = p_stream();
     // Disable and wait until stream is off
     IGB_CLEAR_BIT(s->CR, DMA_SxCR_EN);
