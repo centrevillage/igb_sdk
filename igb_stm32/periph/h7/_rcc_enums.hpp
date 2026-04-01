@@ -35,7 +35,7 @@ enum class AdcClockSrc : uint8_t {
 };
 
 // PLL input clock source (PLLCKSELR.PLLSRC)
-enum class PllSrc : uint32_t {
+enum class RccPllClockSrc : uint32_t {
   hsi  = 0,
   csi  = 1,
   hse  = 2,
@@ -60,7 +60,7 @@ enum class PllVcoSel : uint32_t {
 // AHB/CPU prescaler — 4-bit field encoding (HPRE and D1CPRE).
 // Enum values are the HPRE field values (at pos 0); for D1CPRE (pos 8)
 // the set method shifts them appropriately.
-enum class H7AhbPrescaler : uint32_t {
+enum class RccClockPrescalerAHB : uint32_t {
   div1   = RCC_D1CFGR_HPRE_DIV1,
   div2   = RCC_D1CFGR_HPRE_DIV2,
   div4   = RCC_D1CFGR_HPRE_DIV4,
@@ -74,7 +74,7 @@ enum class H7AhbPrescaler : uint32_t {
 
 // APB prescaler — 3-bit field value (same encoding for APB1/2/3/4).
 // Enum values are the raw 3-bit field; set methods shift to the correct bit position.
-enum class H7ApbPrescaler : uint32_t {
+enum class RccClockPrescalerAPB : uint32_t {
   div1  = 0,
   div2  = 4,  // 0b100
   div4  = 5,  // 0b101

@@ -75,7 +75,7 @@
   // --- PLL source and M dividers (PLLCKSELR) ---
 
   // Select common input clock source for PLL1/2/3
-  static IGB_FAST_INLINE void setPllSrc(PllSrc src) {
+  static IGB_FAST_INLINE void setRccPllClockSrc(RccPllClockSrc src) {
     IGB_MODIFY_REG(RCC->PLLCKSELR, RCC_PLLCKSELR_PLLSRC_Msk,
                    as<uint32_t>(src) << RCC_PLLCKSELR_PLLSRC_Pos);
   }
@@ -223,37 +223,37 @@
   // --- Bus clock prescalers ---
 
   // SYSCLK (D1 domain CPU) prescaler — D1CFGR.D1CPRE
-  // H7AhbPrescaler values are HPRE field values (pos 0); shift to D1CPRE position (pos 8)
-  static IGB_FAST_INLINE void setPrescalerSYSCLK(H7AhbPrescaler prescaler) {
+  // RccClockPrescalerAHB values are HPRE field encoding (pos 0); shift to D1CPRE position (pos 8)
+  static IGB_FAST_INLINE void setPrescalerSYSCLK(RccClockPrescalerAHB prescaler) {
     IGB_MODIFY_REG(RCC->D1CFGR, RCC_D1CFGR_D1CPRE_Msk,
                    as<uint32_t>(prescaler) << RCC_D1CFGR_D1CPRE_Pos);
   }
 
   // AHB3 (HCLK) prescaler — D1CFGR.HPRE (pos 0, no shift needed)
-  static IGB_FAST_INLINE void setPrescalerHCLK(H7AhbPrescaler prescaler) {
+  static IGB_FAST_INLINE void setPrescalerHCLK(RccClockPrescalerAHB prescaler) {
     IGB_MODIFY_REG(RCC->D1CFGR, RCC_D1CFGR_HPRE_Msk, as<uint32_t>(prescaler));
   }
 
   // APB3 prescaler — D1CFGR.D1PPRE
-  static IGB_FAST_INLINE void setPrescalerAPB3(H7ApbPrescaler prescaler) {
+  static IGB_FAST_INLINE void setPrescalerAPB3(RccClockPrescalerAPB prescaler) {
     IGB_MODIFY_REG(RCC->D1CFGR, RCC_D1CFGR_D1PPRE_Msk,
                    as<uint32_t>(prescaler) << RCC_D1CFGR_D1PPRE_Pos);
   }
 
   // APB1 prescaler — D2CFGR.D2PPRE1
-  static IGB_FAST_INLINE void setPrescalerAPB1(H7ApbPrescaler prescaler) {
+  static IGB_FAST_INLINE void setPrescalerAPB1(RccClockPrescalerAPB prescaler) {
     IGB_MODIFY_REG(RCC->D2CFGR, RCC_D2CFGR_D2PPRE1_Msk,
                    as<uint32_t>(prescaler) << RCC_D2CFGR_D2PPRE1_Pos);
   }
 
   // APB2 prescaler — D2CFGR.D2PPRE2
-  static IGB_FAST_INLINE void setPrescalerAPB2(H7ApbPrescaler prescaler) {
+  static IGB_FAST_INLINE void setPrescalerAPB2(RccClockPrescalerAPB prescaler) {
     IGB_MODIFY_REG(RCC->D2CFGR, RCC_D2CFGR_D2PPRE2_Msk,
                    as<uint32_t>(prescaler) << RCC_D2CFGR_D2PPRE2_Pos);
   }
 
   // APB4 prescaler — D3CFGR.D3PPRE
-  static IGB_FAST_INLINE void setPrescalerAPB4(H7ApbPrescaler prescaler) {
+  static IGB_FAST_INLINE void setPrescalerAPB4(RccClockPrescalerAPB prescaler) {
     IGB_MODIFY_REG(RCC->D3CFGR, RCC_D3CFGR_D3PPRE_Msk,
                    as<uint32_t>(prescaler) << RCC_D3CFGR_D3PPRE_Pos);
   }
