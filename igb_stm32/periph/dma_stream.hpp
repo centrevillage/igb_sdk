@@ -10,20 +10,185 @@
 namespace igb {
 namespace stm32 {
 
-// DMAMUX1 request IDs (STM32H7xx RM Table 121)
+// DMAMUX1 request IDs (STM32H7xx RM0433 Table 122)
 enum class DmaMux1ReqId : uint32_t {
-  adc1    = 9,
-  adc2    = 10,
-  spi1_rx = 37,
-  spi1_tx = 38,
-  spi2_rx = 39,
-  spi2_tx = 40,
-  spi3_rx = 61,
-  spi3_tx = 62,
-  spi4_rx = 83,
-  spi4_tx = 84,
-  spi5_rx = 85,
-  spi5_tx = 86,
+  none             = 0,
+
+  // DMAMUX1 request generators (1-8)
+  dmamux1ReqGen0   = 1,
+  dmamux1ReqGen1   = 2,
+  dmamux1ReqGen2   = 3,
+  dmamux1ReqGen3   = 4,
+  dmamux1ReqGen4   = 5,
+  dmamux1ReqGen5   = 6,
+  dmamux1ReqGen6   = 7,
+  dmamux1ReqGen7   = 8,
+
+  // ADC (9-10)
+  adc1             = 9,
+  adc2             = 10,
+
+  // TIM1 (11-17)
+  tim1Ch1          = 11,
+  tim1Ch2          = 12,
+  tim1Ch3          = 13,
+  tim1Ch4          = 14,
+  tim1Up           = 15,
+  tim1Trig         = 16,
+  tim1Com          = 17,
+
+  // TIM2 (18-22)
+  tim2Ch1          = 18,
+  tim2Ch2          = 19,
+  tim2Ch3          = 20,
+  tim2Ch4          = 21,
+  tim2Up           = 22,
+
+  // TIM3 (23-28)
+  tim3Ch1          = 23,
+  tim3Ch2          = 24,
+  tim3Ch3          = 25,
+  tim3Ch4          = 26,
+  tim3Up           = 27,
+  tim3Trig         = 28,
+
+  // TIM4 (29-32)
+  tim4Ch1          = 29,
+  tim4Ch2          = 30,
+  tim4Ch3          = 31,
+  tim4Up           = 32,
+
+  // I2C1-2 (33-36)
+  i2c1Rx           = 33,
+  i2c1Tx           = 34,
+  i2c2Rx           = 35,
+  i2c2Tx           = 36,
+
+  // SPI1-2 (37-40)
+  spi1Rx           = 37,
+  spi1Tx           = 38,
+  spi2Rx           = 39,
+  spi2Tx           = 40,
+
+  // USART1-2 (41-44)
+  usart1Rx         = 41,
+  usart1Tx         = 42,
+  usart2Rx         = 43,
+  usart2Tx         = 44,
+
+  // USART3 (45-46)
+  usart3Rx         = 45,
+  usart3Tx         = 46,
+
+  // TIM8 (47-53)
+  tim8Ch1          = 47,
+  tim8Ch2          = 48,
+  tim8Ch3          = 49,
+  tim8Ch4          = 50,
+  tim8Up           = 51,
+  tim8Trig         = 52,
+  tim8Com          = 53,
+
+  // 54: Reserved
+
+  // TIM5 (55-60)
+  tim5Ch1          = 55,
+  tim5Ch2          = 56,
+  tim5Ch3          = 57,
+  tim5Ch4          = 58,
+  tim5Up           = 59,
+  tim5Trig         = 60,
+
+  // SPI3 (61-62)
+  spi3Rx           = 61,
+  spi3Tx           = 62,
+
+  // UART4-5 (63-66)
+  uart4Rx          = 63,
+  uart4Tx          = 64,
+  uart5Rx          = 65,
+  uart5Tx          = 66,
+
+  // DAC (67-68)
+  dacCh1           = 67,
+  dacCh2           = 68,
+
+  // TIM6-7 (69-70)
+  tim6Up           = 69,
+  tim7Up           = 70,
+
+  // USART6 (71-72)
+  usart6Rx         = 71,
+  usart6Tx         = 72,
+
+  // I2C3 (73-74)
+  i2c3Rx           = 73,
+  i2c3Tx           = 74,
+
+  // DCMI / CRYP / HASH (75-78)
+  dcmi             = 75,
+  crypIn           = 76,
+  crypOut          = 77,
+  hashIn           = 78,
+
+  // UART7-8 (79-82)
+  uart7Rx          = 79,
+  uart7Tx          = 80,
+  uart8Rx          = 81,
+  uart8Tx          = 82,
+
+  // SPI4-5 (83-86)
+  spi4Rx           = 83,
+  spi4Tx           = 84,
+  spi5Rx           = 85,
+  spi5Tx           = 86,
+
+  // SAI1-2 (87-90)
+  sai1A            = 87,
+  sai1B            = 88,
+  sai2A            = 89,
+  sai2B            = 90,
+
+  // SWPMI (91-92)
+  swpmiRx          = 91,
+  swpmiTx          = 92,
+
+  // SPDIF (93-94)
+  spdifrxDat       = 93,
+  spdifrxCtrl      = 94,
+
+  // HR_REQ (95-100)
+  hrReq1           = 95,
+  hrReq2           = 96,
+  hrReq3           = 97,
+  hrReq4           = 98,
+  hrReq5           = 99,
+  hrReq6           = 100,
+
+  // DFSDM1 (101-104)
+  dfsdm1Dma0       = 101,
+  dfsdm1Dma1       = 102,
+  dfsdm1Dma2       = 103,
+  dfsdm1Dma3       = 104,
+
+  // TIM15 (105-108)
+  tim15Ch1         = 105,
+  tim15Up          = 106,
+  tim15Trig        = 107,
+  tim15Com         = 108,
+
+  // TIM16-17 (109-112)
+  tim16Ch1         = 109,
+  tim16Up          = 110,
+  tim17Ch1         = 111,
+  tim17Up          = 112,
+
+  // SAI3 (113-114)
+  sai3A            = 113,
+  sai3B            = 114,
+
+  // ADC3 (115)
+  adc3             = 115,
 };
 
 // STM32H7 DMA Stream wrapper (DMA1/DMA2, stream 0-7)
