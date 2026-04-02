@@ -171,3 +171,16 @@ struct FmcInfo {
   const PeriphBusInfo bus;
 };
 #endif
+
+#ifdef STM32_PERIPHGRP_SAI_EXISTS
+struct SaiBlockInfo {
+  const uint32_t addr;
+};
+struct SaiInfo {
+  const PeriphType    periph_type;
+  const uint32_t      addr;
+  const PeriphBusInfo bus;
+  const SaiBlockInfo  block_a;
+  const SaiBlockInfo  block_b;
+};
+#endif
