@@ -191,14 +191,93 @@ enum class DmaMux1ReqId : uint32_t {
   adc3             = 115,
 };
 
-// STM32H7 DMA Stream wrapper (DMA1/DMA2, stream 0-7)
-// Handles DMAMUX1 routing, NVIC setup, and TC interrupt.
+// ============================================================
+// DMA Stream configuration enums (RM0433 §15.5.5 DMA_SxCR)
+// ============================================================
+
+// DMA_SxCR DIR[1:0] — data transfer direction
+enum class DmaStreamDir : uint32_t {
+  periphToMem = 0,
+  memToPeriph = 1,
+  memToMem    = 2,
+};
+
+// DMA_SxCR PSIZE[1:0] / MSIZE[1:0] — data size
+enum class DmaStreamDataSize : uint32_t {
+  _8bit  = 0,
+  _16bit = 1,
+  _32bit = 2,
+};
+
+// DMA_SxCR MBURST[1:0] / PBURST[1:0] — burst transfer
+enum class DmaStreamBurst : uint32_t {
+  single = 0,
+  incr4  = 1,
+  incr8  = 2,
+  incr16 = 3,
+};
+
+// DMA_SxCR PL[1:0] — priority level
+enum class DmaStreamPriority : uint32_t {
+  low      = 0,
+  medium   = 1,
+  high     = 2,
+  veryHigh = 3,
+};
+
+// DMA_SxFCR FTH[1:0] — FIFO threshold selection
+enum class DmaStreamFifoThreshold : uint32_t {
+  quarter      = 0,
+  half         = 1,
+  threeQuarter = 2,
+  full         = 3,
+};
+
+// ============================================================
+// DMA Stream configuration struct
+// ============================================================
+
+struct DmaStreamConf {
+  // DMA_SxCR fields
+  DmaStreamDir       direction        = DmaStreamDir::periphToMem;
+  DmaStreamDataSize  periphSize       = DmaStreamDataSize::_8bit;
+  DmaStreamDataSize  memSize          = DmaStreamDataSize::_8bit;
+  bool               periphIncrement  = false;
+  bool               memIncrement     = true;
+  bool               circular         = false;
+  DmaStreamPriority  priority         = DmaStreamPriority::low;
+  DmaStreamBurst     memBurst         = DmaStreamBurst::single;
+  DmaStreamBurst     periphBurst      = DmaStreamBurst::single;
+  bool               doubleBuffer     = false;
+  bool               periphFlowCtrl   = false;
+  bool               bufferable       = false;   // TRBUFF: set for UART/USART/LPUART
+
+  // DMA_SxFCR fields
+  bool                    enableFifo      = false;   // DMDIS=1 → FIFO enabled
+  DmaStreamFifoThreshold  fifoThreshold   = DmaStreamFifoThreshold::half;
+
+  // Interrupt enables
+  bool  interruptComplete      = false;  // TCIE
+  bool  interruptHalfTransfer  = false;  // HTIE
+  bool  interruptError         = false;  // TEIE
+  bool  interruptDirectMode    = false;  // DMEIE
+  bool  interruptFifo          = false;  // FEIE
+};
+
+// ============================================================
+// DMA Stream wrapper (DMA1/DMA2, stream 0-7)
 //
 // Usage:
 //   DmaStream<DmaType::dma1, 0> dma;
-//   dma.on_complete = []() { /* called from DMA TC ISR */ };
-//   dma.init(DmaMux1ReqId::spi1_tx);
-//   // In ISR: extern "C" void DMA1_Stream0_IRQHandler() { dma.handleIrq(); }
+//   dma.onComplete = []() { /* TC ISR */ };
+//   dma.onHalfTransfer = []() { /* HT ISR */ };
+//   dma.init(DmaMux1ReqId::sai1A);
+//   dma.start(periphAddr, mem0Addr, count, conf);
+//
+//   // In ISR:
+//   extern "C" void DMA1_Stream0_IRQHandler() { dma.handleIrq(); }
+// ============================================================
+
 template<DmaType DMA_TYPE, uint8_t STREAM_IDX>
 struct DmaStream {
   static_assert(STREAM_IDX < 8, "Stream index must be 0-7");
@@ -217,8 +296,12 @@ struct DmaStream {
     (STREAM_IDX % 4 == 1) ? 6u :
     (STREAM_IDX % 4 == 2) ? 16u : 22u;
 
-  constexpr static uint32_t tc_flag   = DMA_LISR_TCIF0 << flag_shift;
-  constexpr static uint32_t all_flags = 0x3FUL         << flag_shift;
+  constexpr static uint32_t tc_flag    = DMA_LISR_TCIF0  << flag_shift;
+  constexpr static uint32_t ht_flag    = DMA_LISR_HTIF0  << flag_shift;
+  constexpr static uint32_t te_flag    = DMA_LISR_TEIF0  << flag_shift;
+  constexpr static uint32_t dme_flag   = DMA_LISR_DMEIF0 << flag_shift;
+  constexpr static uint32_t fe_flag    = DMA_LISR_FEIF0  << flag_shift;
+  constexpr static uint32_t all_flags  = 0x3DUL          << flag_shift; // bits 0,2,3,4,5
 
   constexpr static IRQn_Type get_irqn() {
     if constexpr (DMA_TYPE == DmaType::dma1) {
@@ -243,8 +326,11 @@ struct DmaStream {
   }
   constexpr static IRQn_Type irqn = get_irqn();
 
-  // Called from DMA TC ISR — set before calling init()
-  std::function<void()> on_complete;
+  // Callbacks — set before calling init() / start()
+  std::function<void()> onComplete;
+  std::function<void()> onHalfTransfer;
+
+  // ----- Hardware access helpers -----
 
   DMA_Stream_TypeDef* p_stream() const {
     constexpr uint32_t base = (DMA_TYPE == DmaType::dma1) ? DMA1_BASE : DMA2_BASE;
@@ -252,8 +338,6 @@ struct DmaStream {
   }
 
   DMAMUX_Channel_TypeDef* p_dmamux_ch() const {
-    //return reinterpret_cast<DMAMUX_Channel_TypeDef*>(
-    //  DMAMUX1_BASE + dmamux_ch_idx * sizeof(DMAMUX_Channel_TypeDef));
     return reinterpret_cast<DMAMUX_Channel_TypeDef*>(
       DMAMUX1_BASE + dmamux_ch_idx * 4);
   }
@@ -268,68 +352,151 @@ struct DmaStream {
     return (STREAM_IDX < 4) ? dma->LIFCR : dma->HIFCR;
   }
 
+  // ----- Init / control -----
+
   IGB_FAST_INLINE void enableBusClock() {
     const auto& dma_info = STM32_PERIPH_INFO.dma[to_idx(type)];
     dma_info.bus.enableBusClock();
   }
 
-  void init(DmaMux1ReqId req_id, uint32_t nvic_priority = 1) {
-    // Enable DMA clock (DMAMUX1 is clocked via the same AHB1 bus)
+  // Initialize DMAMUX1 routing and NVIC.  Call once before start().
+  void init(DmaMux1ReqId reqId, uint32_t nvicPriority = 1) {
     enableBusClock();
-
-    // Configure DMAMUX1 channel with request ID
-    p_dmamux_ch()->CCR = static_cast<uint32_t>(req_id) & DMAMUX_CxCR_DMAREQ_ID_Msk;
-
-    // Enable NVIC
-    NvicCtrl::setPriority(irqn, nvic_priority);
+    p_dmamux_ch()->CCR = static_cast<uint32_t>(reqId) & DMAMUX_CxCR_DMAREQ_ID_Msk;
+    NvicCtrl::setPriority(irqn, nvicPriority);
     NvicCtrl::enable(irqn);
   }
 
-  // TODO: refactoring: pass config struct value same as the dma.hpp
-  // Start mem→periph 8-bit DMA transfer (TX only)
-  void startTx(uint32_t mem_addr, uint32_t periph_addr, uint16_t count) {
+  // Disable stream and wait until hardware confirms it is off.
+  IGB_FAST_INLINE void stop() {
     auto* s = p_stream();
-    // Disable and wait until stream is off
     IGB_CLEAR_BIT(s->CR, DMA_SxCR_EN);
     while (s->CR & DMA_SxCR_EN) {}
-    // Clear all interrupt flags
-    ifcr_reg() = all_flags;
-    // Configure addresses and count
-    s->PAR  = periph_addr;
-    s->M0AR = mem_addr;
-    s->NDTR = count;
-    // mem→periph, 8-bit×8-bit, mem increment, TC interrupt, enable
-    s->CR = DMA_SxCR_DIR_0  // memory to peripheral
-          | DMA_SxCR_MINC   // memory address increment
-          | DMA_SxCR_TCIE   // transfer complete interrupt
-          | DMA_SxCR_EN;    // enable stream
   }
 
-  // Start periph→mem 16-bit circular DMA (RX, e.g. ADC)
-  void startRxCircular(uint32_t periph_addr, uint32_t mem_addr, uint16_t count) {
+  // Start a single-buffer DMA transfer.
+  void start(uint32_t periphAddr, uint32_t memAddr, uint16_t count,
+             const DmaStreamConf& conf)
+  {
     auto* s = p_stream();
-    IGB_CLEAR_BIT(s->CR, DMA_SxCR_EN);
-    while (s->CR & DMA_SxCR_EN) {}
+
+    // 1. Disable stream and wait (RM0433 §15.3.19 step 1)
+    stop();
+
+    // 2. Clear all interrupt flags
     ifcr_reg() = all_flags;
-    s->PAR  = periph_addr;
-    s->M0AR = mem_addr;
+
+    // 3. Addresses and data count (steps 2-4)
+    s->PAR  = periphAddr;
+    s->M0AR = memAddr;
     s->NDTR = count;
-    // periph→mem (no DIR), 16-bit×16-bit, mem increment, circular, enable
-    s->CR = DMA_SxCR_CIRC    // circular mode
-          | DMA_SxCR_MINC    // memory address increment
-          | DMA_SxCR_PSIZE_0 // periph 16-bit
-          | DMA_SxCR_MSIZE_0 // memory 16-bit
-          | DMA_SxCR_EN;
+
+    // 4. FIFO control register (step 8)
+    uint32_t fcr = 0;
+    if (conf.enableFifo) {
+      fcr |= DMA_SxFCR_DMDIS;
+      fcr |= (static_cast<uint32_t>(conf.fifoThreshold) << DMA_SxFCR_FTH_Pos);
+    }
+    if (conf.interruptFifo) {
+      fcr |= DMA_SxFCR_FEIE;
+    }
+    s->FCR = fcr;
+
+    // 5. Build CR (step 9)
+    uint32_t cr = buildCr(conf);
+
+    // 6. Enable (step 10)
+    s->CR = cr | DMA_SxCR_EN;
   }
+
+  // Start a double-buffer DMA transfer.
+  // Circular mode is automatically forced by hardware when DBM=1.
+  void start(uint32_t periphAddr, uint32_t mem0Addr, uint32_t mem1Addr,
+             uint16_t count, const DmaStreamConf& conf)
+  {
+    auto* s = p_stream();
+
+    stop();
+    ifcr_reg() = all_flags;
+
+    s->PAR  = periphAddr;
+    s->M0AR = mem0Addr;
+    s->M1AR = mem1Addr;
+    s->NDTR = count;
+
+    uint32_t fcr = 0;
+    if (conf.enableFifo) {
+      fcr |= DMA_SxFCR_DMDIS;
+      fcr |= (static_cast<uint32_t>(conf.fifoThreshold) << DMA_SxFCR_FTH_Pos);
+    }
+    if (conf.interruptFifo) {
+      fcr |= DMA_SxFCR_FEIE;
+    }
+    s->FCR = fcr;
+
+    uint32_t cr = buildCr(conf);
+    cr |= DMA_SxCR_DBM;
+
+    s->CR = cr | DMA_SxCR_EN;
+  }
+
+  // ----- Status -----
 
   bool isBusy() const {
     return (p_stream()->CR & DMA_SxCR_EN) != 0;
   }
 
-  // Call from ISR: extern "C" void DMAx_StreamN_IRQHandler() { dma.handleIrq(); }
+  // Current target in double-buffer mode: 0 = M0AR, 1 = M1AR
+  uint8_t currentTarget() const {
+    return (p_stream()->CR & DMA_SxCR_CT) ? 1 : 0;
+  }
+
+  // Remaining data items to transfer
+  uint16_t remaining() const {
+    return static_cast<uint16_t>(p_stream()->NDTR);
+  }
+
+  // ----- ISR handler -----
+
+  // Call from the DMAx_StreamN_IRQHandler.
+  // Dispatches to onHalfTransfer / onComplete based on which flags fired.
   void handleIrq() {
+    uint32_t isr = isr_reg();
     ifcr_reg() = all_flags;
-    if (on_complete) on_complete();
+
+    if ((isr & ht_flag) && onHalfTransfer) {
+      onHalfTransfer();
+    }
+    if ((isr & tc_flag) && onComplete) {
+      onComplete();
+    }
+  }
+
+private:
+  // Build DMA_SxCR value from config (without EN bit).
+  IGB_FAST_INLINE uint32_t buildCr(const DmaStreamConf& conf) const {
+    uint32_t cr = 0;
+
+    cr |= (static_cast<uint32_t>(conf.direction)   << DMA_SxCR_DIR_Pos);
+    cr |= (static_cast<uint32_t>(conf.periphSize)   << DMA_SxCR_PSIZE_Pos);
+    cr |= (static_cast<uint32_t>(conf.memSize)       << DMA_SxCR_MSIZE_Pos);
+    cr |= (static_cast<uint32_t>(conf.priority)      << DMA_SxCR_PL_Pos);
+    cr |= (static_cast<uint32_t>(conf.memBurst)      << DMA_SxCR_MBURST_Pos);
+    cr |= (static_cast<uint32_t>(conf.periphBurst)   << DMA_SxCR_PBURST_Pos);
+
+    if (conf.periphIncrement)  cr |= DMA_SxCR_PINC;
+    if (conf.memIncrement)     cr |= DMA_SxCR_MINC;
+    if (conf.circular)         cr |= DMA_SxCR_CIRC;
+    if (conf.doubleBuffer)     cr |= DMA_SxCR_DBM;
+    if (conf.periphFlowCtrl)   cr |= DMA_SxCR_PFCTRL;
+    if (conf.bufferable)       cr |= DMA_SxCR_TRBUFF;
+
+    if (conf.interruptComplete)      cr |= DMA_SxCR_TCIE;
+    if (conf.interruptHalfTransfer)  cr |= DMA_SxCR_HTIE;
+    if (conf.interruptError)         cr |= DMA_SxCR_TEIE;
+    if (conf.interruptDirectMode)    cr |= DMA_SxCR_DMEIE;
+
+    return cr;
   }
 };
 
