@@ -163,3 +163,11 @@ struct SysCfgInfo {
   const PeriphBusInfo   bus;
 };
 #endif
+
+#ifdef STM32_PERIPHGRP_FMC_EXISTS
+struct FmcInfo {
+  const PeriphType   periph_type;
+  const uint32_t     addr;
+  const PeriphBusInfo bus;
+};
+#endif

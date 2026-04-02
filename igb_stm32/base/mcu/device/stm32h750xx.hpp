@@ -259,7 +259,15 @@ enum class PeriphType : uint16_t {
   usart6,
   uart7,
   uart8,
+  fmc,
 };
+
+enum class FmcType : uint8_t {
+  fmc = 0,
+};
+constexpr static uint8_t to_idx(FmcType) {
+  return 0;
+}
 
 enum class DacType : uint8_t {
   dac1 = 0,
@@ -1798,6 +1806,15 @@ constexpr struct PeriphInfo {
       .bus = PeriphBusInfo { BusType::apb1l, (uint32_t)1 << 31},
     },
   };
+#ifdef STM32_PERIPHGRP_FMC_EXISTS
+  const std::array<FmcInfo, 1> fmc {
+    FmcInfo {
+      .periph_type = PeriphType::fmc,
+      .addr = FMC_Bank1_R_BASE,
+      .bus = PeriphBusInfo { BusType::ahb3, (uint32_t)1 << 12},
+    },
+  };
+#endif
 } STM32_PERIPH_INFO;
 
 enum class GpioAf : uint8_t {
