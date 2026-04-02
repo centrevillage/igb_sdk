@@ -23,29 +23,29 @@ namespace stm32 {
 
 enum class FmcNorSramMemType : uint32_t {
   sram  = 0,
-  psram = FMC_BCRx_MTYP_0,
-  nor   = FMC_BCRx_MTYP_1,
+  psram = 1,
+  nor   = 2,
 };
 
 enum class FmcNorSramDataWidth : uint32_t {
   _8bit  = 0,
-  _16bit = FMC_BCRx_MWID_0,
-  _32bit = FMC_BCRx_MWID_1,
+  _16bit = 1,
+  _32bit = 2,
 };
 
 enum class FmcNorSramPageSize : uint32_t {
   none   = 0,
-  _128b  = FMC_BCRx_CPSIZE_0,
-  _256b  = FMC_BCRx_CPSIZE_1,
-  _512b  = FMC_BCRx_CPSIZE_0 | FMC_BCRx_CPSIZE_1,
-  _1024b = FMC_BCRx_CPSIZE_2,
+  _128b  = 1,
+  _256b  = 2,
+  _512b  = 3,
+  _1024b = 4,
 };
 
 enum class FmcNorSramAccessMode : uint32_t {
   a = 0,
-  b = FMC_BTRx_ACCMOD_0,
-  c = FMC_BTRx_ACCMOD_1,
-  d = FMC_BTRx_ACCMOD_0 | FMC_BTRx_ACCMOD_1,
+  b = 1,
+  c = 2,
+  d = 3,
 };
 
 struct FmcNorSramConf {
@@ -82,16 +82,16 @@ struct FmcNorSramTimingConf {
 
 enum class FmcNandDataWidth : uint32_t {
   _8bit  = 0,
-  _16bit = FMC_PCR_PWID_0,
+  _16bit = 1,
 };
 
 enum class FmcNandEccPageSize : uint32_t {
   _256b  = 0,
-  _512b  = FMC_PCR_ECCPS_0,
-  _1024b = FMC_PCR_ECCPS_1,
-  _2048b = FMC_PCR_ECCPS_0 | FMC_PCR_ECCPS_1,
-  _4096b = FMC_PCR_ECCPS_2,
-  _8192b = FMC_PCR_ECCPS_0 | FMC_PCR_ECCPS_2,
+  _512b  = 1,
+  _1024b = 2,
+  _2048b = 3,
+  _4096b = 4,
+  _8192b = 5,
 };
 
 enum class FmcNandItFlag : uint32_t {
@@ -129,44 +129,44 @@ struct FmcNandTimingConf {
 
 enum class FmcSdramColumnBits : uint32_t {
   _8bit  = 0,
-  _9bit  = FMC_SDCRx_NC_0,
-  _10bit = FMC_SDCRx_NC_1,
-  _11bit = FMC_SDCRx_NC_0 | FMC_SDCRx_NC_1,
+  _9bit  = 1,
+  _10bit = 2,
+  _11bit = 3,
 };
 
 enum class FmcSdramRowBits : uint32_t {
   _11bit = 0,
-  _12bit = FMC_SDCRx_NR_0,
-  _13bit = FMC_SDCRx_NR_1,
+  _12bit = 1,
+  _13bit = 2,
 };
 
 enum class FmcSdramDataWidth : uint32_t {
   _8bit  = 0,
-  _16bit = FMC_SDCRx_MWID_0,
-  _32bit = FMC_SDCRx_MWID_1,
+  _16bit = 1,
+  _32bit = 2,
 };
 
 enum class FmcSdramInternalBanks : uint32_t {
   _2banks = 0,
-  _4banks = FMC_SDCRx_NB,
+  _4banks = 1,
 };
 
 enum class FmcSdramCasLatency : uint32_t {
-  _1clk = FMC_SDCRx_CAS_0,
-  _2clk = FMC_SDCRx_CAS_1,
-  _3clk = FMC_SDCRx_CAS_0 | FMC_SDCRx_CAS_1,
+  _1clk = 1,
+  _2clk = 2,
+  _3clk = 3,
 };
 
 enum class FmcSdramClockPeriod : uint32_t {
   disable = 0,
-  _2clk   = FMC_SDCRx_SDCLK_1,
-  _3clk   = FMC_SDCRx_SDCLK_0 | FMC_SDCRx_SDCLK_1,
+  _2clk   = 2,
+  _3clk   = 3,
 };
 
 enum class FmcSdramReadPipeDelay : uint32_t {
   _0clk = 0,
-  _1clk = FMC_SDCRx_RPIPE_0,
-  _2clk = FMC_SDCRx_RPIPE_1,
+  _1clk = 1,
+  _2clk = 2,
 };
 
 // SDCMR MODE field: values 0–6 (not individual bits)
