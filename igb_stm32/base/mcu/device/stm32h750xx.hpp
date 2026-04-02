@@ -265,12 +265,20 @@ enum class PeriphType : uint16_t {
   sai2,
   sai3,
   sai4,
+  quadspi,
 };
 
 enum class FmcType : uint8_t {
   fmc = 0,
 };
 constexpr static uint8_t to_idx(FmcType) {
+  return 0;
+}
+
+enum class QuadspiType : uint8_t {
+  quadspi = 0,
+};
+constexpr static uint8_t to_idx(QuadspiType) {
   return 0;
 }
 
@@ -1876,6 +1884,16 @@ constexpr struct PeriphInfo {
     },
   };
 #endif
+#ifdef STM32_PERIPHGRP_QUADSPI_EXISTS
+  const std::array<QuadspiInfo, 1> quadspi {
+    QuadspiInfo {
+      .periph_type = PeriphType::quadspi,
+      .addr = QSPI_R_BASE,
+      .irqn = QUADSPI_IRQn,
+      .bus = PeriphBusInfo { BusType::ahb3, (uint32_t)1 << 14},
+    },
+  };
+#endif
 } STM32_PERIPH_INFO;
 
 enum class GpioAf : uint8_t {
@@ -2146,6 +2164,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
           return GpioAf::af7;
         case PeriphType::sai4:
           return GpioAf::af8;
+        case PeriphType::quadspi:
+          return GpioAf::af9;
         default:
           break;
       }
@@ -2222,6 +2242,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
           return GpioAf::af6;
         case PeriphType::usart1:
           return GpioAf::af7;
+        case PeriphType::quadspi:
+          return GpioAf::af10;
         case PeriphType::uart5:
           return GpioAf::af14;
         default:
@@ -2454,6 +2476,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
           return GpioAf::af4;
         case PeriphType::uart5:
           return GpioAf::af8;
+        case PeriphType::quadspi:
+          return GpioAf::af9;
         default:
           break;
       }
@@ -2466,6 +2490,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
           return GpioAf::af7;
         case PeriphType::uart4:
           return GpioAf::af8;
+        case PeriphType::quadspi:
+          return GpioAf::af9;
         default:
           break;
       }
@@ -2612,6 +2638,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
           return GpioAf::af4;
         case PeriphType::usart3:
           return GpioAf::af7;
+        case PeriphType::quadspi:
+          return GpioAf::af9;
         case PeriphType::sai2:
           return GpioAf::af10;
         default:
@@ -2626,6 +2654,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
           return GpioAf::af4;
         case PeriphType::usart3:
           return GpioAf::af7;
+        case PeriphType::quadspi:
+          return GpioAf::af9;
         case PeriphType::sai2:
           return GpioAf::af10;
         default:
@@ -2638,6 +2668,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
           return GpioAf::af2;
         case PeriphType::i2c4:
           return GpioAf::af4;
+        case PeriphType::quadspi:
+          return GpioAf::af9;
         case PeriphType::sai2:
           return GpioAf::af10;
         default:
@@ -2696,6 +2728,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
           return GpioAf::af6;
         case PeriphType::sai4:
           return GpioAf::af8;
+        case PeriphType::quadspi:
+          return GpioAf::af9;
         default:
           break;
       }
@@ -2762,6 +2796,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
           return GpioAf::af1;
         case PeriphType::uart7:
           return GpioAf::af7;
+        case PeriphType::quadspi:
+          return GpioAf::af10;
         default:
           break;
       }
@@ -2772,6 +2808,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
           return GpioAf::af1;
         case PeriphType::uart7:
           return GpioAf::af7;
+        case PeriphType::quadspi:
+          return GpioAf::af10;
         default:
           break;
       }
@@ -2782,6 +2820,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
           return GpioAf::af1;
         case PeriphType::uart7:
           return GpioAf::af7;
+        case PeriphType::quadspi:
+          return GpioAf::af10;
         default:
           break;
       }
@@ -2792,6 +2832,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
           return GpioAf::af1;
         case PeriphType::uart7:
           return GpioAf::af7;
+        case PeriphType::quadspi:
+          return GpioAf::af10;
         default:
           break;
       }
@@ -2906,6 +2948,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
           return GpioAf::af7;
         case PeriphType::sai4:
           return GpioAf::af8;
+        case PeriphType::quadspi:
+          return GpioAf::af9;
         default:
           break;
       }
@@ -2922,6 +2966,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
           return GpioAf::af7;
         case PeriphType::sai4:
           return GpioAf::af8;
+        case PeriphType::quadspi:
+          return GpioAf::af9;
         default:
           break;
       }
@@ -2939,6 +2985,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
         case PeriphType::sai4:
           return GpioAf::af8;
         case PeriphType::tim13:
+          return GpioAf::af9;
+        case PeriphType::quadspi:
           return GpioAf::af9;
         default:
           break;
@@ -2958,6 +3006,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
           return GpioAf::af8;
         case PeriphType::tim14:
           return GpioAf::af9;
+        case PeriphType::quadspi:
+          return GpioAf::af9;
         default:
           break;
       }
@@ -2966,6 +3016,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
       switch (periph_type) {
         case PeriphType::tim16:
           return GpioAf::af1;
+        case PeriphType::quadspi:
+          return GpioAf::af9;
         default:
           break;
       }
@@ -3058,6 +3110,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
       switch (periph_type) {
         case PeriphType::tim17:
           return GpioAf::af1;
+        case PeriphType::quadspi:
+          return GpioAf::af10;
         default:
           break;
       }
@@ -3090,6 +3144,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
           return GpioAf::af5;
         case PeriphType::usart6:
           return GpioAf::af7;
+        case PeriphType::quadspi:
+          return GpioAf::af9;
         case PeriphType::sai2:
           return GpioAf::af10;
         default:
@@ -3140,6 +3196,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
           return GpioAf::af5;
         case PeriphType::usart6:
           return GpioAf::af7;
+        case PeriphType::quadspi:
+          return GpioAf::af9;
         default:
           break;
       }
@@ -3154,6 +3212,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
       break;
     case GpioPinType::ph2:
       switch (periph_type) {
+        case PeriphType::quadspi:
+          return GpioAf::af9;
         case PeriphType::sai2:
           return GpioAf::af10;
         default:
@@ -3162,6 +3222,8 @@ constexpr static std::optional<GpioAf> get_af_idx(PeriphType periph_type, GpioPi
       break;
     case GpioPinType::ph3:
       switch (periph_type) {
+        case PeriphType::quadspi:
+          return GpioAf::af9;
         case PeriphType::sai2:
           return GpioAf::af10;
         default:
@@ -3766,6 +3828,14 @@ constexpr std::optional<PeriphType> as_periph_type(SaiType type) {
       return PeriphType::sai3;
     case SaiType::sai4:
       return PeriphType::sai4;
+  }
+  return std::nullopt;
+}
+
+constexpr std::optional<PeriphType> as_periph_type(QuadspiType type) {
+  switch (type) {
+    case QuadspiType::quadspi:
+      return PeriphType::quadspi;
   }
   return std::nullopt;
 }

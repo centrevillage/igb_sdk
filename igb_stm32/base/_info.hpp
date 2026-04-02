@@ -172,6 +172,15 @@ struct FmcInfo {
 };
 #endif
 
+#ifdef STM32_PERIPHGRP_QUADSPI_EXISTS
+struct QuadspiInfo {
+  const PeriphType   periph_type;
+  const uint32_t     addr;
+  const IRQn_Type    irqn;
+  const PeriphBusInfo bus;
+};
+#endif
+
 #ifdef STM32_PERIPHGRP_SAI_EXISTS
 struct SaiBlockInfo {
   const uint32_t addr;
