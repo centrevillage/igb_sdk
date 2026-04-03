@@ -7,6 +7,8 @@
 #include <stddef.h>
 #include <igb_stm32/base.hpp>
 #include <igb_stm32/periph/gpio.hpp>
+#include <igb_stm32/periph/nvic.hpp>
+#include <igb_util/cast.hpp>
 #include <igb_util/reg.hpp>
 #include <igb_util/macro.hpp>
 
@@ -71,6 +73,66 @@ enum class SdmmcBlockSize : uint32_t {
   _4096byte  = 12,
   _8192byte  = 13,
   _16384byte = 14,
+};
+
+// STA register — status flags
+enum class SdmmcState : uint32_t {
+  cCrcFail   = SDMMC_STA_CCRCFAIL_Msk,
+  dCrcFail   = SDMMC_STA_DCRCFAIL_Msk,
+  cTimeout   = SDMMC_STA_CTIMEOUT_Msk,
+  dTimeout   = SDMMC_STA_DTIMEOUT_Msk,
+  txUnderr   = SDMMC_STA_TXUNDERR_Msk,
+  rxOverr    = SDMMC_STA_RXOVERR_Msk,
+  cmdRend    = SDMMC_STA_CMDREND_Msk,
+  cmdSent    = SDMMC_STA_CMDSENT_Msk,
+  dataEnd    = SDMMC_STA_DATAEND_Msk,
+  dHold      = SDMMC_STA_DHOLD_Msk,
+  dbckEnd    = SDMMC_STA_DBCKEND_Msk,
+  dAbort     = SDMMC_STA_DABORT_Msk,
+  dpsmAct    = SDMMC_STA_DPSMACT_Msk,
+  cpsmAct    = SDMMC_STA_CPSMACT_Msk,
+  txFifoHe   = SDMMC_STA_TXFIFOHE_Msk,
+  rxFifoHf   = SDMMC_STA_RXFIFOHF_Msk,
+  txFifoF    = SDMMC_STA_TXFIFOF_Msk,
+  rxFifoF    = SDMMC_STA_RXFIFOF_Msk,
+  txFifoE    = SDMMC_STA_TXFIFOE_Msk,
+  rxFifoE    = SDMMC_STA_RXFIFOE_Msk,
+  busyD0     = SDMMC_STA_BUSYD0_Msk,
+  busyD0End  = SDMMC_STA_BUSYD0END_Msk,
+  sdioIt     = SDMMC_STA_SDIOIT_Msk,
+  ackFail    = SDMMC_STA_ACKFAIL_Msk,
+  ackTimeout = SDMMC_STA_ACKTIMEOUT_Msk,
+  vswEnd     = SDMMC_STA_VSWEND_Msk,
+  ckStop     = SDMMC_STA_CKSTOP_Msk,
+  idmaTE     = SDMMC_STA_IDMATE_Msk,
+  idmaBtc    = SDMMC_STA_IDMABTC_Msk,
+};
+
+// MASK register — interrupt enable flags (bit positions match STA/ICR)
+enum class SdmmcInterruptType : uint32_t {
+  cCrcFail   = SDMMC_MASK_CCRCFAILIE_Msk,
+  dCrcFail   = SDMMC_MASK_DCRCFAILIE_Msk,
+  cTimeout   = SDMMC_MASK_CTIMEOUTIE_Msk,
+  dTimeout   = SDMMC_MASK_DTIMEOUTIE_Msk,
+  txUnderr   = SDMMC_MASK_TXUNDERRIE_Msk,
+  rxOverr    = SDMMC_MASK_RXOVERRIE_Msk,
+  cmdRend    = SDMMC_MASK_CMDRENDIE_Msk,
+  cmdSent    = SDMMC_MASK_CMDSENTIE_Msk,
+  dataEnd    = SDMMC_MASK_DATAENDIE_Msk,
+  dHold      = SDMMC_MASK_DHOLDIE_Msk,
+  dbckEnd    = SDMMC_MASK_DBCKENDIE_Msk,
+  dAbort     = SDMMC_MASK_DABORTIE_Msk,
+  txFifoHe   = SDMMC_MASK_TXFIFOHEIE_Msk,
+  rxFifoHf   = SDMMC_MASK_RXFIFOHFIE_Msk,
+  rxFifoF    = SDMMC_MASK_RXFIFOFIE_Msk,
+  txFifoE    = SDMMC_MASK_TXFIFOEIE_Msk,
+  busyD0End  = SDMMC_MASK_BUSYD0ENDIE_Msk,
+  sdioIt     = SDMMC_MASK_SDIOITIE_Msk,
+  ackFail    = SDMMC_MASK_ACKFAILIE_Msk,
+  ackTimeout = SDMMC_MASK_ACKTIMEOUTIE_Msk,
+  vswEnd     = SDMMC_MASK_VSWENDIE_Msk,
+  ckStop     = SDMMC_MASK_CKSTOPIE_Msk,
+  idmaBtc    = SDMMC_MASK_IDMABTCIE_Msk,
 };
 
 // ============================================================
@@ -402,6 +464,37 @@ struct Sdmmc {
   IGB_FAST_INLINE void disableAllInterrupts() {
     Reg<addr_MASK> mask;
     mask(0);
+  }
+
+  // ===== Enum-based status / interrupt helpers =====
+
+  IGB_FAST_INLINE bool is(SdmmcState state) {
+    RegRO<addr_STA> s;
+    return !!(s() & as<uint32_t>(state));
+  }
+
+  IGB_FAST_INLINE void clear(SdmmcState state) {
+    Reg<addr_ICR> icr;
+    icr(as<uint32_t>(state));
+  }
+
+  IGB_FAST_INLINE void enableIt(SdmmcInterruptType interrupt) {
+    Reg<addr_MASK> m;
+    m(m() | as<uint32_t>(interrupt));
+  }
+
+  IGB_FAST_INLINE void disableIt(SdmmcInterruptType interrupt) {
+    Reg<addr_MASK> m;
+    m(m() & ~as<uint32_t>(interrupt));
+  }
+
+  IGB_FAST_INLINE void enableNvic(uint32_t priority = 1) {
+    NvicCtrl::setPriority(info.irqn, priority);
+    NvicCtrl::enable(info.irqn);
+  }
+
+  IGB_FAST_INLINE void disableNvic() {
+    NvicCtrl::disable(info.irqn);
   }
 
   IGB_FAST_INLINE void setupIdma(uint32_t bufAddr0, uint32_t bufSize = 0, uint32_t bufAddr1 = 0) {
