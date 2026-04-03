@@ -193,3 +193,12 @@ struct SaiInfo {
   const SaiBlockInfo  block_b;
 };
 #endif
+
+#ifdef STM32_PERIPHGRP_SDMMC_EXISTS
+struct SdmmcInfo {
+  const PeriphType    periph_type;
+  const uint32_t      addr;
+  const IRQn_Type     irqn;
+  const PeriphBusInfo bus;
+};
+#endif
