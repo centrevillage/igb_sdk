@@ -389,7 +389,11 @@ struct FastGpioPin {
   }
 
   IGB_FAST_INLINE void initInputDefault() {
+#if defined(STM32H7)
+    initInput(GpioPullMode::no, GpioSpeedMode::veryHigh);
+#else
     initInput(GpioPullMode::no, GpioSpeedMode::high);
+#endif
   }
 
   IGB_FAST_INLINE void initOutput(GpioOutputMode output_mode, GpioSpeedMode speed) {
@@ -400,7 +404,11 @@ struct FastGpioPin {
   }
 
   IGB_FAST_INLINE void initOutputDefault() {
+#if defined(STM32H7)
+    initOutput(GpioOutputMode::pushpull, GpioSpeedMode::veryHigh);
+#else
     initOutput(GpioOutputMode::pushpull, GpioSpeedMode::high);
+#endif
   }
 };
 
