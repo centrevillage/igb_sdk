@@ -144,18 +144,26 @@ struct OledSsd1306 {
     cs_pin.high(); // un-select OLED
   }
 
+  void sendCommands(const uint8_t* cmds, size_t count) {
+    cs_pin.low();
+    dc_pin.low();
+    spi.sendBufU8sync(const_cast<uint8_t*>(cmds), count, _wait_func);
+    cs_pin.high();
+  }
+
+  void sendPageAddress(uint8_t page) {
+    const uint8_t cmds[] = {static_cast<uint8_t>(0xB0 + page), 0x00, 0x10};
+    sendCommands(cmds, 3);
+  }
+
   void sendData(uint8_t* buf, size_t buff_size) {
     dc_pin.high(); // data
-    cs_pin.low(); spi.sendU8sync(0, _wait_func); cs_pin.high();
-    cs_pin.low(); spi.sendU8sync(0, _wait_func); cs_pin.high();
     cs_pin.low(); spi.sendBufU8sync(buf, buff_size, _wait_func); cs_pin.high();
   }
 
   void updateScreen() {
     for (uint8_t i = 0; i < screen_height/8; ++i) {
-      sendCommand(0xB0 + i); // Set the current RAM page address.
-      sendCommand(0x00);
-      sendCommand(0x10);
+      sendPageAddress(i);
       sendData(&screen_buffer[screen_width*i], screen_width);
     }
     memcpy(prev_screen_buffer, screen_buffer, sizeof(screen_buffer));
@@ -166,9 +174,7 @@ struct OledSsd1306 {
     for (uint8_t i = 0; i < screen_height/8; ++i) {
       const size_t page_offset = screen_width * i;
       if (memcmp(&screen_buffer[page_offset], &prev_screen_buffer[page_offset], screen_width) == 0) continue;
-      sendCommand(0xB0 + i);
-      sendCommand(0x00);
-      sendCommand(0x10);
+      sendPageAddress(i);
       sendData(&screen_buffer[page_offset], screen_width);
       memcpy(&prev_screen_buffer[page_offset], &screen_buffer[page_offset], screen_width);
     }
@@ -181,17 +187,15 @@ struct OledSsd1306 {
       if (memcmp(&screen_buffer[page_offset], &prev_screen_buffer[page_offset], screen_width) != 0) {
         _current_page = page;
         _dma_busy = true;
-        sendCommand(0xB0 + page);
-        sendCommand(0x00);
-        sendCommand(0x10);
+        sendPageAddress(page);
         // D-Cache flush: ensure DMA reads CPU-written data from physical memory
         SCB_CleanDCache_by_Addr(
           reinterpret_cast<uint32_t*>(&screen_buffer[page_offset]),
           static_cast<int32_t>(screen_width));
         // Start DMA: CS stays low until process() calls sendBufU8dmaEnd() after _page_done
         dc_pin.high();
-        cs_pin.low(); spi.sendU8sync(0, _wait_func); cs_pin.high();
-        cs_pin.low(); spi.sendU8sync(0, _wait_func); cs_pin.high();
+        //cs_pin.low(); spi.sendU8sync(0, _wait_func); cs_pin.high();
+        //cs_pin.low(); spi.sendU8sync(0, _wait_func); cs_pin.high();
         cs_pin.low();
         spi.sendBufU8dmaStart(&screen_buffer[page_offset], screen_width, dma_stream);
         return;
