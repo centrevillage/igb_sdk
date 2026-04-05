@@ -9,6 +9,13 @@
 namespace igb {
 namespace sdk {
 
+// Driver type selection: ssd1306/sh1106 for compile-time, dynamic for runtime switching.
+enum class OledDriverType : uint8_t {
+  ssd1306,  // col_offset = 0
+  sh1106,   // col_offset = 2 (132-column GDDRAM)
+  dynamic   // runtime switchable, default SSD1306
+};
+
 // DMA_STREAM_TYPE: DmaStream<...> for async DMA update, NullFunctor (default) for sync.
 //
 // Async usage:
@@ -17,8 +24,9 @@ namespace sdk {
 //   3. Call oled.init() — this configures DMA stream and registers the completion callback
 //   4. Draw into screen_buffer, then call oled.process() to kick off the async update
 //   5. Before modifying screen_buffer again, check !oled.isBusy()
-// col_offset: GDDRAM column offset. 0 for SSD1306, 2 for SH1106 (132-column GDDRAM).
-template<typename SPI_TYPE, typename GPIO_PIN_TYPE, size_t screen_width = 128, size_t screen_height = 64, uint8_t col_offset = 0, typename WAIT_FUNC = NullFunctor, typename DMA_STREAM_TYPE = NullFunctor>
+// driver_type: OledDriverType::ssd1306 (default), OledDriverType::sh1106, or OledDriverType::dynamic.
+//   dynamic defaults to SSD1306; use setDriverSH1106()/setDriverSSD1306() to switch at runtime.
+template<typename SPI_TYPE, typename GPIO_PIN_TYPE, size_t screen_width = 128, size_t screen_height = 64, OledDriverType driver_type = OledDriverType::ssd1306, typename WAIT_FUNC = NullFunctor, typename DMA_STREAM_TYPE = NullFunctor>
 struct OledSsd1306 {
   SPI_TYPE spi;
   GPIO_PIN_TYPE cs_pin;
@@ -39,6 +47,31 @@ struct OledSsd1306 {
   _DmaPhase _dma_phase = _DmaPhase::idle;
   uint8_t _current_page = 0;
   alignas(32) uint8_t _cmd_buf[4] = {}; // page address commands (3 bytes + padding for D-Cache alignment)
+
+  // Runtime col_offset — only used when driver_type == dynamic
+  uint8_t _runtime_col_offset = 0;
+
+  uint8_t _getColOffset() const {
+    if constexpr (driver_type == OledDriverType::ssd1306) {
+      return 0;
+    } else if constexpr (driver_type == OledDriverType::sh1106) {
+      return 2;
+    } else {
+      return _runtime_col_offset;
+    }
+  }
+
+  // Switch to SSD1306 at runtime (dynamic mode only)
+  void setDriverSSD1306() {
+    static_assert(driver_type == OledDriverType::dynamic, "setDriverSSD1306() is only available in dynamic mode");
+    _runtime_col_offset = 0;
+  }
+
+  // Switch to SH1106 at runtime (dynamic mode only)
+  void setDriverSH1106() {
+    static_assert(driver_type == OledDriverType::dynamic, "setDriverSH1106() is only available in dynamic mode");
+    _runtime_col_offset = 2;
+  }
 
   void init() {
     prepareGpio();
@@ -176,10 +209,11 @@ struct OledSsd1306 {
   }
 
   void sendPageAddress(uint8_t page) {
+    const uint8_t off = _getColOffset();
     const uint8_t cmds[] = {
       static_cast<uint8_t>(0xB0 + page),
-      static_cast<uint8_t>(0x00 + (col_offset & 0x0F)),        // lower nibble of column offset
-      static_cast<uint8_t>(0x10 + ((col_offset >> 4) & 0x0F))  // upper nibble of column offset
+      static_cast<uint8_t>(0x00 + (off & 0x0F)),        // lower nibble of column offset
+      static_cast<uint8_t>(0x10 + ((off >> 4) & 0x0F))  // upper nibble of column offset
     };
     sendCommands(cmds, 3);
   }
@@ -215,9 +249,10 @@ struct OledSsd1306 {
       if (memcmp(&screen_buffer[page_offset], &prev_screen_buffer[page_offset], screen_width) != 0) {
         _current_page = page;
         // Prepare page address commands in DMA buffer
+        const uint8_t off = _getColOffset();
         _cmd_buf[0] = 0xB0 + page;
-        _cmd_buf[1] = 0x00 + (col_offset & 0x0F);
-        _cmd_buf[2] = 0x10 + ((col_offset >> 4) & 0x0F);
+        _cmd_buf[1] = 0x00 + (off & 0x0F);
+        _cmd_buf[2] = 0x10 + ((off >> 4) & 0x0F);
         SCB_CleanDCache_by_Addr(
           reinterpret_cast<uint32_t*>(_cmd_buf),
           static_cast<int32_t>(sizeof(_cmd_buf)));
