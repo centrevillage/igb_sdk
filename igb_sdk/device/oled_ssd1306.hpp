@@ -17,7 +17,8 @@ namespace sdk {
 //   3. Call oled.init() — this configures DMA stream and registers the completion callback
 //   4. Draw into screen_buffer, then call oled.process() to kick off the async update
 //   5. Before modifying screen_buffer again, check !oled.isBusy()
-template<typename SPI_TYPE, typename GPIO_PIN_TYPE, size_t screen_width = 128, size_t screen_height = 64, typename WAIT_FUNC = NullFunctor, typename DMA_STREAM_TYPE = NullFunctor>
+// col_offset: GDDRAM column offset. 0 for SSD1306, 2 for SH1106 (132-column GDDRAM).
+template<typename SPI_TYPE, typename GPIO_PIN_TYPE, size_t screen_width = 128, size_t screen_height = 64, uint8_t col_offset = 0, typename WAIT_FUNC = NullFunctor, typename DMA_STREAM_TYPE = NullFunctor>
 struct OledSsd1306 {
   SPI_TYPE spi;
   GPIO_PIN_TYPE cs_pin;
@@ -33,9 +34,11 @@ struct OledSsd1306 {
   // DMA stream — only used when DMA_STREAM_TYPE != NullFunctor
   DMA_STREAM_TYPE dma_stream;
 
-  volatile bool _dma_busy = false;
-  volatile bool _page_done = false;
+  enum class _DmaPhase : uint8_t { idle, sending_cmd, sending_data };
+  volatile bool _dma_done = false;
+  _DmaPhase _dma_phase = _DmaPhase::idle;
   uint8_t _current_page = 0;
+  alignas(32) uint8_t _cmd_buf[4] = {}; // page address commands (3 bytes + padding for D-Cache alignment)
 
   void init() {
     prepareGpio();
@@ -43,31 +46,52 @@ struct OledSsd1306 {
     if constexpr (!std::is_same_v<DMA_STREAM_TYPE, NullFunctor>) {
       // ISR only sets flag — all SPI operations happen in process() (main loop)
       dma_stream.on_complete = [this]() {
-        _page_done = true;
+        _dma_done = true;
       };
     }
   }
 
   bool isBusy() const {
     if constexpr (!std::is_same_v<DMA_STREAM_TYPE, NullFunctor>) {
-      return _dma_busy;
+      return _dma_phase != _DmaPhase::idle;
     }
     return false;
   }
 
+  // Fully non-blocking: never busy-waits, always returns immediately.
+  // Call repeatedly from main loop.
   void process() {
     if constexpr (!std::is_same_v<DMA_STREAM_TYPE, NullFunctor>) {
-      if (_dma_busy) {
-        if (_page_done) {
-          _page_done = false;
-          spi.sendBufU8dmaEnd();
+      switch (_dma_phase) {
+      case _DmaPhase::idle:
+        _findNextDmaPage(0);
+        break;
+      case _DmaPhase::sending_cmd:
+        if (_dma_done && spi.is(igb::stm32::SpiState::endOfTransfer)) {
+          _dma_done = false;
+          spi.sendBufU8dmaEnd(); // instant — EOT already confirmed
+          cs_pin.high();
+          // transition: command done → start data DMA
+          const size_t offset = _current_page * screen_width;
+          SCB_CleanDCache_by_Addr(
+            reinterpret_cast<uint32_t*>(&screen_buffer[offset]),
+            static_cast<int32_t>(screen_width));
+          dc_pin.high();
+          cs_pin.low();
+          spi.sendBufU8dmaStart(&screen_buffer[offset], screen_width, dma_stream);
+          _dma_phase = _DmaPhase::sending_data;
+        }
+        break;
+      case _DmaPhase::sending_data:
+        if (_dma_done && spi.is(igb::stm32::SpiState::endOfTransfer)) {
+          _dma_done = false;
+          spi.sendBufU8dmaEnd(); // instant — EOT already confirmed
           cs_pin.high();
           memcpy(&prev_screen_buffer[_current_page * screen_width],
                  &screen_buffer[_current_page * screen_width], screen_width);
-          _startNextDmaPage(_current_page + 1);
+          _findNextDmaPage(_current_page + 1);
         }
-      } else {
-        _startNextDmaPage(0);
+        break;
       }
     } else {
       updateDiff();
@@ -152,7 +176,11 @@ struct OledSsd1306 {
   }
 
   void sendPageAddress(uint8_t page) {
-    const uint8_t cmds[] = {static_cast<uint8_t>(0xB0 + page), 0x00, 0x10};
+    const uint8_t cmds[] = {
+      static_cast<uint8_t>(0xB0 + page),
+      static_cast<uint8_t>(0x00 + (col_offset & 0x0F)),        // lower nibble of column offset
+      static_cast<uint8_t>(0x10 + ((col_offset >> 4) & 0x0F))  // upper nibble of column offset
+    };
     sendCommands(cmds, 3);
   }
 
@@ -180,28 +208,28 @@ struct OledSsd1306 {
     }
   }
 
-  // 変更ページを探してDMA転送を開始する。なければ完了。mainループから呼ぶこと(ISR不可)。
-  void _startNextDmaPage(uint8_t from) {
+  // 変更ページを探してコマンドDMA転送を開始する。なければidle。mainループから呼ぶこと。
+  void _findNextDmaPage(uint8_t from) {
     for (uint8_t page = from; page < screen_height / 8; ++page) {
       const size_t page_offset = screen_width * page;
       if (memcmp(&screen_buffer[page_offset], &prev_screen_buffer[page_offset], screen_width) != 0) {
         _current_page = page;
-        _dma_busy = true;
-        sendPageAddress(page);
-        // D-Cache flush: ensure DMA reads CPU-written data from physical memory
+        // Prepare page address commands in DMA buffer
+        _cmd_buf[0] = 0xB0 + page;
+        _cmd_buf[1] = 0x00 + (col_offset & 0x0F);
+        _cmd_buf[2] = 0x10 + ((col_offset >> 4) & 0x0F);
         SCB_CleanDCache_by_Addr(
-          reinterpret_cast<uint32_t*>(&screen_buffer[page_offset]),
-          static_cast<int32_t>(screen_width));
-        // Start DMA: CS stays low until process() calls sendBufU8dmaEnd() after _page_done
-        dc_pin.high();
-        //cs_pin.low(); spi.sendU8sync(0, _wait_func); cs_pin.high();
-        //cs_pin.low(); spi.sendU8sync(0, _wait_func); cs_pin.high();
+          reinterpret_cast<uint32_t*>(_cmd_buf),
+          static_cast<int32_t>(sizeof(_cmd_buf)));
+        // Start command DMA (DC=low for command mode)
+        dc_pin.low();
         cs_pin.low();
-        spi.sendBufU8dmaStart(&screen_buffer[page_offset], screen_width, dma_stream);
+        spi.sendBufU8dmaStart(_cmd_buf, 3, dma_stream);
+        _dma_phase = _DmaPhase::sending_cmd;
         return;
       }
     }
-    _dma_busy = false;
+    _dma_phase = _DmaPhase::idle;
   }
 
   void drawFillBG() {
