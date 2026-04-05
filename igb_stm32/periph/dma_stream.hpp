@@ -269,8 +269,8 @@ struct DmaStreamConf {
 //
 // Usage:
 //   DmaStream<DmaType::dma1, 0> dma;
-//   dma.onComplete = []() { /* TC ISR */ };
-//   dma.onHalfTransfer = []() { /* HT ISR */ };
+//   dma.on_complete = []() { /* TC ISR */ };
+//   dma.on_half_transfer = []() { /* HT ISR */ };
 //   dma.init(DmaMux1ReqId::sai1A);
 //   dma.start(periphAddr, mem0Addr, count, conf);
 //
@@ -326,9 +326,10 @@ struct DmaStream {
   }
   constexpr static IRQn_Type irqn = get_irqn();
 
+  // TODO: fix these namings by snake case
   // Callbacks — set before calling init() / start()
-  std::function<void()> onComplete;
-  std::function<void()> onHalfTransfer;
+  std::function<void()> on_complete;
+  std::function<void()> on_half_transfer;
 
   // ----- Hardware access helpers -----
 
@@ -459,16 +460,16 @@ struct DmaStream {
   // ----- ISR handler -----
 
   // Call from the DMAx_StreamN_IRQHandler.
-  // Dispatches to onHalfTransfer / onComplete based on which flags fired.
+  // Dispatches to on_half_transfer / on_complete based on which flags fired.
   void handleIrq() {
     uint32_t isr = isr_reg();
     ifcr_reg() = all_flags;
 
-    if ((isr & ht_flag) && onHalfTransfer) {
-      onHalfTransfer();
+    if ((isr & ht_flag) && on_half_transfer) {
+      on_half_transfer();
     }
-    if ((isr & tc_flag) && onComplete) {
-      onComplete();
+    if ((isr & tc_flag) && on_complete) {
+      on_complete();
     }
   }
 

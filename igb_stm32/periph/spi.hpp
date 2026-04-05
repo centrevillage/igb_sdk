@@ -7,6 +7,10 @@
 #include <igb_util/macro.hpp>
 #include <igb_util/reg.hpp>
 
+#if defined(STM32H7)
+#include <igb_stm32/periph/dma_stream.hpp>
+#endif
+
 namespace igb {
 namespace stm32 {
 
@@ -653,9 +657,16 @@ struct Spi {
     IGB_SET_BIT(IGB_SPI->CFG1, SPI_CFG1_TXDMAEN);
     enable();
     dma_stream.start(
-      reinterpret_cast<uint32_t>(buffer),
       reinterpret_cast<uint32_t>(&IGB_SPI->TXDR),
-      static_cast<uint16_t>(size)
+      reinterpret_cast<uint32_t>(buffer),
+      static_cast<uint16_t>(size),
+      DmaStreamConf {
+        .direction        = DmaStreamDir::memToPeriph,
+        .periphSize       = DmaStreamDataSize::_8bit,
+        .memSize          = DmaStreamDataSize::_8bit,
+        .memIncrement     = true,
+        .interruptComplete = true,
+      }
     );
     startMasterTransfer(true);
   }
