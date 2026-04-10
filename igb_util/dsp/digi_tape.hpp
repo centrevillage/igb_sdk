@@ -4,9 +4,11 @@
 #include <cstddef>
 #include <utility>
 #include <igb_util/macro.hpp>
+#include <igb_util/dsp/deinterpolator.hpp>
 
 namespace igb::dsp {
 
+template<typename Deinterp = DeinterpNo>
 struct DigiTape {
   double tape_speed = 1.0;
   double pos = 0.0;
@@ -15,6 +17,8 @@ struct DigiTape {
   float dummy_buf = 0.0f;
   float* buf = nullptr;
   size_t tape_size = 1;
+
+  Deinterp _deinterp;
 
   DigiTape() {
     buf = &dummy_buf;
@@ -30,9 +34,6 @@ struct DigiTape {
 
   IGB_FAST_INLINE void changeSpeed(double speed) {
     tape_speed = speed;
-    //uint32_t pos_u32 = (uint32_t)pos;
-    //pos = (double)pos_u32;
-    //*(buf + pos_u32) = 0.0f;
   }
 
   IGB_FAST_INLINE void _move() {
@@ -71,12 +72,16 @@ struct DigiTape {
       double next_pos = pos + tape_speed;
       uint32_t next_pos_u32 = (uint32_t)next_pos;
       double next_pos_frac = next_pos - (double)next_pos_u32;
+
       for (uint32_t pos_u32_tmp = pos_u32 + 1; pos_u32_tmp < next_pos_u32; ++pos_u32_tmp) {
-        *(buf + (pos_u32_tmp % tape_size)) = value;
+        float t = (float)(pos_u32_tmp - pos_u32) / (float)(next_pos_u32 - pos_u32);
+        *(buf + (pos_u32_tmp % tape_size)) = _deinterp(value, t);
       }
+
       *(buf + (next_pos_u32 % tape_size)) = value * next_pos_frac;
     }
 
+    _deinterp.update(value);
     _move();
   }
 
@@ -92,6 +97,9 @@ struct DigiTape {
   }
 };
 
+// -- DigiTapeStereo -----------------------------------------------------------
+
+template<typename Deinterp = DeinterpNo>
 struct DigiTapeStereo {
   double tape_speed = 1.0;
   double pos = 0.0;
@@ -100,6 +108,8 @@ struct DigiTapeStereo {
   std::pair<float, float> dummy_buf = {0.0f, 0.0f};
   std::pair<float, float>* buf = nullptr;
   size_t tape_size = 1;
+
+  Deinterp _deinterp;
 
   DigiTapeStereo() {
     buf = &dummy_buf;
@@ -159,14 +169,17 @@ struct DigiTapeStereo {
       double next_pos = pos + tape_speed;
       uint32_t next_pos_u32 = (uint32_t)next_pos;
       double next_pos_frac = next_pos - (double)next_pos_u32;
+
       for (uint32_t pos_u32_tmp = pos_u32 + 1; pos_u32_tmp < next_pos_u32; ++pos_u32_tmp) {
-        (*(buf + (pos_u32_tmp % tape_size))).first = value.first;
-        (*(buf + (pos_u32_tmp % tape_size))).second = value.second;
+        float t = (float)(pos_u32_tmp - pos_u32) / (float)(next_pos_u32 - pos_u32);
+        *(buf + (pos_u32_tmp % tape_size)) = _deinterp(value, t);
       }
+
       (*(buf + (next_pos_u32 % tape_size))).first = value.first * next_pos_frac;
       (*(buf + (next_pos_u32 % tape_size))).second = value.second * next_pos_frac;
     }
 
+    _deinterp.update(value);
     _move();
   }
 
@@ -184,4 +197,3 @@ struct DigiTapeStereo {
 };
 
 }
-
