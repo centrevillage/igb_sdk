@@ -73,8 +73,9 @@ struct DigiTape {
       uint32_t next_pos_u32 = (uint32_t)next_pos;
       double next_pos_frac = next_pos - (double)next_pos_u32;
 
+      float inv_span = 1.0f / (float)(next_pos_u32 - pos_u32);
       for (uint32_t pos_u32_tmp = pos_u32 + 1; pos_u32_tmp < next_pos_u32; ++pos_u32_tmp) {
-        float t = (float)(pos_u32_tmp - pos_u32) / (float)(next_pos_u32 - pos_u32);
+        float t = (float)(pos_u32_tmp - pos_u32) * inv_span;
         *(buf + (pos_u32_tmp % tape_size)) = _deinterp(value, t);
       }
 
@@ -170,8 +171,9 @@ struct DigiTapeStereo {
       uint32_t next_pos_u32 = (uint32_t)next_pos;
       double next_pos_frac = next_pos - (double)next_pos_u32;
 
+      float inv_span = 1.0f / (float)(next_pos_u32 - pos_u32);
       for (uint32_t pos_u32_tmp = pos_u32 + 1; pos_u32_tmp < next_pos_u32; ++pos_u32_tmp) {
-        float t = (float)(pos_u32_tmp - pos_u32) / (float)(next_pos_u32 - pos_u32);
+        float t = (float)(pos_u32_tmp - pos_u32) * inv_span;
         *(buf + (pos_u32_tmp % tape_size)) = _deinterp(value, t);
       }
 

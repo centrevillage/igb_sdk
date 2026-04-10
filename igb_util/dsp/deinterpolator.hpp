@@ -43,31 +43,29 @@ struct DeinterpCubic {
   IGB_FAST_INLINE T operator()(const T& value, float t) const {
     const T& pm1 = _prev[(_idx + 2) & 3];
     const T& p0  = _prev[(_idx + 3) & 3];
-    return _interp(pm1, p0, value, value, t);
+    return _interp(pm1, p0, value, t);
   }
   IGB_FAST_INLINE void update(const T& value) {
     _prev[_idx] = value;
     _idx = (_idx + 1) & 3;
   }
 
+  // Catmull-Rom with p1 == p2 (endpoint duplication): (c2+c3)*p1 で簡約
   static IGB_FAST_INLINE float _interp(
-      float pm1, float p0, float p1, float p2, float t) {
-    float c0 = t * (-0.5f + t * (1.0f - 0.5f * t));
-    float c1 = 1.0f + t * t * (1.5f * t - 2.5f);
-    float c2 = t * (0.5f + t * (2.0f - 1.5f * t));
-    float c3 = 0.5f * t * t * (t - 1.0f);
-    return c0 * pm1 + c1 * p0 + c2 * p1 + c3 * p2;
+      float pm1, float p0, float p1, float t) {
+    float c0  = t * (-0.5f + t * (1.0f - 0.5f * t));
+    float c1  = 1.0f + t * t * (1.5f * t - 2.5f);
+    float c23 = t * (0.5f + t * (2.0f - 1.5f * t)) + 0.5f * t * t * (t - 1.0f);
+    return c0 * pm1 + c1 * p0 + c23 * p1;
   }
   static IGB_FAST_INLINE std::pair<float, float> _interp(
       const std::pair<float, float>& pm1, const std::pair<float, float>& p0,
-      const std::pair<float, float>& p1, const std::pair<float, float>& p2,
-      float t) {
-    float c0 = t * (-0.5f + t * (1.0f - 0.5f * t));
-    float c1 = 1.0f + t * t * (1.5f * t - 2.5f);
-    float c2 = t * (0.5f + t * (2.0f - 1.5f * t));
-    float c3 = 0.5f * t * t * (t - 1.0f);
-    return {c0 * pm1.first  + c1 * p0.first  + c2 * p1.first  + c3 * p2.first,
-            c0 * pm1.second + c1 * p0.second + c2 * p1.second + c3 * p2.second};
+      const std::pair<float, float>& p1, float t) {
+    float c0  = t * (-0.5f + t * (1.0f - 0.5f * t));
+    float c1  = 1.0f + t * t * (1.5f * t - 2.5f);
+    float c23 = t * (0.5f + t * (2.0f - 1.5f * t)) + 0.5f * t * t * (t - 1.0f);
+    return {c0 * pm1.first  + c1 * p0.first  + c23 * p1.first,
+            c0 * pm1.second + c1 * p0.second + c23 * p1.second};
   }
 };
 
