@@ -175,7 +175,7 @@ struct LoopBufferStereo {
     uint32_t pos_i = (uint32_t)pos;
     float t = (float)(pos - (double)pos_i);
     size_t idx0 = _toAbsIdx(pos_i);
-    size_t idx1 = _toAbsIdx(pos_i + 1);
+    size_t idx1 = _toAbsIdx((pos_i + 1) % loop_length);
     auto v0 = *(buf + idx0);
     auto v1 = *(buf + idx1);
     return {
