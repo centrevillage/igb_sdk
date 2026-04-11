@@ -21,6 +21,7 @@ struct LoopBufferStereo {
   double tape_speed = 1.0;
 
   Deinterp _deinterp;
+  uint32_t _last_fb_pos = UINT32_MAX;  // feedback tracking
 
   LoopBufferStereo() {
     buf = &_dummy_buf;
@@ -36,9 +37,30 @@ struct LoopBufferStereo {
     tape_speed = speed;
   }
 
+  void resetFeedbackPos() {
+    _last_fb_pos = UINT32_MAX;
+  }
+
   // loop-relative position → absolute buffer index
   IGB_FAST_INLINE size_t _toAbsIdx(uint32_t loop_rel) {
     return (loop_start + loop_rel) % buf_size;
+  }
+
+  // feedback-aware write: apply feedback on first touch, += on revisit
+  IGB_FAST_INLINE void _writeFb(
+      size_t abs_idx, uint32_t loop_pos,
+      float val_l, float val_r, float feedback, bool update_last) {
+    auto& b = *(buf + abs_idx);
+    if (loop_pos != _last_fb_pos) {
+      b.first  = b.first  * feedback + val_l;
+      b.second = b.second * feedback + val_r;
+    } else {
+      b.first  += val_l;
+      b.second += val_r;
+    }
+    if (update_last) {
+      _last_fb_pos = loop_pos;
+    }
   }
 
   // --- position management ---
@@ -66,69 +88,68 @@ struct LoopBufferStereo {
     uint32_t pos_u32 = (uint32_t)pos;
     double pos_frac = pos - (double)pos_u32;
 
-    if (tape_speed < 1.0) {
-      _overdubSlow(value, feedback, pos_u32, pos_frac);
+    if (tape_speed >= 0.0) {
+      if (tape_speed < 1.0) {
+        _overdubSlow(value, feedback, pos_u32, pos_frac);
+      } else {
+        _overdubFast(value, feedback, pos_u32, pos_frac);
+      }
     } else {
-      _overdubFast(value, feedback, pos_u32, pos_frac);
+      double abs_speed = -tape_speed;
+      if (abs_speed < 1.0) {
+        _overdubSlowReverse(value, feedback, pos_u32, pos_frac, abs_speed);
+      } else {
+        _overdubFastReverse(value, feedback, pos_u32, pos_frac);
+      }
     }
 
     _deinterp.update(value);
     movePos();
   }
 
+  // --- forward scatter ---
+
   IGB_FAST_INLINE void _overdubSlow(
       std::pair<float, float> value, float feedback,
       uint32_t pos_u32, double pos_frac) {
+    float gain = (float)tape_speed;
     if (pos_frac + tape_speed > 1.0) {
       // crosses integer boundary
-      size_t abs0 = _toAbsIdx(pos_u32);
-      size_t abs1 = _toAbsIdx(pos_u32 + 1);
       double rate = (1.0 - pos_frac) / tape_speed;
-      float gain = (float)tape_speed;
-      // leading portion: += (feedback applied by previous trailing edge)
-      auto& b0 = *(buf + abs0);
-      b0.first  += value.first  * gain * rate;
-      b0.second += value.second * gain * rate;
-      // trailing portion: feedback + add (first touch of new position)
+      // leading portion
+      _writeFb(_toAbsIdx(pos_u32), pos_u32,
+               value.first * gain * (float)rate,
+               value.second * gain * (float)rate,
+               feedback, false);
+      // trailing portion (update _last_fb_pos)
+      uint32_t next = pos_u32 + 1;
       float rem = gain * (1.0f - (float)rate);
-      auto& b1 = *(buf + abs1);
-      b1.first  = b1.first  * feedback + value.first  * rem;
-      b1.second = b1.second * feedback + value.second * rem;
+      _writeFb(_toAbsIdx(next), next,
+               value.first * rem, value.second * rem,
+               feedback, true);
     } else if (pos_frac == 0.0) {
-      // integer boundary: feedback + add (first touch)
-      size_t abs0 = _toAbsIdx(pos_u32);
-      float gain = (float)tape_speed;
-      auto& b0 = *(buf + abs0);
-      b0.first  = b0.first  * feedback + value.first  * gain;
-      b0.second = b0.second * feedback + value.second * gain;
+      // integer boundary
+      _writeFb(_toAbsIdx(pos_u32), pos_u32,
+               value.first * gain, value.second * gain,
+               feedback, true);
     } else {
-      // mid-sample: += (feedback already applied)
-      size_t abs0 = _toAbsIdx(pos_u32);
-      float gain = (float)tape_speed;
-      auto& b0 = *(buf + abs0);
-      b0.first  += value.first  * gain;
-      b0.second += value.second * gain;
+      // mid-sample
+      _writeFb(_toAbsIdx(pos_u32), pos_u32,
+               value.first * gain, value.second * gain,
+               feedback, false);
     }
   }
 
   IGB_FAST_INLINE void _overdubFast(
       std::pair<float, float> value, float feedback,
       uint32_t pos_u32, double pos_frac) {
-    size_t abs0 = _toAbsIdx(pos_u32);
     // leading edge
-    if (pos_frac == 0.0) {
-      // integer boundary: feedback + add
-      auto& b0 = *(buf + abs0);
-      b0.first  = b0.first  * feedback + value.first;
-      b0.second = b0.second * feedback + value.second;
-    } else {
-      // fractional: += (feedback applied by previous trailing edge)
-      auto& b0 = *(buf + abs0);
-      b0.first  += value.first  * (1.0f - (float)pos_frac);
-      b0.second += value.second * (1.0f - (float)pos_frac);
-    }
+    float lead = (pos_frac == 0.0) ? 1.0f : (1.0f - (float)pos_frac);
+    _writeFb(_toAbsIdx(pos_u32), pos_u32,
+             value.first * lead, value.second * lead,
+             feedback, false);
 
-    // intermediate positions: feedback + deinterp
+    // intermediate positions
     double next_pos = pos + tape_speed;
     uint32_t next_pos_u32 = (uint32_t)next_pos;
     float next_pos_frac = (float)(next_pos - (double)next_pos_u32);
@@ -137,17 +158,85 @@ struct LoopBufferStereo {
     for (uint32_t k = pos_u32 + 1; k < next_pos_u32; ++k) {
       float t = (float)(k - pos_u32) * inv_span;
       auto interp = _deinterp(value, t);
-      size_t abs_k = _toAbsIdx(k);
-      auto& bk = *(buf + abs_k);
-      bk.first  = bk.first  * feedback + interp.first;
-      bk.second = bk.second * feedback + interp.second;
+      _writeFb(_toAbsIdx(k), k,
+               interp.first, interp.second,
+               feedback, false);
     }
 
-    // trailing edge: feedback + add
-    size_t abs_next = _toAbsIdx(next_pos_u32);
-    auto& bn = *(buf + abs_next);
-    bn.first  = bn.first  * feedback + value.first  * next_pos_frac;
-    bn.second = bn.second * feedback + value.second * next_pos_frac;
+    // trailing edge (update _last_fb_pos)
+    _writeFb(_toAbsIdx(next_pos_u32), next_pos_u32,
+             value.first * next_pos_frac, value.second * next_pos_frac,
+             feedback, true);
+  }
+
+  // --- reverse scatter ---
+
+  IGB_FAST_INLINE void _overdubSlowReverse(
+      std::pair<float, float> value, float feedback,
+      uint32_t pos_u32, double pos_frac, double abs_speed) {
+    float gain = (float)abs_speed;
+    if (pos_frac > 0.0 && pos_frac < abs_speed) {
+      // crosses integer boundary (backward)
+      float rate = (float)(pos_frac / abs_speed);
+      // leading portion (current position)
+      _writeFb(_toAbsIdx(pos_u32), pos_u32,
+               value.first * gain * rate,
+               value.second * gain * rate,
+               feedback, false);
+      // trailing portion (previous position, update _last_fb_pos)
+      uint32_t prev = (pos_u32 + loop_length - 1) % loop_length;
+      float rem = gain * (1.0f - rate);
+      _writeFb(_toAbsIdx(prev), prev,
+               value.first * rem, value.second * rem,
+               feedback, true);
+    } else if (pos_frac == 0.0) {
+      // integer boundary: entering previous position
+      uint32_t prev = (pos_u32 + loop_length - 1) % loop_length;
+      _writeFb(_toAbsIdx(prev), prev,
+               value.first * gain, value.second * gain,
+               feedback, true);
+    } else {
+      // mid-sample
+      _writeFb(_toAbsIdx(pos_u32), pos_u32,
+               value.first * gain, value.second * gain,
+               feedback, false);
+    }
+  }
+
+  IGB_FAST_INLINE void _overdubFastReverse(
+      std::pair<float, float> value, float feedback,
+      uint32_t pos_u32, double pos_frac) {
+    // leading edge (at current pos)
+    float lead = (pos_frac == 0.0) ? 1.0f : (float)pos_frac;
+    _writeFb(_toAbsIdx(pos_u32), pos_u32,
+             value.first * lead, value.second * lead,
+             feedback, false);
+
+    // backward destination (wrapped to positive)
+    double dest = pos + tape_speed;
+    if (dest < 0.0) dest += (double)loop_length;
+    uint32_t dest_u32 = (uint32_t)dest;
+    float dest_frac = (float)(dest - (double)dest_u32);
+
+    // intermediate positions (backward)
+    uint32_t span = (pos_u32 + loop_length - dest_u32) % loop_length;
+    if (span > 1) {
+      float inv_span = 1.0f / (float)span;
+      for (uint32_t i = 1; i < span; ++i) {
+        uint32_t k = (pos_u32 + loop_length - i) % loop_length;
+        float t = (float)i * inv_span;
+        auto interp = _deinterp(value, t);
+        _writeFb(_toAbsIdx(k), k,
+                 interp.first, interp.second,
+                 feedback, false);
+      }
+    }
+
+    // trailing edge (update _last_fb_pos)
+    float trailing = 1.0f - dest_frac;
+    _writeFb(_toAbsIdx(dest_u32), dest_u32,
+             value.first * trailing, value.second * trailing,
+             feedback, true);
   }
 
   // --- read ---
