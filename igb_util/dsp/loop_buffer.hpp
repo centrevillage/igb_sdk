@@ -19,6 +19,7 @@ struct LoopBufferStereo {
   size_t loop_length = 0;    // length of recorded region
   double pos = 0.0;          // position within loop (0 to loop_length)
   double tape_speed = 1.0;
+  volatile float pos_snapshot = 0.0f;  // atomic 32-bit view of pos for non-audio readers
 
   Deinterp _deinterp;
   uint32_t _last_fb_pos = UINT32_MAX;  // feedback tracking
@@ -73,6 +74,12 @@ struct LoopBufferStereo {
     } else if (pos < 0.0) {
       pos += len;
     }
+    pos_snapshot = (float)pos;
+  }
+
+  IGB_FAST_INLINE void resetPos(double new_pos = 0.0) {
+    pos = new_pos;
+    pos_snapshot = (float)new_pos;
   }
 
   // --- native-speed recording ---
