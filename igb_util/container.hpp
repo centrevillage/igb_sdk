@@ -80,6 +80,10 @@ public:
     bit = bit ^ (1UL << static_cast<N>(group));
   }
 
+  void clearAll() noexcept {
+    bit = 0;
+  }
+
   constexpr static size_t serializedBufSize() {
     return sizeof(N);
   }
