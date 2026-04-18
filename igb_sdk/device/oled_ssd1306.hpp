@@ -91,6 +91,11 @@ struct OledSsd1306 {
     return false;
   }
 
+  // Runtime panel on/off. GDDRAM contents are preserved across AE/AF so the
+  // display resumes with its last-drawn frame.
+  void displayOn()  { sendCommand(0xAF); }
+  void displayOff() { sendCommand(0xAE); }
+
   // Fully non-blocking: never busy-waits, always returns immediately.
   // Call repeatedly from main loop.
   void process() {
