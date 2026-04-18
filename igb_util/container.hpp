@@ -84,6 +84,19 @@ public:
     bit = 0;
   }
 
+  bool hasAny(const auto... groups) const noexcept {
+    return bit & BitStruct(groups...).get();
+  }
+
+  bool exactMatch(const auto... groups) const noexcept {
+    return bit == BitStruct(groups...).get();
+  }
+
+  bool match(const auto... groups) const noexcept {
+    const auto rv = BitStruct(groups...).get();
+    return (bit & rv) == rv;
+  }
+
   constexpr static size_t serializedBufSize() {
     return sizeof(N);
   }
