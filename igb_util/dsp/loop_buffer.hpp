@@ -89,6 +89,22 @@ struct LoopBufferStereo {
     write_pos = (write_pos + 1) % buf_size;
   }
 
+  // Issue #57 ループ境界スムージング用。loop-relative 位置に feedback 付き
+  // の加算 (scatter 書き込み)。`_last_fb_pos` は更新しない (OD 側の scatter
+  // 追跡と干渉させないため)。
+  IGB_FAST_INLINE void fadeInAddAt(
+      uint32_t loop_pos, float val_l, float val_r, float feedback) {
+    _writeFb(_toAbsIdx(loop_pos), loop_pos, val_l, val_r, feedback, false);
+  }
+
+  // Issue #57 ループ境界スムージング用。loop-relative 位置の既存値に gain を
+  // in-place 乗算 (録音 tail の fade_out retroactive 用)。
+  IGB_FAST_INLINE void gainAt(uint32_t loop_pos, float gain) {
+    auto& b = *(buf + _toAbsIdx(loop_pos));
+    b.first  *= gain;
+    b.second *= gain;
+  }
+
   // --- variable-speed overdub with de-interpolation ---
 
   IGB_FAST_INLINE void overdub(std::pair<float, float> value, float feedback) {
