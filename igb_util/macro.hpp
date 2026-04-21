@@ -2,11 +2,19 @@
 
 #define UNWRAP(id) id
 
-#define IGB_FAST __attribute__((optimize("Ofast"))) 
-#define IGB_FAST_INLINE inline __attribute__((always_inline, optimize("Ofast"))) 
-#define IGB_INLINE inline __attribute__((always_inline)) 
-#define IGB_SIZE_OPTIMIZE __attribute__((optimize("Os"))) 
-#define IGB_SIZE_INLINE inline __attribute__((always_inline, optimize("Os"))) 
+#define IGB_FAST __attribute__((optimize("Ofast")))
+#define IGB_FAST_INLINE inline __attribute__((always_inline, optimize("Ofast")))
+#define IGB_INLINE inline __attribute__((always_inline))
+#define IGB_SIZE_OPTIMIZE __attribute__((optimize("Os")))
+#define IGB_SIZE_INLINE inline __attribute__((always_inline, optimize("Os")))
+
+// Issue #62: place code in ITCM (Instruction Tightly-Coupled Memory) on
+// STM32H7. 0-wait-state fetch beats QSPI XIP by ~10x. No-op on host builds.
+#if defined(STM32H750xx)
+  #define IGB_ITCM __attribute__((section(".itcm")))
+#else
+  #define IGB_ITCM
+#endif
 
 #define IGB_UNUSED __attribute__((unused))
 
