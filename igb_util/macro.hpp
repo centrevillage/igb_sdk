@@ -16,6 +16,16 @@
   #define IGB_ITCM
 #endif
 
+// Issue #63: place data in DTCM (Data Tightly-Coupled Memory) on STM32H7.
+// 0-wait-state read/write, accessible only from core (DMA excluded except
+// MDMA). Uses .dtcmram_bss, which the startup code zero-clears so C++ ABI
+// zero-initialization of non-local globals holds. No-op on host builds.
+#if defined(STM32H750xx)
+  #define IGB_DTCM __attribute__((section(".dtcmram_bss")))
+#else
+  #define IGB_DTCM
+#endif
+
 #define IGB_UNUSED __attribute__((unused))
 
 #define MODIFY_REG_SIMPLE(reg, param_name, value) \
