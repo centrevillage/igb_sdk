@@ -66,15 +66,22 @@ struct LoopBufferStereo {
 
   // --- position management ---
 
-  IGB_FAST_INLINE void movePos() {
+  // Advance pos by tape_speed, wrapping at loop boundaries. Returns true if a
+  // wrap occurred (forward past loop_length, or reverse past 0). Callers that
+  // don't need the wrap signal can ignore the return value.
+  IGB_FAST_INLINE bool movePos() {
     pos += tape_speed;
     double len = (double)loop_length;
+    bool wrapped = false;
     if (pos >= len) {
       pos -= len;
+      wrapped = true;
     } else if (pos < 0.0) {
       pos += len;
+      wrapped = true;
     }
     pos_snapshot = (float)pos;
+    return wrapped;
   }
 
   IGB_FAST_INLINE void resetPos(double new_pos = 0.0) {
@@ -107,7 +114,11 @@ struct LoopBufferStereo {
 
   // --- variable-speed overdub with de-interpolation ---
 
-  IGB_FAST_INLINE void overdub(std::pair<float, float> value, float feedback) {
+  // Scatter-write `value` at current pos with feedback, advance pos, and
+  // return true if the pos advance crossed the loop boundary. The wrap
+  // signal lets callers detect OD one-lap-completed without an extra
+  // prev_pos/new_pos fetch pair (LilaCRepeater issue #64).
+  IGB_FAST_INLINE bool overdub(std::pair<float, float> value, float feedback) {
     uint32_t pos_u32 = (uint32_t)pos;
     double pos_frac = pos - (double)pos_u32;
 
@@ -127,7 +138,7 @@ struct LoopBufferStereo {
     }
 
     _deinterp.update(value);
-    movePos();
+    return movePos();
   }
 
   // --- forward scatter ---
