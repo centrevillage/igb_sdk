@@ -21,6 +21,15 @@ struct LoopBufferStereo {
   double tape_speed = 1.0;
   volatile float pos_snapshot = 0.0f;  // atomic 32-bit view of pos for non-audio readers
 
+  // Issue #68: readLoop() reads at pos + read_head_offset (forward, fixed)
+  // so scatter writes at pos never contaminate the current sample's read.
+  // The offset is direction-independent: forward OD reads the "not yet
+  // scattered" region, reverse OD reads the "already fully scattered and
+  // stable" region. Keeping the sign fixed avoids a ~32-sample jump at
+  // is_reverse toggles. 16 samples = 0.33 ms @ 48 kHz, well below the
+  // perceptual threshold; covers scatter spans up to 14 samples plus interp.
+  constexpr static double read_head_offset = 16.0;
+
   Deinterp _deinterp;
   uint32_t _last_fb_pos = UINT32_MAX;  // feedback tracking
 
@@ -301,10 +310,15 @@ struct LoopBufferStereo {
     };
   }
 
-  // read within loop at current pos (interpolated)
+  // read within loop at current pos (interpolated).
+  // Issue #68: reads at pos + read_head_offset rather than pos directly, so
+  // the auditory now-position is decoupled from the scatter write head. See
+  // `read_head_offset` comment above for the direction and safety reasoning.
   IGB_FAST_INLINE std::pair<float, float> readLoop() {
-    uint32_t pos_i = (uint32_t)pos;
-    float t = (float)(pos - (double)pos_i);
+    double read_pos = pos + read_head_offset;
+    if (read_pos >= (double)loop_length) read_pos -= (double)loop_length;
+    uint32_t pos_i = (uint32_t)read_pos;
+    float t = (float)(read_pos - (double)pos_i);
     size_t idx0 = _toAbsIdx(pos_i);
     size_t idx1 = _toAbsIdx((pos_i + 1) % loop_length);
     auto v0 = *(buf + idx0);
