@@ -155,8 +155,10 @@ struct LoopBufferStereo {
                value.first * gain * (float)rate,
                value.second * gain * (float)rate,
                feedback, false);
-      // trailing portion (update _last_fb_pos)
-      uint32_t next = pos_u32 + 1;
+      // trailing portion (update _last_fb_pos). Issue #67: wrap by loop_length
+      // so the contribution lands on loop_pos 0 when we cross the boundary,
+      // instead of writing past the loop into unused buffer space.
+      uint32_t next = (pos_u32 + 1) % loop_length;
       float rem = gain * (1.0f - (float)rate);
       _writeFb(_toAbsIdx(next), next,
                value.first * rem, value.second * rem,
@@ -183,21 +185,27 @@ struct LoopBufferStereo {
              value.first * lead, value.second * lead,
              feedback, false);
 
-    // intermediate positions
+    // intermediate positions. Issue #67: span is computed on raw (unwrapped)
+    // indices so `t` stays a clean fraction, but every `_writeFb` loop_pos is
+    // wrapped by loop_length so contributions that straddle the boundary land
+    // on loop positions 0..N-1 instead of past-the-end slots.
     double next_pos = pos + tape_speed;
-    uint32_t next_pos_u32 = (uint32_t)next_pos;
-    float next_pos_frac = (float)(next_pos - (double)next_pos_u32);
+    uint32_t next_pos_raw = (uint32_t)next_pos;
+    float next_pos_frac = (float)(next_pos - (double)next_pos_raw);
 
-    float inv_span = 1.0f / (float)(next_pos_u32 - pos_u32);
-    for (uint32_t k = pos_u32 + 1; k < next_pos_u32; ++k) {
+    float inv_span = 1.0f / (float)(next_pos_raw - pos_u32);
+    for (uint32_t k = pos_u32 + 1; k < next_pos_raw; ++k) {
+      uint32_t k_wrapped = k % loop_length;
       float t = (float)(k - pos_u32) * inv_span;
       auto interp = _deinterp(value, t);
-      _writeFb(_toAbsIdx(k), k,
+      _writeFb(_toAbsIdx(k_wrapped), k_wrapped,
                interp.first, interp.second,
                feedback, false);
     }
 
-    // trailing edge (update _last_fb_pos)
+    // trailing edge (update _last_fb_pos with the wrapped loop pos so the
+    // next call's lead at loop_pos 0 correctly hits the REVISIT branch).
+    uint32_t next_pos_u32 = next_pos_raw % loop_length;
     _writeFb(_toAbsIdx(next_pos_u32), next_pos_u32,
              value.first * next_pos_frac, value.second * next_pos_frac,
              feedback, true);
