@@ -31,7 +31,13 @@ struct SdAsyncWriter {
 
   bool isComplete() { return sd_card.isTransferComplete(); }
 
-  bool endWrite() { return sd_card.endTransfer(); }
+  // wait_ready=false (issue #83): finalize without blocking in waitReady();
+  // poll pollReady() before the next write instead.
+  bool endWrite(bool wait_ready = true) { return sd_card.endTransfer(wait_ready); }
+
+  // Non-blocking card-ready poll (issue #83). True once the card is ready for
+  // the next write after endWrite(false).
+  bool pollReady() { return sd_card.pollReady(); }
 
   // Block until any in-flight transfer completes, then finalize. Intended
   // for cancellation/synchronous drain points. Uses __WFI() to sleep-wait

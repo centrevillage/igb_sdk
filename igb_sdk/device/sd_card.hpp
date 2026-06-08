@@ -362,7 +362,13 @@ struct SdCard {
   // Finalize a transfer that isTransferComplete() reported done.
   // Sends STOP_TRANS if multi-block, memcpy for reads, waitReady for writes,
   // then returns to idle. Returns overall success.
-  bool endTransfer() {
+  //
+  // wait_ready (default true): block in waitReady() until the card leaves the
+  // programming state. Pass false to skip it (LilaCRepeater issue #83): the
+  // peripheral is finalized and returns to idle, but the card may still be
+  // busy — the caller must poll pollReady() before the next write so the
+  // main loop is not blocked. Reads never wait.
+  bool endTransfer(bool wait_ready = true) {
     if (_xfer_state != TransferState::complete && _xfer_state != TransferState::error) {
       return false;
     }
@@ -381,12 +387,26 @@ struct SdCard {
     // Writes must wait for the card to leave the RCV/DATA state before the
     // next command can be issued. Reads don't need this.
     bool ready_ok = true;
-    if (!_xfer_is_read && success) {
+    if (!_xfer_is_read && success && wait_ready) {
       ready_ok = waitReady();
     }
 
     _xfer_state = TransferState::idle;
     return success && ready_ok;
+  }
+
+  // Non-blocking single-shot card-ready check (issue #83). One SEND_STATUS;
+  // returns true once the card is back in TRAN (programming done). Use after
+  // endTransfer(false) to poll for readiness across main-loop iterations
+  // instead of blocking in waitReady(). A transient command failure returns
+  // false (retry next call); the caller owns the overall timeout.
+  bool pollReady() {
+    if (!sendCommand(SdCmd::SEND_STATUS, info.rca << 16, igb::stm32::SdmmcWaitResp::shortCrc)) {
+      return false;
+    }
+    uint32_t status = sd.getResp1();
+    uint32_t state = (status >> 9) & 0x0F;
+    return state == 4;  // TRAN
   }
 
   // Called from SDMMC1_IRQHandler. Transitions busy_data → complete/error.
