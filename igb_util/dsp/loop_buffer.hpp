@@ -30,6 +30,21 @@ struct LoopBufferStereo {
   // perceptual threshold; covers scatter spans up to 14 samples plus interp.
   constexpr static double read_head_offset = 16.0;
 
+  // Issue #84: read-time loop-boundary crossfade. When boundary_xfade is set
+  // (overdubbed loops), readLoop() spreads the buf[L-1]→buf[0] discontinuity
+  // over boundary_xfade_len samples on each side of the wrap. Non-destructive
+  // (the stored buffer is never modified for smoothing) so it cannot
+  // accumulate across repeated OD start/stop. Length-preserving (the wrap
+  // stays at loop_length).
+  constexpr static uint32_t boundary_xfade_len = 64;
+  bool boundary_xfade = false;
+  // Frozen bridge endpoints (issue #84): during active OD the scatter overdubs
+  // buf[0]/buf[L-1] while the read is inside the crossfade region, which would
+  // step the bridge. readLoop() refreshes these from the (stable) edges while
+  // OUTSIDE the region and uses the frozen values inside it.
+  std::pair<float, float> _xfade_e0{};   // buf[0]
+  std::pair<float, float> _xfade_eL{};   // buf[L-1]
+
   Deinterp _deinterp;
   uint32_t _last_fb_pos = UINT32_MAX;  // feedback tracking
 
@@ -49,6 +64,16 @@ struct LoopBufferStereo {
 
   void resetFeedbackPos() {
     _last_fb_pos = UINT32_MAX;
+  }
+
+  // Issue #84: enable the read-time boundary crossfade and seed the frozen
+  // bridge endpoints from the current loop edges so the first boundary crossing
+  // after enabling uses valid values.
+  void enableBoundaryXfade() {
+    boundary_xfade = true;
+    _xfade_e0 = *(buf + _toAbsIdx(0));
+    _xfade_eL = (loop_length > 0) ? *(buf + _toAbsIdx(loop_length - 1))
+                                  : std::pair<float, float>{0.0f, 0.0f};
   }
 
   // loop-relative position → absolute buffer index
@@ -323,10 +348,50 @@ struct LoopBufferStereo {
     size_t idx1 = _toAbsIdx((pos_i + 1) % loop_length);
     auto v0 = *(buf + idx0);
     auto v1 = *(buf + idx1);
-    return {
-      (1.0f - t) * v0.first  + t * v1.first,
-      (1.0f - t) * v0.second + t * v1.second
-    };
+    float out_l = (1.0f - t) * v0.first  + t * v1.first;
+    float out_r = (1.0f - t) * v0.second + t * v1.second;
+
+    // Issue #84: read-time loop-boundary crossfade (overdubbed loops). Within
+    // boundary_xfade_len of the wrap on each side, blend the content toward a
+    // linear bridge between buf[L-1] and buf[0] (weight w peaks at the wrap),
+    // spreading the steep 1-sample jump over the window. At the wrap both
+    // sides converge to 0.5*(buf[L-1]+buf[0]) → continuous; at ±N w=0 → normal.
+    if (boundary_xfade && loop_length > 2u * boundary_xfade_len) {
+      const float N = (float)boundary_xfade_len;
+      double dist = -1.0;
+      bool pre_wrap = false;
+      if (read_pos >= (double)loop_length - (double)N) {
+        dist = (double)loop_length - read_pos;   // 0..N (approaching wrap)
+        pre_wrap = true;
+      } else if (read_pos < (double)N) {
+        dist = read_pos;                          // 0..N (leaving wrap)
+      }
+      if (dist >= 0.0) {
+        // Inside the region: bridge using the FROZEN edges (the live buf[0]/
+        // buf[L-1] are overdubbed by the OD scatter while we are here, which
+        // would step the bridge — issue #84 problem 2).
+        float d = (float)dist / N;                // 0 at wrap, 1 at ±N
+        // Smoothstep weight: 1 at the wrap, 0 at ±N, with ZERO slope at both
+        // ends AND the peak. A linear (triangle) weight has a slope kink at its
+        // peak — i.e. a corner in the waveform right at the loop boundary —
+        // which is audible as a soft click proportional to the boundary
+        // discontinuity (issue #84 problem 2). Smoothstep removes the kink.
+        float w = 1.0f - d * d * (3.0f - 2.0f * d);  // 1 - smoothstep(d)
+        float phi = pre_wrap ? (0.5f * (1.0f - d))   // 0 at L-N → 0.5 at wrap
+                             : (0.5f + 0.5f * d);    // 0.5 at wrap → 1 at N
+        float bridge_l = (1.0f - phi) * _xfade_eL.first  + phi * _xfade_e0.first;
+        float bridge_r = (1.0f - phi) * _xfade_eL.second + phi * _xfade_e0.second;
+        out_l = out_l * (1.0f - w) + bridge_l * w;
+        out_r = out_r * (1.0f - w) + bridge_r * w;
+      } else {
+        // Outside the region the edges are not being overdubbed (the write head
+        // touches them only at pos 0 / L-1, which map into the region), so they
+        // are stable — refresh the snapshots for the next boundary crossing.
+        _xfade_e0 = *(buf + _toAbsIdx(0));
+        _xfade_eL = *(buf + _toAbsIdx(loop_length - 1));
+      }
+    }
+    return { out_l, out_r };
   }
 };
 
