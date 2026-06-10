@@ -67,6 +67,12 @@ struct SeqSyncableModClock {
     float_t clock_to_step_coeff = 0.0f;
 
     uint32_t ipl_prev_tick = 0;
+    // Timestamp of the most recent on_update() fire, in timer ticks. For
+    // fires driven by a source clock this is the source clock's (captured
+    // or scheduled) tick; for interpolated fires it is the CC scheduled
+    // tick. Lets applications timestamp clock events independently of how
+    // late process() actually ran (issue #91).
+    uint32_t last_update_tick = 0;
     ClockModType clock_mod;
     uint16_t clock_mod_cycle = 0;
     uint16_t clock_mod_idx = 0;
@@ -404,6 +410,7 @@ struct SeqSyncableModClock {
   inline void _updateClockStateJumpSync(uint8_t idx, uint32_t _tick) {
     auto& state = _clockStates[idx];
     if (state.clk_count == 0) {
+      state.last_update_tick = _tick;
       while (state.ipl_count > 0) {
         // consume remains events
         state.on_update();
@@ -443,21 +450,22 @@ struct SeqSyncableModClock {
 
   void onUpdateIntTimer(uint8_t clock_idx, uint32_t t) {
     if (sync_algorithm == ClockSyncAlgorithm::jump) {
-      _onUpdateIntTimerJumpSync(clock_idx);
+      _onUpdateIntTimerJumpSync(clock_idx, t);
     } else {
       _onUpdateIntTimerSmoothSync(clock_idx, t);
     }
   }
 
-  inline void _onUpdateIntTimerJumpSync(uint8_t clock_idx) {
+  inline void _onUpdateIntTimerJumpSync(uint8_t clock_idx, uint32_t t) {
     auto& state = _clockStates[clock_idx];
     if (state.ipl_count > 0) {
       updateIntTimerIntervalTick(clock_idx);
+      state.last_update_tick = t;
       state.on_update();
       state.ipl_count--;
-    } 
+    }
     if (state.ipl_count == 0) {
-      _timer.stop(clock_idx); 
+      _timer.stop(clock_idx);
     }
   }
 
@@ -468,6 +476,7 @@ struct SeqSyncableModClock {
       state.prev_interval_phase = 0.0;
     }
     updateIntTimerIntervalTick(clock_idx);
+    state.last_update_tick = t;
     state.on_update();
     if (state.ipl_count > 0) {
       state.ipl_count--;
