@@ -5,7 +5,6 @@
 #include <igb_stm32/base.hpp>
 #include <igb_stm32/periph/gpio.hpp>
 #include <igb_util/macro.hpp>
-#include <igb_sdk/util/soft_timer.hpp>
 
 namespace igb::sdk {
 
@@ -54,10 +53,13 @@ struct MuxIO<wait_tick, AddrPinList<addr_pin_types...>, IOConfigList<configs...>
   };
 
   uint8_t address_idx = 0;
-  SoftTimerSingle timer;
+  // Issue #104: last tick at which the address was stepped. Replaces the soft
+  // timer so process() can de-bunch (see process()).
+  uint32_t _last_step_tick = 0;
 
   void init(uint32_t tick) {
     address_idx = 0;
+    _last_step_tick = tick;
     for (auto& pin : addr_pins) {
       pin.enable();
       pin.initOutputDefault();
@@ -73,9 +75,6 @@ struct MuxIO<wait_tick, AddrPinList<addr_pin_types...>, IOConfigList<configs...>
       }
     }
 
-    timer.intervalCallback(wait_tick, tick, [this](){
-      updateAddress();
-    });
   }
 
   // アドレス変更処理。
@@ -119,8 +118,26 @@ struct MuxIO<wait_tick, AddrPinList<addr_pin_types...>, IOConfigList<configs...>
     group_states[group_idx].state[addr_idx] = value;
   }
 
+  // Issue #104: step at most one address per call, gated by wait_tick. A long
+  // interrupt (the ~1ms audio DMA IRQ runs at NVIC priority 0 and cannot be
+  // preempted) blocks the main loop and leaves us several intervals behind.
+  // The old soft timer caught up by firing once per (fast) main-loop iteration
+  // afterwards, bunching many steps into a burst that under-lit those
+  // addresses and made the LED brightness shimmer. Here a gap longer than one
+  // interval is treated as an overrun: take a single step and drop the
+  // accumulated lag (resume a full interval from now) instead of bursting.
+  // Sub-interval lateness still advances by exactly wait_tick to hold cadence.
+  // (The address frozen *during* the blocking IRQ is still held longer than a
+  // normal slot — that residual needs stepping inside the audio IRQ, out of
+  // scope here; see docs/104.)
   void process(uint32_t tick) {
-    timer.process(tick);
+    uint32_t elapsed = tick - _last_step_tick;
+    if (elapsed < wait_tick) {
+      return;
+    }
+    updateAddress();
+    _last_step_tick =
+      (elapsed >= 2u * wait_tick) ? tick : (_last_step_tick + wait_tick);
   }
 };
 
