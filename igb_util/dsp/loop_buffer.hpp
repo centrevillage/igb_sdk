@@ -340,8 +340,21 @@ struct LoopBufferStereo {
   // the auditory now-position is decoupled from the scatter write head. See
   // `read_head_offset` comment above for the direction and safety reasoning.
   IGB_FAST_INLINE std::pair<float, float> readLoop() {
-    double read_pos = pos + read_head_offset;
+    return readLoopAhead(0.0, true);
+  }
+
+  // Issue #111: io-rate (96 kHz) oversampled read. Reads at pos + `ahead`
+  // (+ read_head_offset) WITHOUT advancing pos, so a loop frame can emit
+  // `audio_oversample` sub-frame samples (ahead = k·speed/N) while pos still
+  // advances by a single movePos() — keeping the io path bit-equivalent to the
+  // 48 k path at loop-frame boundaries. `is_canonical` (true only for the
+  // ahead==0 read) gates the boundary_xfade frozen-edge refresh: a sub-frame
+  // read must not refresh the snapshots from a position the loop-frame
+  // bookkeeping has not yet reached.
+  IGB_FAST_INLINE std::pair<float, float> readLoopAhead(double ahead, bool is_canonical) {
+    double read_pos = pos + ahead + read_head_offset;
     if (read_pos >= (double)loop_length) read_pos -= (double)loop_length;
+    else if (read_pos < 0.0) read_pos += (double)loop_length;
     uint32_t pos_i = (uint32_t)read_pos;
     float t = (float)(read_pos - (double)pos_i);
     size_t idx0 = _toAbsIdx(pos_i);
@@ -383,10 +396,12 @@ struct LoopBufferStereo {
         float bridge_r = (1.0f - phi) * _xfade_eL.second + phi * _xfade_e0.second;
         out_l = out_l * (1.0f - w) + bridge_l * w;
         out_r = out_r * (1.0f - w) + bridge_r * w;
-      } else {
+      } else if (is_canonical) {
         // Outside the region the edges are not being overdubbed (the write head
         // touches them only at pos 0 / L-1, which map into the region), so they
         // are stable — refresh the snapshots for the next boundary crossing.
+        // Issue #111: only the canonical (ahead==0) read refreshes; the io
+        // sub-frame read reuses the snapshots so it cannot step the bridge.
         _xfade_e0 = *(buf + _toAbsIdx(0));
         _xfade_eL = *(buf + _toAbsIdx(loop_length - 1));
       }
