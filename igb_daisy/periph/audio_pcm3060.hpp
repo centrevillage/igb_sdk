@@ -96,6 +96,9 @@ struct AudioPcm3060 {
       .outputDrive = false,
       .mckDiv     = mck_div,
       .mckEnable  = true,
+      .osr        = true,  // 512×fs oversampling: FFS = PLL3P/(MCKDIV×512) = 48k.
+                           // Without it OSR=0 gives 256×fs → FFS doubles to 96k
+                           // (mck_div is computed for the 512×fs relation). #110
     });
 
     // I2S Left-Justified (MSB Justified) frame:
