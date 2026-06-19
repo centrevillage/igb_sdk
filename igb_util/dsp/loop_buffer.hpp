@@ -33,20 +33,33 @@ struct LoopBufferStereo {
   //                   end, e.g. start=1,length=full). win_start/win_len are derived
   //                   from the per-track play_start_step/play_length_step by the
   //                   domain layer and kept ≤ loop_length.
+  // win_len is a DOUBLE (fractional samples): the domain sets it to the tick-exact
+  // length_step*6*recorded_length/recorded_ticks so a window wraps in exactly
+  // length_step*6 ticks and stays clock-grid-locked (the #121 generalization of
+  // the #89 full-loop exactness). win_start stays an integer content offset
+  // (a sub-sample start offset has no timing effect).
   size_t win_start = 0;
-  size_t win_len = 0;        // 0 = full window (sentinel)
+  double win_len = 0.0;      // 0 = full window (sentinel); else fractional samples
 
   // Effective window (clamped so an invalid/stale window degrades to full).
-  IGB_FAST_INLINE size_t winLen() const {
-    return (win_len == 0 || win_len > loop_length) ? loop_length : win_len;
+  IGB_FAST_INLINE double winLen() const {
+    return (win_len == 0.0 || win_len > (double)loop_length) ? (double)loop_length : win_len;
   }
   IGB_FAST_INLINE size_t winStart() const {
-    return (win_len == 0 || win_len > loop_length || win_start >= loop_length)
+    return (win_len == 0.0 || win_len > (double)loop_length || win_start >= loop_length)
              ? 0 : win_start;
   }
   IGB_FAST_INLINE bool hasWindow() const {
-    return win_len != 0 && win_len <= loop_length && win_start < loop_length
-        && !(win_start == 0 && win_len == loop_length);
+    return win_len != 0.0 && win_len <= (double)loop_length && win_start < loop_length
+        && !(win_start == 0 && win_len == (double)loop_length);
+  }
+  // Integer window length for the overdub scatter modulus: ceil(win_len) so the
+  // last (fractional) window sample is still a valid scatter slot. == winLen()
+  // for an integer / full window.
+  IGB_FAST_INLINE uint32_t _winLenInt() const {
+    double wl = winLen();
+    uint32_t i = (uint32_t)wl;
+    return ((double)i < wl) ? (i + 1u) : i;
   }
 
   // Issue #68: readLoop() reads at pos + read_head_offset (forward, fixed)
@@ -100,11 +113,11 @@ struct LoopBufferStereo {
   void enableBoundaryXfade() {
     boundary_xfade = true;
     // Issue #121: bridge the WINDOW seam (window start ↔ window end), not the
-    // content end. Reduces to buf[0]/buf[L-1] when no sub-window is active.
-    size_t wl = winLen();
+    // content end. Reduces to buf[0]/buf[L-1] when no sub-window is active. The
+    // end edge is the last integer window sample (_winLenInt()-1).
     _xfade_e0 = *(buf + _winToAbsIdx(0));
-    _xfade_eL = (wl > 0) ? *(buf + _winToAbsIdx((uint32_t)(wl - 1)))
-                         : std::pair<float, float>{0.0f, 0.0f};
+    _xfade_eL = (winLen() > 0.0) ? *(buf + _winToAbsIdx(_winLenInt() - 1u))
+                                 : std::pair<float, float>{0.0f, 0.0f};
   }
 
   // loop-relative position → absolute buffer index. Absolute content addressing
@@ -228,7 +241,7 @@ struct LoopBufferStereo {
       uint32_t pos_u32, double pos_frac) {
     // Issue #121: pos_u32 is WINDOW-relative; wrap by winLen() and map to
     // absolute content via _winToAbsIdx so the scatter stays inside the window.
-    const uint32_t wl = (uint32_t)winLen();
+    const uint32_t wl = _winLenInt();  // Issue #121: ceil(win_len) (fractional window)
     float gain = (float)tape_speed;
     if (pos_frac + tape_speed > 1.0) {
       // crosses integer boundary
@@ -263,7 +276,7 @@ struct LoopBufferStereo {
       std::pair<float, float> value, float feedback,
       uint32_t pos_u32, double pos_frac) {
     // Issue #121: window-relative scatter (see _overdubSlow).
-    const uint32_t wl = (uint32_t)winLen();
+    const uint32_t wl = _winLenInt();  // Issue #121: ceil(win_len) (fractional window)
     // leading edge
     float lead = (pos_frac == 0.0) ? 1.0f : (1.0f - (float)pos_frac);
     _writeFb(_winToAbsIdx(pos_u32), pos_u32,
@@ -302,7 +315,7 @@ struct LoopBufferStereo {
       std::pair<float, float> value, float feedback,
       uint32_t pos_u32, double pos_frac, double abs_speed) {
     // Issue #121: window-relative backward scatter (see _overdubSlow).
-    const uint32_t wl = (uint32_t)winLen();
+    const uint32_t wl = _winLenInt();  // Issue #121: ceil(win_len) (fractional window)
     float gain = (float)abs_speed;
     if (pos_frac > 0.0 && pos_frac < abs_speed) {
       // crosses integer boundary (backward)
@@ -336,7 +349,7 @@ struct LoopBufferStereo {
       std::pair<float, float> value, float feedback,
       uint32_t pos_u32, double pos_frac) {
     // Issue #121: window-relative backward scatter (see _overdubSlow).
-    const uint32_t wl = (uint32_t)winLen();
+    const uint32_t wl = _winLenInt();  // Issue #121: ceil(win_len) (fractional window)
     // leading edge (at current pos)
     float lead = (pos_frac == 0.0) ? 1.0f : (float)pos_frac;
     _writeFb(_winToAbsIdx(pos_u32), pos_u32,
@@ -411,14 +424,20 @@ struct LoopBufferStereo {
     // window-relative indices map to absolute content via _winToAbsIdx (which
     // wraps at loop_length, so a window straddling the recording end reads the
     // correct content). winLen()==loop_length when no sub-window is active.
-    const double wl = (double)winLen();
+    const double wl = winLen();
     double read_pos = pos + ahead + read_head_offset;
     if (read_pos >= wl) read_pos -= wl;
     else if (read_pos < 0.0) read_pos += wl;
     uint32_t pos_i = (uint32_t)read_pos;
     float t = (float)(read_pos - (double)pos_i);
+    // Issue #121: the interp partner wraps at the (possibly FRACTIONAL) window
+    // length — next == 0 once it would reach/exceed wl, so the seam interpolates
+    // window-end → window-start without an integer-modulus off-by-one. For an
+    // integer / full window this matches the prior (pos_i+1) % wl behavior.
+    uint32_t next_i = pos_i + 1u;
+    if ((double)next_i >= wl) next_i = 0u;
     size_t idx0 = _winToAbsIdx(pos_i);
-    size_t idx1 = _winToAbsIdx((uint32_t)((pos_i + 1) % (size_t)wl));
+    size_t idx1 = _winToAbsIdx(next_i);
     auto v0 = *(buf + idx0);
     auto v1 = *(buf + idx1);
     float out_l = (1.0f - t) * v0.first  + t * v1.first;
@@ -462,9 +481,10 @@ struct LoopBufferStereo {
         // are stable — refresh the snapshots for the next boundary crossing.
         // Issue #111: only the canonical (ahead==0) read refreshes; the io
         // sub-frame read reuses the snapshots so it cannot step the bridge.
-        // Issue #121: window edges (reduces to buf[0]/buf[L-1] for a full window).
+        // Issue #121: window edges (reduces to buf[0]/buf[L-1] for a full
+        // window); end edge is the last integer window sample (_winLenInt()-1).
         _xfade_e0 = *(buf + _winToAbsIdx(0));
-        _xfade_eL = *(buf + _winToAbsIdx((uint32_t)(winLen() - 1)));
+        _xfade_eL = *(buf + _winToAbsIdx(_winLenInt() - 1u));
       }
     }
     return { out_l, out_r };
