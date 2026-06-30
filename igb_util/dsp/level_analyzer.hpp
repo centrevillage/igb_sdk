@@ -11,8 +11,11 @@ struct LevelAnalyzer {
 
   std::pair<float, float> levels = {0.0f, 0.0f};
 
-  void init() {
-    ef.init(0.001f, 0.001f);
+  // attack_time / release_time are EnvFollower time constants (seconds). Defaults
+  // preserve the original 1 ms / 1 ms behavior; callers can pass a slower release
+  // for a smoother level-meter fall (see LilaCRepeater issue #157).
+  void init(float attack_time = 0.001f, float release_time = 0.001f) {
+    ef.init(attack_time, release_time);
   }
 
   void process(std::pair<float, float> signals) {
