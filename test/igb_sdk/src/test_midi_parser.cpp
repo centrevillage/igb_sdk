@@ -150,3 +150,73 @@ TEST_CASE("MidiParser: realtime byte between PC status and data keeps the PC",
   CHECK(ev[1].status == 0xC1);
   CHECK(ev[1].data1 == 5);
 }
+
+// ---- LilaC #172: realtime interleave must not destroy a partial message ----
+
+TEST_CASE("MidiParser: clock between data bytes keeps the 3-byte message",
+          "[midi]") {
+  Midi midi;
+  // Pre-fix the 0xF8 reset data1, so the NoteOn lost its note number and the
+  // following bytes re-paired into phantom events.
+  auto ev = parse(midi, {0x91, 60, 0xF8, 100});
+  REQUIRE(ev.size() == 2);
+  CHECK(ev[0].status == 0xF8);
+  CHECK(ev[1].status == 0x91);
+  CHECK(ev[1].data1 == 60);
+  CHECK(ev[1].data2 == 100);
+}
+
+TEST_CASE("MidiParser: running-status note stream survives scattered clocks",
+          "[midi]") {
+  Midi midi;
+  auto ev = parse(midi, {0x91, 60, 0xF8, 100, 62, 0xF8, 0});
+  REQUIRE(ev.size() == 4);
+  CHECK(ev[0].status == 0xF8);
+  CHECK(ev[1].status == 0x91);
+  CHECK(ev[1].data1 == 60);
+  CHECK(ev[1].data2 == 100);
+  CHECK(ev[2].status == 0xF8);
+  CHECK(ev[3].status == 0x91);
+  CHECK(ev[3].data1 == 62);
+  CHECK(ev[3].data2 == 0);
+}
+
+TEST_CASE("MidiParser: defined realtime bytes each emit a 1-byte event",
+          "[midi]") {
+  Midi midi;
+  auto ev = parse(midi, {0xF8, 0xFA, 0xFB, 0xFC, 0xFE, 0xFF});
+  REQUIRE(ev.size() == 6);
+  CHECK(ev[0].status == 0xF8);
+  CHECK(ev[1].status == 0xFA);
+  CHECK(ev[2].status == 0xFB);
+  CHECK(ev[3].status == 0xFC);
+  CHECK(ev[4].status == 0xFE);
+  CHECK(ev[5].status == 0xFF);
+}
+
+TEST_CASE("MidiParser: undefined status bytes are discarded without clobbering",
+          "[midi]") {
+  Midi midi;
+  // 0xF9 / 0xFD (undefined realtime) and 0xF4 / 0xF5 (undefined system
+  // common) mid-message: no event, and the pending NoteOn stays intact.
+  auto ev = parse(midi, {0x91, 60, 0xF9, 0xFD, 0xF4, 0xF5, 100});
+  REQUIRE(ev.size() == 1);
+  CHECK(ev[0].status == 0x91);
+  CHECK(ev[0].data1 == 60);
+  CHECK(ev[0].data2 == 100);
+}
+
+TEST_CASE("MidiParser: data bytes before any status byte are dropped",
+          "[midi]") {
+  Midi midi;
+  // Power-on mid-stream / hot-plug: the tail of a partial message must not
+  // form a status-0 garbage event (it would be forwarded on the chain wire).
+  auto ev = parse(midi, {10, 20, 30});
+  CHECK(ev.empty());
+  // The parser recovers at the first real status byte.
+  ev = parse(midi, {0x90, 60, 100});
+  REQUIRE(ev.size() == 1);
+  CHECK(ev[0].status == 0x90);
+  CHECK(ev[0].data1 == 60);
+  CHECK(ev[0].data2 == 100);
+}

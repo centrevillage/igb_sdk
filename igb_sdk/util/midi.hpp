@@ -120,7 +120,8 @@ constexpr uint8_t to_idx(MidiStatus status) {
 struct MidiEvent {
   constexpr static uint8_t noData = 255;
 
-  uint8_t status;
+  // 0 = no status seen yet (parser start state); real statuses are >= 0x80.
+  uint8_t status = 0;
   uint8_t data1 = noData;
   uint8_t data2 = noData;
 
@@ -173,72 +174,96 @@ struct Midi {
     }
   }
 
+  // Feed one byte to the parser state machine; returns a completed event if
+  // this byte finished one. Used by getEvent() (RX ring drain) and by
+  // MidiUsart, which hands back a sysex-terminating status byte so the next
+  // message isn't dropped.
+  std::optional<MidiEvent> feedByte(uint8_t recv_byte) {
+    if (recv_byte >= 0xF8) {
+      // System Real-Time may interleave ANY other message (even between a
+      // status byte and its data bytes) — never touch the partial-message
+      // state. Undefined realtime (0xF9 / 0xFD) is discarded the same way.
+      switch (recv_byte) {
+        case IGB_MIDI_CLOCK:
+        case IGB_MIDI_START:
+        case IGB_MIDI_CONTINUE:
+        case IGB_MIDI_STOP:
+        case IGB_MIDI_RESET:
+        case IGB_MIDI_ACTIVE_SENSE:
+          return MidiEvent { .status = recv_byte };
+        default:
+          return std::nullopt;
+      }
+    }
+    if (recv_byte & 0x80) {
+      // Non-realtime status byte: starts a new message (aborting a partial
+      // one) — except the undefined System Common bytes, which are dropped
+      // without disturbing the pending state.
+      switch (recv_byte) {
+        case 0xF4:
+        case 0xF5:
+          // undefined
+          return std::nullopt;
+        case IGB_MIDI_SYS_EX_START:
+        case IGB_MIDI_SYS_EX_END:
+        case IGB_MIDI_TUNE:
+          // 1 byte message
+          event.data1 = MidiEvent::noData;
+          event.data2 = MidiEvent::noData;
+          return MidiEvent { .status = recv_byte };
+        default:
+          event.status = recv_byte;
+          event.data1 = MidiEvent::noData;
+          event.data2 = MidiEvent::noData;
+          return std::nullopt;
+      }
+    }
+    // data byte
+    if (!(event.status & 0x80)) {
+      // No valid status seen yet (power-on mid-stream / hot-plug): dropping
+      // the byte beats emitting a status-0 garbage event, which would even be
+      // forwarded on a chain wire as raw data bytes.
+      return std::nullopt;
+    }
+    if (event.data1 == MidiEvent::noData) {
+      event.data1 = recv_byte;
+    } else if (event.data2 == MidiEvent::noData) {
+      event.data2 = recv_byte;
+    }
+    if (event.data2 != MidiEvent::noData) {
+      // Complete 3-byte message. Clear the data bytes (keep the status) so
+      // a running-status continuation starts a fresh message instead of
+      // re-emitting this one's stale data.
+      MidiEvent out = event;
+      event.data1 = MidiEvent::noData;
+      event.data2 = MidiEvent::noData;
+      return out;
+    }
+    // 2 byte message? Channel-voice statuses carry the channel in the
+    // low nibble, so mask it off before matching (0xC0..0xCF are all
+    // Program Change); system common (>= 0xF0) must stay unmasked.
+    uint8_t status_type = (event.status < 0xF0) ? (event.status & 0xF0)
+                                                : event.status;
+    switch(status_type) {
+      case IGB_MIDI_PROG_CHG:
+      case IGB_MIDI_CH_PRESSURE:
+      case IGB_MIDI_TIME_CODE:
+      case IGB_MIDI_SONG_SELECT: {
+        // Complete 2-byte message — same running-status reset as above.
+        MidiEvent out = event;
+        event.data1 = MidiEvent::noData;
+        return out;
+      }
+      default:
+        return std::nullopt;
+    }
+  }
+
   std::optional<MidiEvent> getEvent() {
     std::optional<uint8_t> tmp = std::nullopt;
     while ((tmp = rx_buffer.get())) {
-      uint8_t recv_byte = tmp.value();
-      if (recv_byte & 0x80) {
-        event.data1 = MidiEvent::noData;
-        event.data2 = MidiEvent::noData;
-        // status byte
-        switch (recv_byte) {
-          case IGB_MIDI_START:
-          case IGB_MIDI_CONTINUE:
-          case IGB_MIDI_STOP:
-          case IGB_MIDI_CLOCK:
-          case IGB_MIDI_RESET:
-          case IGB_MIDI_SYS_EX_START:
-          case IGB_MIDI_SYS_EX_END:
-          case IGB_MIDI_TUNE:
-          case IGB_MIDI_ACTIVE_SENSE:
-            // 1 byte message
-            return MidiEvent { .status = recv_byte };
-            break;
-          case 0xF4:
-          case 0xF5:
-          case 0xF9:
-          case 0xFD:
-            // undefined
-            break;
-          default:
-            event.status = recv_byte;
-            break;
-        }
-      } else {
-        // data byte
-        if (event.data1 == MidiEvent::noData) {
-          event.data1 = recv_byte;
-        } else if (event.data2 == MidiEvent::noData) {
-          event.data2 = recv_byte;
-        }
-        if (event.data2 != MidiEvent::noData) {
-          // Complete 3-byte message. Clear the data bytes (keep the status) so
-          // a running-status continuation starts a fresh message instead of
-          // re-emitting this one's stale data.
-          MidiEvent out = event;
-          event.data1 = MidiEvent::noData;
-          event.data2 = MidiEvent::noData;
-          return out;
-        } else {
-          // 2 byte message? Channel-voice statuses carry the channel in the
-          // low nibble, so mask it off before matching (0xC0..0xCF are all
-          // Program Change); system common (>= 0xF0) must stay unmasked.
-          uint8_t status_type = (event.status < 0xF0) ? (event.status & 0xF0)
-                                                      : event.status;
-          switch(status_type) {
-            case IGB_MIDI_PROG_CHG:
-            case IGB_MIDI_CH_PRESSURE:
-            case IGB_MIDI_TIME_CODE:
-            case IGB_MIDI_SONG_SELECT: {
-              // Complete 2-byte message — same running-status reset as above.
-              MidiEvent out = event;
-              event.data1 = MidiEvent::noData;
-              return out;
-            }
-            default:
-              break;
-          }
-        }
+      if (auto e = feedByte(tmp.value())) {
+        return e;
       }
     }
     return std::nullopt;
