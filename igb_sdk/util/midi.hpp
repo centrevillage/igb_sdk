@@ -212,15 +212,29 @@ struct Midi {
           event.data2 = recv_byte;
         }
         if (event.data2 != MidiEvent::noData) {
-          return event;
+          // Complete 3-byte message. Clear the data bytes (keep the status) so
+          // a running-status continuation starts a fresh message instead of
+          // re-emitting this one's stale data.
+          MidiEvent out = event;
+          event.data1 = MidiEvent::noData;
+          event.data2 = MidiEvent::noData;
+          return out;
         } else {
-          // 2 byte message?
-          switch(event.status) {
+          // 2 byte message? Channel-voice statuses carry the channel in the
+          // low nibble, so mask it off before matching (0xC0..0xCF are all
+          // Program Change); system common (>= 0xF0) must stay unmasked.
+          uint8_t status_type = (event.status < 0xF0) ? (event.status & 0xF0)
+                                                      : event.status;
+          switch(status_type) {
             case IGB_MIDI_PROG_CHG:
             case IGB_MIDI_CH_PRESSURE:
             case IGB_MIDI_TIME_CODE:
-            case IGB_MIDI_SONG_SELECT:
-              return event;
+            case IGB_MIDI_SONG_SELECT: {
+              // Complete 2-byte message — same running-status reset as above.
+              MidiEvent out = event;
+              event.data1 = MidiEvent::noData;
+              return out;
+            }
             default:
               break;
           }
