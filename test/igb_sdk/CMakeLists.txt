@@ -5,13 +5,13 @@ project(igb_sdk_test VERSION 1.0)
 #enable_language(ASM)
 
 unset(CMAKE_C_COMPILER CACHE)
-set(CMAKE_C_COMPILER "/usr/local/bin/g++-14")
+set(CMAKE_C_COMPILER "/opt/homebrew/bin/g++-15")
 unset(CMAKE_CXX_COMPILER CACHE)
-set(CMAKE_CXX_COMPILER "/usr/local/bin/g++-14")
+set(CMAKE_CXX_COMPILER "/opt/homebrew/bin/g++-15")
 unset(CMAKE_AS_COMPILER CACHE)
-set(CMAKE_AS_COMPILER "/usr/local/bin/g++-14")
+set(CMAKE_AS_COMPILER "/opt/homebrew/bin/g++-15")
 unset(CMAKE_EXE_LINKER CACHE)
-set(CMAKE_EXE_LINKER "/usr/local/bin/g++-14")
+set(CMAKE_EXE_LINKER "/opt/homebrew/bin/g++-15")
 
 unset(CMAKE_C_FLAGS CACHE)
 set(CMAKE_C_FLAGS "-DTEST -Wall -Wl,--gc-sections,-Werror=return-type -fno-exceptions -MMD")
@@ -42,6 +42,7 @@ add_executable(
   src/test_quantizer.cpp
   src/test_button_history.cpp
   src/test_syncable_mod_clock.cpp
+  src/test_midi_parser.cpp
 )
 target_link_libraries(igb_sdk_test PRIVATE igb_sdk Catch2::Catch2WithMain)
 
