@@ -55,6 +55,11 @@ struct MidiUsart {
   }
 
   IGB_FAST_INLINE void _endSysEx() {
+    // Idempotent: the normal receive path calls this defensively before
+    // dispatching, which must not fire the user callback again.
+    if (!is_sysex_mode) {
+      return;
+    }
     is_sysex_mode = false;
     if (on_sysex_end) {
       on_sysex_end();
@@ -71,12 +76,35 @@ struct MidiUsart {
     std::optional<MidiEvent> event = std::nullopt;
     if (is_sysex_mode) {
       std::optional<uint8_t> tmp = std::nullopt;
-      while ((tmp = midi.rx_buffer.get())) {
+      // Re-check is_sysex_mode every byte: once the sysex ends mid-batch the
+      // remaining bytes belong to the normal parse path (next process() call)
+      // — draining on here would eat the messages that followed the sysex.
+      while (is_sysex_mode && (tmp = midi.rx_buffer.get())) {
         uint8_t recv_byte = tmp.value();
-        if (recv_byte & 0x80) {
+        if (recv_byte >= 0xF8) {
+          // System Real-Time may interleave a sysex stream WITHOUT
+          // terminating it — dispatch it and keep receiving the body.
+          if (auto e = midi.feedByte(recv_byte)) {
+            event = e;
+            if (on_receive) {
+              on_receive(e.value());
+            }
+          }
+        } else if (recv_byte & 0x80) {
           _endSysEx();
           if (recv_byte == IGB_MIDI_SYS_EX_START) {
             _startSysEx();
+          } else if (recv_byte != IGB_MIDI_SYS_EX_END) {
+            // Any other status byte terminates the sysex AND starts a new
+            // message — hand it to the byte parser instead of dropping it.
+            // (Only a 1-byte message completes here, e.g. Tune Request; a
+            // channel/system-common status just seeds the parser state.)
+            if (auto e = midi.feedByte(recv_byte)) {
+              event = e;
+              if (on_receive) {
+                on_receive(e.value());
+              }
+            }
           }
         } else {
           // sysex data

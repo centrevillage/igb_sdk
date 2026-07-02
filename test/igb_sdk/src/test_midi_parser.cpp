@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <igb_sdk/util/midi.hpp>
+#include <igb_sdk/util/midi_usart.hpp>
 
 #include <initializer_list>
 #include <vector>
@@ -219,4 +220,105 @@ TEST_CASE("MidiParser: data bytes before any status byte are dropped",
   CHECK(ev[0].status == 0x90);
   CHECK(ev[0].data1 == 60);
   CHECK(ev[0].data2 == 100);
+}
+
+// ---- LilaC #173: MidiUsart sysex drain robustness ----
+
+namespace {
+// Minimal fakes for MidiUsart's template params. Tests never call
+// initUsart()/irqHandler(), so only the members process() touches are needed
+// (is() gating txHandler, txData() through it).
+enum class FakeUsartState { rxNotEmpty, txEmpty };
+struct FakeUsartConf {};
+struct FakeUsart {
+  bool is(FakeUsartState) const { return false; }
+  void txData(uint8_t) {}
+  uint8_t rxData() { return 0; }
+  void enable(bool) {}
+};
+using TestMidiUsart = MidiUsart<FakeUsart, int, FakeUsartConf, FakeUsartState>;
+
+struct UsartHarness {
+  TestMidiUsart mu;
+  std::vector<MidiEvent> received;
+  std::vector<uint8_t> sysex_body;
+  int sysex_starts = 0;
+  int sysex_ends = 0;
+
+  UsartHarness() {
+    mu.on_receive = [this](const MidiEvent& e) { received.push_back(e); };
+    mu.on_sysex_start = [this]() { ++sysex_starts; };
+    mu.on_sysex_end = [this]() { ++sysex_ends; };
+    mu.on_sysex_receive = [this](uint8_t b) { sysex_body.push_back(b); };
+  }
+
+  // Queue bytes as the RX IRQ would, then run enough process() iterations to
+  // drain them (the normal path completes at most one event per call).
+  void feed(std::initializer_list<uint8_t> bytes) {
+    for (uint8_t b : bytes) mu.midi.rx_buffer.add(b);
+    for (int i = 0; i < 64; ++i) mu.process();
+  }
+};
+}  // namespace
+
+TEST_CASE("MidiUsart: a message after a sysex in the same batch survives",
+          "[midi]") {
+  UsartHarness h;
+  // Pre-fix the drain loop kept eating past F7, so the NoteOn's status was
+  // discarded and its data bytes leaked into on_sysex_receive.
+  h.feed({0xF0, 1, 2, 3, 0xF7, 0x90, 60, 100});
+  CHECK(h.sysex_starts == 1);
+  CHECK(h.sysex_ends == 1);
+  CHECK(h.sysex_body == std::vector<uint8_t>{1, 2, 3});
+  REQUIRE(h.received.size() == 1);
+  CHECK(h.received[0].status == 0x90);
+  CHECK(h.received[0].data1 == 60);
+  CHECK(h.received[0].data2 == 100);
+}
+
+TEST_CASE("MidiUsart: realtime inside a sysex is dispatched, sysex continues",
+          "[midi]") {
+  UsartHarness h;
+  // Pre-fix a clock byte falsely terminated the sysex AND was swallowed.
+  h.feed({0xF0, 1, 0xF8, 2, 0xF7});
+  CHECK(h.sysex_starts == 1);
+  CHECK(h.sysex_ends == 1);
+  CHECK(h.sysex_body == std::vector<uint8_t>{1, 2});
+  REQUIRE(h.received.size() == 1);
+  CHECK(h.received[0].status == 0xF8);
+}
+
+TEST_CASE("MidiUsart: a status byte ends an unterminated sysex and starts "
+          "the next message", "[midi]") {
+  UsartHarness h;
+  // Pre-fix the terminating status byte was consumed and dropped, so the
+  // NoteOn was lost and its data bytes misparsed.
+  h.feed({0xF0, 1, 2, 0x91, 60, 100});
+  CHECK(h.sysex_ends == 1);
+  CHECK(h.sysex_body == std::vector<uint8_t>{1, 2});
+  REQUIRE(h.received.size() == 1);
+  CHECK(h.received[0].status == 0x91);
+  CHECK(h.received[0].data1 == 60);
+  CHECK(h.received[0].data2 == 100);
+}
+
+TEST_CASE("MidiUsart: a 1-byte message ending a sysex is itself dispatched",
+          "[midi]") {
+  UsartHarness h;
+  h.feed({0xF0, 1, 0xF6, 0x90, 60, 100});  // Tune Request ends the sysex
+  CHECK(h.sysex_ends == 1);
+  REQUIRE(h.received.size() == 2);
+  CHECK(h.received[0].status == 0xF6);
+  CHECK(h.received[1].status == 0x90);
+  CHECK(h.received[1].data1 == 60);
+  CHECK(h.received[1].data2 == 100);
+}
+
+TEST_CASE("MidiUsart: F0 inside a sysex restarts a new sysex", "[midi]") {
+  UsartHarness h;
+  h.feed({0xF0, 1, 0xF0, 2, 0xF7});
+  CHECK(h.sysex_starts == 2);
+  CHECK(h.sysex_ends == 2);
+  CHECK(h.sysex_body == std::vector<uint8_t>{1, 2});
+  CHECK(h.received.empty());
 }
