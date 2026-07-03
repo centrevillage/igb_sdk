@@ -42,6 +42,15 @@ struct OledSsd1306 {
   // DMA stream — only used when DMA_STREAM_TYPE != NullFunctor
   DMA_STREAM_TYPE dma_stream;
 
+  // Issue #180 (LilaC): draw primitives set this; the per-page diff scan
+  // (updateDiff / the idle _findNextDmaPage) is skipped entirely while it is
+  // clear. Callers typically draw at frame rate but pump process() every main
+  // loop iteration, so without the gate >99% of the scans memcmp identical
+  // buffers. Cleared at scan START, so draws landing during an in-flight DMA
+  // frame re-arm the next scan (a draw can never be lost). Starts true so the
+  // first frame after construction is always scanned.
+  bool _buffer_dirty = true;
+
   enum class _DmaPhase : uint8_t { idle, sending_cmd, sending_data };
   volatile bool _dma_done = false;
   _DmaPhase _dma_phase = _DmaPhase::idle;
@@ -102,7 +111,10 @@ struct OledSsd1306 {
     if constexpr (!std::is_same_v<DMA_STREAM_TYPE, NullFunctor>) {
       switch (_dma_phase) {
       case _DmaPhase::idle:
-        _findNextDmaPage(0);
+        if (_buffer_dirty) {
+          _buffer_dirty = false;
+          _findNextDmaPage(0);
+        }
         break;
       case _DmaPhase::sending_cmd:
         if (_dma_done && spi.is(igb::stm32::SpiState::endOfTransfer)) {
@@ -234,10 +246,13 @@ struct OledSsd1306 {
       sendData(&screen_buffer[screen_width*i], screen_width);
     }
     memcpy(prev_screen_buffer, screen_buffer, sizeof(screen_buffer));
+    _buffer_dirty = false;  // full sync: buffers are equal now
   }
 
   // 変更ページのみ送信する差分更新 (sync)
   void updateDiff() {
+    if (!_buffer_dirty) return;  // Issue #180: nothing drawn since last scan
+    _buffer_dirty = false;
     for (uint8_t i = 0; i < screen_height/8; ++i) {
       const size_t page_offset = screen_width * i;
       if (memcmp(&screen_buffer[page_offset], &prev_screen_buffer[page_offset], screen_width) == 0) continue;
@@ -272,19 +287,26 @@ struct OledSsd1306 {
     _dma_phase = _DmaPhase::idle;
   }
 
+  // Issue #180: every leaf screen_buffer writer below marks _buffer_dirty
+  // (one store per call, not per pixel). drawRect / drawFillRect compose
+  // drawPixel / setPageBit so they are covered transitively.
+
   void drawFillBG() {
+    _buffer_dirty = true;
     for (size_t i = 0; i < sizeof(screen_buffer); ++i) {
       screen_buffer[i] = 0;
     }
   }
 
   void drawFillFG() {
+    _buffer_dirty = true;
     for (size_t i = 0; i < sizeof(screen_buffer); ++i) {
       screen_buffer[i] = 0xFF;
     }
   }
 
   void drawPixel(uint8_t x, uint8_t y, bool fg) {
+    _buffer_dirty = true;
     if (fg) {
       screen_buffer[x + (y / 8) * screen_width] |= 1 << (y % 8);
     } else {
@@ -325,14 +347,17 @@ struct OledSsd1306 {
   }
 
   void drawPageBit(uint8_t page, uint8_t x, uint8_t bit) {
+    _buffer_dirty = true;
     screen_buffer[x + page * screen_width] |= bit;
   }
 
   void setPageBit(uint8_t page, uint8_t x, uint8_t bit) {
+    _buffer_dirty = true;
     screen_buffer[x + page * screen_width] = bit;
   }
 
   void drawTextMedium(const char* text, uint8_t length, uint16_t page, uint16_t offset) {
+    _buffer_dirty = true;
     uint8_t pos = 0;
     for (uint8_t i=0; i<length; ++i) {
       char c = text[i];
@@ -355,6 +380,7 @@ struct OledSsd1306 {
   }
 
   void drawTextSmall(const char* text, uint8_t length, uint16_t page, uint16_t offset) {
+    _buffer_dirty = true;
     uint8_t pos = 0;
     for (uint8_t i=0; i<length; ++i) {
       char c = text[i];
@@ -376,6 +402,7 @@ struct OledSsd1306 {
   }
 
   void drawInvert(uint16_t page, uint16_t offset, uint16_t length) {
+    _buffer_dirty = true;
     for (uint16_t x = offset; x < offset+length; ++x) {
       screen_buffer[(page * screen_width) + x] ^= 0xFF;
     }
