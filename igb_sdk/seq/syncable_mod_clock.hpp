@@ -302,10 +302,32 @@ struct SeqSyncableModClock {
     return _int_active;
   }
   inline void selectSrcClockIdx(uint8_t idx) {
+    // The learned source-clock interval is in the PREVIOUS source's
+    // clock_per_beat units; re-express it in the new source's units so the
+    // interpolation timers keep the same real-time output rate across the
+    // switch. Without this, e.g. internal(48ppqn) -> trigger(4ppqn) leaves a
+    // 48ppqn interval under a 4ppqn coefficient and the interpolated output
+    // clocks run 12x fast until the new source's interval is learned — which
+    // may be never if the source is gated out of learning (LilaC #185).
+    const auto old_cpb = _src_confs[_selected_src_clock_idx].clock_per_beat;
+    const auto new_cpb = _src_confs[idx].clock_per_beat;
+    if (_ext_src_state.expected_clock_interval_tick > 0
+        && old_cpb > 0 && new_cpb > 0 && old_cpb != new_cpb) {
+      _ext_src_state.expected_clock_interval_tick =
+          _ext_src_state.expected_clock_interval_tick
+          * (float_t)old_cpb / (float_t)new_cpb;
+    }
     for (auto& state : _clockStates) {
       state.resetCounts();
       state.changeClockPerBeat(_src_confs[idx].clock_per_beat);
       state.filter_coeff = _src_confs[idx].filter_coeff;
+      // Refresh orig/base from the (re-expressed) expected interval so the
+      // very first clock of the new source interpolates at the correct rate
+      // (its own receiveClock skips the refresh while is_first_clock_arrived
+      // is false).
+      if (_ext_src_state.expected_clock_interval_tick > 0) {
+        state.expectedIntervalTick(_ext_src_state.expected_clock_interval_tick);
+      }
     }
     _ext_src_state.is_first_clock_arrived = false;
     _selected_src_clock_idx = idx;
