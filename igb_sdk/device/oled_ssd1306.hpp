@@ -309,7 +309,7 @@ struct OledSsd1306 {
     for (uint16_t i = 1; i < height-1;) {
       if (((y+i) % 8) == 0 && ((i+8) < height)) {
         // draw by page
-        uint8_t page = y+i / 8;
+        uint8_t page = (y + i) / 8;
         for (uint8_t j = 1; j < width-1; ++j) {
           setPageBit(page, x+j, fill_bit);
         }
