@@ -163,3 +163,42 @@ struct SysCfgInfo {
   const PeriphBusInfo   bus;
 };
 #endif
+
+#ifdef STM32_PERIPHGRP_FMC_EXISTS
+struct FmcInfo {
+  const PeriphType   periph_type;
+  const uint32_t     addr;
+  const PeriphBusInfo bus;
+};
+#endif
+
+#ifdef STM32_PERIPHGRP_QUADSPI_EXISTS
+struct QuadspiInfo {
+  const PeriphType   periph_type;
+  const uint32_t     addr;
+  const IRQn_Type    irqn;
+  const PeriphBusInfo bus;
+};
+#endif
+
+#ifdef STM32_PERIPHGRP_SAI_EXISTS
+struct SaiBlockInfo {
+  const uint32_t addr;
+};
+struct SaiInfo {
+  const PeriphType    periph_type;
+  const uint32_t      addr;
+  const PeriphBusInfo bus;
+  const SaiBlockInfo  block_a;
+  const SaiBlockInfo  block_b;
+};
+#endif
+
+#ifdef STM32_PERIPHGRP_SDMMC_EXISTS
+struct SdmmcInfo {
+  const PeriphType    periph_type;
+  const uint32_t      addr;
+  const IRQn_Type     irqn;
+  const PeriphBusInfo bus;
+};
+#endif

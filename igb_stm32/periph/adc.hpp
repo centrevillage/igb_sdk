@@ -1002,7 +1002,13 @@ struct Adc {
   }
 };
 
-#endif
+#endif // STM32F3 || STM32G431xx
+
+#if defined(STM32H750xx)
+
+#include "_adc_stm32h7.hpp"
+
+#endif // STM32H750xx
 
 #undef IGB_ADC_REG
 #undef IGB_ADC_REG_ADDR

@@ -71,6 +71,19 @@ struct RccCtrl {
   static IGB_FAST_INLINE void disableHSI48() {
     IGB_CLEAR_BIT(RCC->CR2, RCC_CR2_HSI48ON);
   }
+#elif defined(STM32H7)
+  // H7: HSI48 is controlled via RCC->CR (not CR2)
+  static IGB_FAST_INLINE void enableHSI48() {
+    IGB_SET_BIT(RCC->CR, RCC_CR_HSI48ON);
+  }
+
+  static IGB_FAST_INLINE void disableHSI48() {
+    IGB_CLEAR_BIT(RCC->CR, RCC_CR_HSI48ON);
+  }
+
+  static IGB_FAST_INLINE bool isReadyHSI48() {
+    return (READ_BIT(RCC->CR, RCC_CR_HSI48RDY) == RCC_CR_HSI48RDY);
+  }
 #endif
 
 #if defined(RCC_CR2_HSI14ON)
@@ -154,6 +167,20 @@ struct RccCtrl {
   static IGB_FAST_INLINE bool isReadyPLL() {
     return (READ_BIT(RCC->CR, RCC_CR_PLLRDY) == (RCC_CR_PLLRDY));
   }
+#endif
+
+#if defined(STM32H7)
+  static IGB_FAST_INLINE void enableCSI()   { IGB_SET_BIT(RCC->CR, RCC_CR_CSION); }
+  static IGB_FAST_INLINE void disableCSI()  { IGB_CLEAR_BIT(RCC->CR, RCC_CR_CSION); }
+  static IGB_FAST_INLINE bool isReadyCSI()  { return READ_BIT(RCC->CR, RCC_CR_CSIRDY) == RCC_CR_CSIRDY; }
+
+  static IGB_FAST_INLINE void enablePLL2()  { IGB_SET_BIT(RCC->CR, RCC_CR_PLL2ON); }
+  static IGB_FAST_INLINE void disablePLL2() { IGB_CLEAR_BIT(RCC->CR, RCC_CR_PLL2ON); }
+  static IGB_FAST_INLINE bool isReadyPLL2() { return READ_BIT(RCC->CR, RCC_CR_PLL2RDY) == RCC_CR_PLL2RDY; }
+
+  static IGB_FAST_INLINE void enablePLL3()  { IGB_SET_BIT(RCC->CR, RCC_CR_PLL3ON); }
+  static IGB_FAST_INLINE void disablePLL3() { IGB_CLEAR_BIT(RCC->CR, RCC_CR_PLL3ON); }
+  static IGB_FAST_INLINE bool isReadyPLL3() { return READ_BIT(RCC->CR, RCC_CR_PLL3RDY) == RCC_CR_PLL3RDY; }
 #endif
 
 #if defined(STM32F3)

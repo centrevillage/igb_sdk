@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <array>
+#include <algorithm>
 #include <igb_util/random.hpp>
 #include <igb_util/dsp/dsp_tbl_func.hpp>
 #include <igb_util/dsp/config.hpp>
@@ -111,6 +112,50 @@ struct PinkNoise {
   float process() {
     uint32_t v = processU32();
     return (float)((float)v / (float)0xFFFFFFFFUL) * 2.0f - 1.0f;
+  }
+};
+
+// ============================================================================
+// Velvet noise (Karjalainen & Järveläinen 2007)
+// ============================================================================
+struct VelvetNoise {
+  uint32_t gridPeriod = 2;
+  float amp = 0.0f;
+  uint32_t impulsePos = 0;
+  float impulseSign = 0.0f;
+  uint32_t gridIdx = 0;
+
+  void init(float densityHz = 2000.0f) {
+    gridPeriod = std::max((uint32_t)2, (uint32_t)std::floor(Config::getSamplingRateF() / std::max(50.0f, densityHz)));
+    amp = std::sqrt((float)gridPeriod);     // RMS = 1 normalisation
+    _rollImpulse();
+  }
+
+  void update(float densityHz) {
+    const uint32_t gp = std::max((uint32_t)2, (uint32_t)std::floor(Config::getSamplingRateF() / std::max(50.0f, densityHz)));
+    if (gp == gridPeriod) return;
+    gridPeriod = gp;
+    amp = std::sqrt((float)gp);
+    if (gridIdx >= gp) gridIdx = 0;
+    if (impulsePos >= gp) _rollImpulse();
+  }
+
+  void _rollImpulse() {
+    impulsePos = igb::rand_f() * gridPeriod;
+    impulseSign = igb::rand_f() < 0.5 ? -1.0 : 1.0;
+  }
+
+  float process() {
+    float out = 0;
+    if (gridIdx == impulsePos) {
+      out = impulseSign * amp;
+    }
+    gridIdx++;
+    if (gridIdx >= gridPeriod) {
+      gridIdx = 0;
+      _rollImpulse();
+    }
+    return out;
   }
 };
 

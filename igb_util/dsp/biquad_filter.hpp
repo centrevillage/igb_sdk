@@ -220,7 +220,9 @@ struct BiQuadFilter {
     float sin_w0 = _sin_w0(w0);
     float alpha = sin_w0 / (2.0f * q);
     float sqrt_amp = std::sqrt(amp);
-    float a0 = (amp + 1.0f) + (amp - 1.0f) * cos_w0 + 2.0f * sqrt_amp * alpha;
+    // a0 の cos 項は RBJ cookbook (上のコメント) 通り `-(A-1)cos(w0)`。
+    // 以前 `+` で DC gain がずれていた (highShelf が低域を減衰させるバグ) のを修正。
+    float a0 = (amp + 1.0f) - (amp - 1.0f) * cos_w0 + 2.0f * sqrt_amp * alpha;
     b0 = amp * ((amp + 1.0f) + (amp - 1.0f) * cos_w0 + 2.0f * sqrt_amp * alpha) / a0;
     b1 = -2.0f * amp * ((amp - 1.0f) + (amp + 1.0f) * cos_w0) / a0;
     b2 = amp * ((amp + 1.0f) + (amp - 1.0f) * cos_w0 - 2.0f * sqrt_amp * alpha) / a0;

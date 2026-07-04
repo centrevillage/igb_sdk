@@ -2,28 +2,150 @@
 
 #include <igb_stm32/periph/systick.hpp>
 #include <igb_sdk/base.hpp>
-#include <igb_sdk/font/bitmap/cvfont_5x8.h>
-#include <igb_sdk/font/bitmap/cvfont_8x16.h>
+#include <igb_sdk/font/bitmap/cvfont.hpp>
+#include <igb_util/null_functor.hpp>
+#include <cstring>
 
 namespace igb {
 namespace sdk {
 
-template<typename SPI_TYPE, typename GPIO_PIN_TYPE, size_t screen_width = 128, size_t screen_height = 64>
+// Driver type selection: ssd1306/sh1106 for compile-time, dynamic for runtime switching.
+enum class OledDriverType : uint8_t {
+  ssd1306,  // col_offset = 0
+  sh1106,   // col_offset = 2 (132-column GDDRAM)
+  dynamic   // runtime switchable, default SSD1306
+};
+
+// DMA_STREAM_TYPE: DmaStream<...> for async DMA update, NullFunctor (default) for sync.
+//
+// Async usage:
+//   1. Declare DmaStream and OledSsd1306 with DMA_STREAM_TYPE
+//   2. Register ISR: extern "C" void DMAx_StreamN_IRQHandler() { oled.dma_stream.handleIrq(); }
+//   3. Call oled.init() — this configures DMA stream and registers the completion callback
+//   4. Draw into screen_buffer, then call oled.process() to kick off the async update
+//   5. Before modifying screen_buffer again, check !oled.isBusy()
+// driver_type: OledDriverType::ssd1306 (default), OledDriverType::sh1106, or OledDriverType::dynamic.
+//   dynamic defaults to SSD1306; use setDriverSH1106()/setDriverSSD1306() to switch at runtime.
+template<typename SPI_TYPE, typename GPIO_PIN_TYPE, size_t screen_width = 128, size_t screen_height = 64, OledDriverType driver_type = OledDriverType::ssd1306, typename WAIT_FUNC = NullFunctor, typename DMA_STREAM_TYPE = NullFunctor>
 struct OledSsd1306 {
   SPI_TYPE spi;
   GPIO_PIN_TYPE cs_pin;
   GPIO_PIN_TYPE dc_pin;
   GPIO_PIN_TYPE reset_pin;
 
-  uint8_t screen_buffer[screen_width * screen_height / 8];
+  // 32-byte alignment required for SCB_CleanDCache_by_Addr
+  alignas(32) uint8_t screen_buffer[screen_width * screen_height / 8];
+  uint8_t prev_screen_buffer[screen_width * screen_height / 8] = {};
+
+  WAIT_FUNC _wait_func;
+
+  // DMA stream — only used when DMA_STREAM_TYPE != NullFunctor
+  DMA_STREAM_TYPE dma_stream;
+
+  // Issue #180 (LilaC): draw primitives set this; the per-page diff scan
+  // (updateDiff / the idle _findNextDmaPage) is skipped entirely while it is
+  // clear. Callers typically draw at frame rate but pump process() every main
+  // loop iteration, so without the gate >99% of the scans memcmp identical
+  // buffers. Cleared at scan START, so draws landing during an in-flight DMA
+  // frame re-arm the next scan (a draw can never be lost). Starts true so the
+  // first frame after construction is always scanned.
+  bool _buffer_dirty = true;
+
+  enum class _DmaPhase : uint8_t { idle, sending_cmd, sending_data };
+  volatile bool _dma_done = false;
+  _DmaPhase _dma_phase = _DmaPhase::idle;
+  uint8_t _current_page = 0;
+  alignas(32) uint8_t _cmd_buf[4] = {}; // page address commands (3 bytes + padding for D-Cache alignment)
+
+  // Runtime col_offset — only used when driver_type == dynamic
+  uint8_t _runtime_col_offset = 0;
+
+  uint8_t _getColOffset() const {
+    if constexpr (driver_type == OledDriverType::ssd1306) {
+      return 0;
+    } else if constexpr (driver_type == OledDriverType::sh1106) {
+      return 2;
+    } else {
+      return _runtime_col_offset;
+    }
+  }
+
+  // Switch to SSD1306 at runtime (dynamic mode only)
+  void setDriverSSD1306() {
+    static_assert(driver_type == OledDriverType::dynamic, "setDriverSSD1306() is only available in dynamic mode");
+    _runtime_col_offset = 0;
+  }
+
+  // Switch to SH1106 at runtime (dynamic mode only)
+  void setDriverSH1106() {
+    static_assert(driver_type == OledDriverType::dynamic, "setDriverSH1106() is only available in dynamic mode");
+    _runtime_col_offset = 2;
+  }
 
   void init() {
     prepareGpio();
     sendInitCommands();
+    if constexpr (!std::is_same_v<DMA_STREAM_TYPE, NullFunctor>) {
+      // ISR only sets flag — all SPI operations happen in process() (main loop)
+      dma_stream.on_complete = [this]() {
+        _dma_done = true;
+      };
+    }
   }
 
+  bool isBusy() const {
+    if constexpr (!std::is_same_v<DMA_STREAM_TYPE, NullFunctor>) {
+      return _dma_phase != _DmaPhase::idle;
+    }
+    return false;
+  }
+
+  // Runtime panel on/off. GDDRAM contents are preserved across AE/AF so the
+  // display resumes with its last-drawn frame.
+  void displayOn()  { sendCommand(0xAF); }
+  void displayOff() { sendCommand(0xAE); }
+
+  // Fully non-blocking: never busy-waits, always returns immediately.
+  // Call repeatedly from main loop.
   void process() {
-    updateScreen();
+    if constexpr (!std::is_same_v<DMA_STREAM_TYPE, NullFunctor>) {
+      switch (_dma_phase) {
+      case _DmaPhase::idle:
+        if (_buffer_dirty) {
+          _buffer_dirty = false;
+          _findNextDmaPage(0);
+        }
+        break;
+      case _DmaPhase::sending_cmd:
+        if (_dma_done && spi.is(igb::stm32::SpiState::endOfTransfer)) {
+          _dma_done = false;
+          spi.sendBufU8dmaEnd(); // instant — EOT already confirmed
+          cs_pin.high();
+          // transition: command done → start data DMA
+          const size_t offset = _current_page * screen_width;
+          SCB_CleanDCache_by_Addr(
+            reinterpret_cast<uint32_t*>(&screen_buffer[offset]),
+            static_cast<int32_t>(screen_width));
+          dc_pin.high();
+          cs_pin.low();
+          spi.sendBufU8dmaStart(&screen_buffer[offset], screen_width, dma_stream);
+          _dma_phase = _DmaPhase::sending_data;
+        }
+        break;
+      case _DmaPhase::sending_data:
+        if (_dma_done && spi.is(igb::stm32::SpiState::endOfTransfer)) {
+          _dma_done = false;
+          spi.sendBufU8dmaEnd(); // instant — EOT already confirmed
+          cs_pin.high();
+          memcpy(&prev_screen_buffer[_current_page * screen_width],
+                 &screen_buffer[_current_page * screen_width], screen_width);
+          _findNextDmaPage(_current_page + 1);
+        }
+        break;
+      }
+    } else {
+      updateDiff();
+    }
   }
 
   void reset() {
@@ -83,44 +205,108 @@ struct OledSsd1306 {
     sendCommand(0x14); //
     sendCommand(0x2E); // stop scroll
     sendCommand(0xAF); // turn on SSD1306 panel
+
+    // clear screen
+    drawFillBG();
+    updateScreen();
   }
 
   void sendCommand(uint8_t byte) {
     cs_pin.low(); // select OLED
     dc_pin.low(); // command
-    spi.sendU8sync(byte);
+    spi.sendU8sync(byte, _wait_func);
     cs_pin.high(); // un-select OLED
+  }
+
+  void sendCommands(const uint8_t* cmds, size_t count) {
+    cs_pin.low();
+    dc_pin.low();
+    spi.sendBufU8sync(const_cast<uint8_t*>(cmds), count, _wait_func);
+    cs_pin.high();
+  }
+
+  void sendPageAddress(uint8_t page) {
+    const uint8_t off = _getColOffset();
+    const uint8_t cmds[] = {
+      static_cast<uint8_t>(0xB0 + page),
+      static_cast<uint8_t>(0x00 + (off & 0x0F)),        // lower nibble of column offset
+      static_cast<uint8_t>(0x10 + ((off >> 4) & 0x0F))  // upper nibble of column offset
+    };
+    sendCommands(cmds, 3);
   }
 
   void sendData(uint8_t* buf, size_t buff_size) {
     dc_pin.high(); // data
-    cs_pin.low(); spi.sendU8sync(0); cs_pin.high();
-    cs_pin.low(); spi.sendU8sync(0); cs_pin.high();
-    cs_pin.low(); spi.sendBufU8sync(buf, buff_size); cs_pin.high();
+    cs_pin.low(); spi.sendBufU8sync(buf, buff_size, _wait_func); cs_pin.high();
   }
 
   void updateScreen() {
     for (uint8_t i = 0; i < screen_height/8; ++i) {
-      sendCommand(0xB0 + i); // Set the current RAM page address.
-      sendCommand(0x00);
-      sendCommand(0x10);
+      sendPageAddress(i);
       sendData(&screen_buffer[screen_width*i], screen_width);
+    }
+    memcpy(prev_screen_buffer, screen_buffer, sizeof(screen_buffer));
+    _buffer_dirty = false;  // full sync: buffers are equal now
+  }
+
+  // 変更ページのみ送信する差分更新 (sync)
+  void updateDiff() {
+    if (!_buffer_dirty) return;  // Issue #180: nothing drawn since last scan
+    _buffer_dirty = false;
+    for (uint8_t i = 0; i < screen_height/8; ++i) {
+      const size_t page_offset = screen_width * i;
+      if (memcmp(&screen_buffer[page_offset], &prev_screen_buffer[page_offset], screen_width) == 0) continue;
+      sendPageAddress(i);
+      sendData(&screen_buffer[page_offset], screen_width);
+      memcpy(&prev_screen_buffer[page_offset], &screen_buffer[page_offset], screen_width);
     }
   }
 
+  // 変更ページを探してコマンドDMA転送を開始する。なければidle。mainループから呼ぶこと。
+  void _findNextDmaPage(uint8_t from) {
+    for (uint8_t page = from; page < screen_height / 8; ++page) {
+      const size_t page_offset = screen_width * page;
+      if (memcmp(&screen_buffer[page_offset], &prev_screen_buffer[page_offset], screen_width) != 0) {
+        _current_page = page;
+        // Prepare page address commands in DMA buffer
+        const uint8_t off = _getColOffset();
+        _cmd_buf[0] = 0xB0 + page;
+        _cmd_buf[1] = 0x00 + (off & 0x0F);
+        _cmd_buf[2] = 0x10 + ((off >> 4) & 0x0F);
+        SCB_CleanDCache_by_Addr(
+          reinterpret_cast<uint32_t*>(_cmd_buf),
+          static_cast<int32_t>(sizeof(_cmd_buf)));
+        // Start command DMA (DC=low for command mode)
+        dc_pin.low();
+        cs_pin.low();
+        spi.sendBufU8dmaStart(_cmd_buf, 3, dma_stream);
+        _dma_phase = _DmaPhase::sending_cmd;
+        return;
+      }
+    }
+    _dma_phase = _DmaPhase::idle;
+  }
+
+  // Issue #180: every leaf screen_buffer writer below marks _buffer_dirty
+  // (one store per call, not per pixel). drawRect / drawFillRect compose
+  // drawPixel / setPageBit so they are covered transitively.
+
   void drawFillBG() {
+    _buffer_dirty = true;
     for (size_t i = 0; i < sizeof(screen_buffer); ++i) {
       screen_buffer[i] = 0;
     }
   }
 
   void drawFillFG() {
+    _buffer_dirty = true;
     for (size_t i = 0; i < sizeof(screen_buffer); ++i) {
       screen_buffer[i] = 0xFF;
     }
   }
 
   void drawPixel(uint8_t x, uint8_t y, bool fg) {
+    _buffer_dirty = true;
     if (fg) {
       screen_buffer[x + (y / 8) * screen_width] |= 1 << (y % 8);
     } else {
@@ -145,7 +331,7 @@ struct OledSsd1306 {
     for (uint16_t i = 1; i < height-1;) {
       if (((y+i) % 8) == 0 && ((i+8) < height)) {
         // draw by page
-        uint8_t page = y+i / 8;
+        uint8_t page = (y + i) / 8;
         for (uint8_t j = 1; j < width-1; ++j) {
           setPageBit(page, x+j, fill_bit);
         }
@@ -161,14 +347,17 @@ struct OledSsd1306 {
   }
 
   void drawPageBit(uint8_t page, uint8_t x, uint8_t bit) {
+    _buffer_dirty = true;
     screen_buffer[x + page * screen_width] |= bit;
   }
 
   void setPageBit(uint8_t page, uint8_t x, uint8_t bit) {
+    _buffer_dirty = true;
     screen_buffer[x + page * screen_width] = bit;
   }
 
   void drawTextMedium(const char* text, uint8_t length, uint16_t page, uint16_t offset) {
+    _buffer_dirty = true;
     uint8_t pos = 0;
     for (uint8_t i=0; i<length; ++i) {
       char c = text[i];
@@ -180,7 +369,7 @@ struct OledSsd1306 {
       if (c < 32 || c > 126) {
         return; // null or meta char
       }
-      const uint16_t* image = cvfont_8_16[c-32];
+      const uint16_t* image = igb::font::cvfont_8_16[c-32];
       for (uint8_t x=0; x<8; ++x) {
         uint16_t bits = image[x];
         screen_buffer[((page)*screen_width)+(pos*8)+offset+x] = (uint8_t)bits;
@@ -191,6 +380,7 @@ struct OledSsd1306 {
   }
 
   void drawTextSmall(const char* text, uint8_t length, uint16_t page, uint16_t offset) {
+    _buffer_dirty = true;
     uint8_t pos = 0;
     for (uint8_t i=0; i<length; ++i) {
       char c = text[i];
@@ -202,7 +392,7 @@ struct OledSsd1306 {
       if (c < 32 || c > 126) {
         return; // null or meta char
       }
-      const uint8_t* image = cvfont_5_8[c-32];
+      const uint8_t* image = igb::font::cvfont_5_8[c-32];
       for (uint8_t x=0; x<5; ++x) {
         uint8_t bits = image[x];
         screen_buffer[((page)*screen_width)+(pos*5)+offset+x] = bits;
@@ -212,6 +402,7 @@ struct OledSsd1306 {
   }
 
   void drawInvert(uint16_t page, uint16_t offset, uint16_t length) {
+    _buffer_dirty = true;
     for (uint16_t x = offset; x < offset+length; ++x) {
       screen_buffer[(page * screen_width) + x] ^= 0xFF;
     }

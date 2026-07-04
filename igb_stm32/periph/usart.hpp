@@ -379,7 +379,13 @@ struct Usart {
     pin.enable();
     pin.setMode(GpioMode::alternate);
     pin.setPullMode(GpioPullMode::no);
-    pin.setSpeedMode(GpioSpeedMode::high);
+    pin.setSpeedMode(
+#if defined(STM32H7)
+      GpioSpeedMode::veryHigh
+#else
+      GpioSpeedMode::high
+#endif
+    );
     pin.setOutputMode(GpioOutputMode::pushpull);
     pin.setAlternateFunc(result.value());
   }

@@ -245,7 +245,8 @@ struct ExtiCtrl {
   }
 
   IGB_FAST_INLINE static void clearItState(ExtiLine line) {
-    reg_PR(reg_PR() | to_bits(line));
+    // PR は rc_w1 のため対象ビットのみ書き込む(RMWだと他ラインのペンディングを巻き添えクリアする)
+    reg_PR(to_bits(line));
   }
 
   IGB_FAST_INLINE static bool isIt(ExtiLine line) {

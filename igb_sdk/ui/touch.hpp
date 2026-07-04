@@ -89,7 +89,7 @@ struct TouchRot3Dial {
   uint8_t _current_touch_bits = 0;
   uint8_t _prev_touch_bits = 0;
 
-  IGB_FAST_INLINE void process() const noexcept {
+  IGB_FAST_INLINE void process() noexcept {
     _prev_touch_bits = _current_touch_bits;
     _current_touch_bits = (channels[0].read() ? 1 : 0) | ((channels[1].read() ? 1 : 0) << 1) | ((channels[2].read() ? 1 : 0) << 2);
     if (!(_current_touch_bits & 0b0111)) {
@@ -180,7 +180,7 @@ struct TouchClippedValue {
 
   BASE_TYPE<TOUCH_CH_TYPE, VALUE_TYPE> base;
 
-  IGB_FAST_INLINE void process() const noexcept {
+  IGB_FAST_INLINE void process() noexcept {
     base.process();
     auto relative_value = base.value();
     if (relative_value.has_value()) {

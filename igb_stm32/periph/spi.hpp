@@ -7,6 +7,10 @@
 #include <igb_util/macro.hpp>
 #include <igb_util/reg.hpp>
 
+#if defined(STM32H7)
+#include <igb_stm32/periph/dma_stream.hpp>
+#endif
+
 namespace igb {
 namespace stm32 {
 
@@ -644,6 +648,39 @@ struct Spi {
     sendBufU8sync(buffer, size, [](){});
   }
 
+#if defined(STM32H7)
+  // Start async DMA TX transfer. Call sendBufU8dmaEnd() from DMA TC callback.
+  template<typename DMA_STREAM>
+  IGB_FAST_INLINE void sendBufU8dmaStart(uint8_t* buffer, size_t size, DMA_STREAM& dma_stream) {
+    disable();
+    transferSize(size);
+    IGB_SET_BIT(IGB_SPI->CFG1, SPI_CFG1_TXDMAEN);
+    enable();
+    dma_stream.start(
+      reinterpret_cast<uint32_t>(&IGB_SPI->TXDR),
+      reinterpret_cast<uint32_t>(buffer),
+      static_cast<uint16_t>(size),
+      DmaStreamConf {
+        .direction        = DmaStreamDir::memToPeriph,
+        .periphSize       = DmaStreamDataSize::_8bit,
+        .memSize          = DmaStreamDataSize::_8bit,
+        .memIncrement     = true,
+        .interruptComplete = true,
+      }
+    );
+    startMasterTransfer(true);
+  }
+
+  // Cleanup after DMA TC fires. Call from DMA TC ISR callback.
+  IGB_FAST_INLINE void sendBufU8dmaEnd() {
+    while (!is(SpiState::endOfTransfer)) {}
+    IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_EOTC);
+    IGB_SET_BIT(IGB_SPI->IFCR, SPI_IFCR_TXTFC);
+    disable();
+    IGB_CLEAR_BIT(IGB_SPI->CFG1, SPI_CFG1_TXDMAEN | SPI_CFG1_RXDMAEN);
+  }
+#endif
+
   IGB_FAST_INLINE void sendU16(uint16_t data) {
 #if defined(STM32H7)
 #if defined (__GNUC__)
@@ -704,7 +741,13 @@ struct Spi {
     GpioPin pin = GpioPin::newPin(pin_type);
     pin.setMode(GpioMode::alternate);
     pin.setPullMode(GpioPullMode::no);
-    pin.setSpeedMode(GpioSpeedMode::high);
+    pin.setSpeedMode(
+#if defined(STM32H7)
+      GpioSpeedMode::veryHigh
+#else
+      GpioSpeedMode::high
+#endif
+    );
     pin.setOutputMode(GpioOutputMode::pushpull);
     pin.setAlternateFunc(result.value());
     pin.enable();

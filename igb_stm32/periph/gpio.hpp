@@ -24,7 +24,12 @@ constexpr uint32_t GPIO_MODE_MASK = 0x00000003UL;
 enum class GpioSpeedMode : uint32_t {
   low    = 0UL,
   medium = 0x00000001UL,
-  high   = 0x00000003UL
+#if defined(STM32H7)
+  high     = 0x00000002UL,
+  veryHigh = 0x00000003UL,
+#else
+  high   = 0x00000003UL,
+#endif
 };
 constexpr uint32_t GPIO_SPEED_MODE_MASK = 0x00000003UL;
 
@@ -279,7 +284,11 @@ struct GpioPin {
   }
 
   IGB_FAST_INLINE void initInputDefault() {
+#if defined(STM32H7)
+    initInput(GpioPullMode::no, GpioSpeedMode::veryHigh);
+#else
     initInput(GpioPullMode::no, GpioSpeedMode::high);
+#endif
   }
 
   IGB_FAST_INLINE void initOutput(GpioOutputMode output_mode, GpioSpeedMode speed) {
@@ -290,7 +299,11 @@ struct GpioPin {
   }
 
   IGB_FAST_INLINE void initOutputDefault() {
+#if defined(STM32H7)
+    initOutput(GpioOutputMode::pushpull, GpioSpeedMode::veryHigh);
+#else
     initOutput(GpioOutputMode::pushpull, GpioSpeedMode::high);
+#endif
   }
 
   static IGB_FAST_INLINE GpioPin newPin(const GpioPinType pin_type) {
