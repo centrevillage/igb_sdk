@@ -42,6 +42,7 @@ add_executable(
   src/test_quantizer.cpp
   src/test_button_history.cpp
   src/test_syncable_mod_clock.cpp
+  src/test_soft_timer.cpp
 )
 target_link_libraries(igb_sdk_test PRIVATE igb_sdk Catch2::Catch2WithMain)
 

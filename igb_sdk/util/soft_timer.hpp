@@ -71,8 +71,13 @@ struct SoftTimer {
   void process(uint32_t current_msec_) {
     for (auto& s : states) {
       if (s.state != State::inactive) {
-        uint32_t current_interval = current_msec_ - s._start_msec;
-        if (current_interval >= s.interval) {
+        // wrap-safe な期日判定。current_msec_ / (_start_msec + interval) が uint32 を
+        // ラップしても、差分を int32 で見るため正しく判定できる。
+        // また _start_msec が current_msec_ より未来(process() 実行中のコールバックから
+        // 積んだ直後など)の場合は負値になり発火しない。これにより、同一 process 周回で
+        // 未到来のタイマーが符号なし減算のアンダーフローで即発火するのを防ぐ。
+        // 前提: interval と process() の呼び出し間隔がおよそ 2^31 tick 未満であること。
+        if ((int32_t)(current_msec_ - (s._start_msec + s.interval)) >= 0) {
           if (s.callback) {
             s.callback();
           }
