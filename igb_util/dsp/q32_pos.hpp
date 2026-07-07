@@ -35,12 +35,16 @@ IGB_FAST_INLINE float q32_frac_to_float(q32_t q) {
   return (float)(uint32_t)q * (1.0f / 4294967296.0f);
 }
 
-// Full value -> float (pos_snapshot). Precondition: q >= 0. Two u32 vcvt +
-// one fma; may differ from the old `(float)pos_double` by 1 ULP from double
-// rounding (harmless: PLL margin and UI pixel scale are orders above).
+// Full value -> float (pos_snapshot). Sign-correct so a (degenerate-state)
+// negative position snapshots as the old `(float)pos_double` did. Two u32
+// vcvt + one fma + sign select; may differ from the old cast by 1 ULP from
+// double rounding (harmless: PLL margin and UI pixel scale are orders above).
 IGB_FAST_INLINE float q32_to_float(q32_t q) {
-  return (float)(uint32_t)(q >> 32)
-       + (float)(uint32_t)q * (1.0f / 4294967296.0f);
+  bool neg = q < 0;
+  uint64_t a = neg ? (uint64_t)(-q) : (uint64_t)q;
+  float f = (float)(uint32_t)(a >> 32)
+          + (float)(uint32_t)a * (1.0f / 4294967296.0f);
+  return neg ? -f : f;
 }
 
 // double -> Q32.32, round-to-nearest half-away (llround-equivalent) without

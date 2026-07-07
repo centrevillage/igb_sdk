@@ -5,6 +5,7 @@
 #include <utility>
 #include <igb_util/macro.hpp>
 #include <igb_util/dsp/deinterpolator.hpp>
+#include <igb_util/dsp/q32_pos.hpp>
 
 namespace igb::dsp {
 
@@ -17,8 +18,18 @@ struct LoopBufferStereo {
   size_t write_pos = 0;      // native-speed recording
   size_t loop_start = 0;     // absolute start of recorded region (LilaC: always 0)
   size_t loop_length = 0;    // length of recorded region (= recorded content ring)
-  double pos = 0.0;          // position within the WINDOW (0 to winLen())
-  double tape_speed = 1.0;
+  // Issue #198: window-relative playhead in Q32.32 (value = pos_q / 2^32,
+  // range [0, winLen()), docs/198). Written by the audio IRQ (movePos /
+  // overdub) with plain stores; MAIN-LOOP readers/writers must go through
+  // q32_atomic_load/store or resetPosQ (docs/198 §3.2 — an int64 access may
+  // compile to two 32-bit halves and the IRQ can land between them; the
+  // bracket is the guarantee, alignas(8) only makes single LDRD/STRD likely).
+  alignas(8) q32_t pos_q = 0;
+  // Issue #198: playback rate, Q32.32 for position math + float mirror for
+  // the scatter sample gains (samples are float — f64 gain math was never
+  // load-bearing). Both derived in changeSpeed() (main-loop context).
+  alignas(8) q32_t tape_speed_q = q32_one;
+  float tape_speed_f = 1.0f;
   volatile float pos_snapshot = 0.0f;  // atomic 32-bit view of pos for non-audio readers
 
   // LilaCRepeater issue #121: non-destructive playback WINDOW (loop range).
@@ -88,6 +99,7 @@ struct LoopBufferStereo {
   double _ck_wlen = -1.0;        // (-1 unreachable → first _syncWin refreshes)
   size_t _ck_llen = SIZE_MAX;
   double _wl_d = 0.0;            // == winLen()
+  q32_t _wl_q = 0;               // == q32_from_double(winLen())  (issue #198)
   uint32_t _wl_int = 0;          // == _winLenInt()
   size_t _wstart = 0;            // == winStart()
   bool _xfade_wide = false;      // == (winLen() > 2*boundary_xfade_len)
@@ -100,6 +112,10 @@ struct LoopBufferStereo {
     _ck_wlen = win_len;
     _ck_llen = loop_length;
     _wl_d = winLen();
+    // Issue #198: q32_from_double is hand-split (no __aeabi libcall) — this
+    // refresh runs in the audio IRQ, where QSPI-resident newlib is forbidden
+    // (docs/198 §4-7).
+    _wl_q = q32_from_double(_wl_d);
     _wstart = winStart();
     _wl_int = _winLenInt();
     _xfade_wide = (_wl_d > (double)(2u * boundary_xfade_len));
@@ -112,7 +128,7 @@ struct LoopBufferStereo {
   // stable" region. Keeping the sign fixed avoids a ~32-sample jump at
   // is_reverse toggles. 16 samples = 0.33 ms @ 48 kHz, well below the
   // perceptual threshold; covers scatter spans up to 14 samples plus interp.
-  constexpr static double read_head_offset = 16.0;
+  constexpr static q32_t read_head_offset_q = q32_t(16) << 32;  // == 16.0 (issue #198)
 
   // Issue #84: read-time loop-boundary crossfade. When boundary_xfade is set
   // (overdubbed loops), readLoop() spreads the buf[L-1]→buf[0] discontinuity
@@ -142,8 +158,20 @@ struct LoopBufferStereo {
     buf_size = size;
   }
 
+  // Issue #198: derive both rate representations. Called from the MAIN LOOP
+  // every iteration (LooperModel::process → updateTapeSpeed) while the audio
+  // IRQ reads tape_speed_q — the value-change guard drops the conversion to
+  // effective tick rate (the PLL mod only changes per tick) and the atomic
+  // store keeps the 64-bit publish untorn (docs/198 §3.2). The f/q pair can
+  // be observed one frame apart by the IRQ (gain vs rate skew for a single
+  // sample during a speed change) — same order-of-magnitude transient the
+  // PLL ramp already produces.
+  double _last_speed_in = 1.0;
   IGB_FAST_INLINE void changeSpeed(double speed) {
-    tape_speed = speed;
+    if (speed == _last_speed_in) return;
+    _last_speed_in = speed;
+    tape_speed_f = (float)speed;
+    q32_atomic_store(tape_speed_q, q32_from_double(speed));
   }
 
   void resetFeedbackPos() {
@@ -226,27 +254,28 @@ struct LoopBufferStereo {
   // wrap occurred (forward past loop_length, or reverse past 0). Callers that
   // don't need the wrap signal can ignore the return value. Audio context.
   IGB_FAST_INLINE bool movePos() {
-    pos += tape_speed;
     // Issue #121: pos lives in the WINDOW ring; wrap at winLen() so the loop
     // (and the OD-lap wrap signal) lands on the window boundary. winLen()==
     // loop_length when no sub-window is active.
+    // Issue #198: Q32.32 advance — add + int64 compare, no f64 math. Audio
+    // context: plain (non-bracketed) access to pos_q / tape_speed_q is
+    // correct here, the audio IRQ is never preempted (docs/198 §3.2).
     _syncWin();
-    double len = _wl_d;
-    bool wrapped = false;
-    if (pos >= len) {
-      pos -= len;
-      wrapped = true;
-    } else if (pos < 0.0) {
-      pos += len;
-      wrapped = true;
-    }
-    pos_snapshot = (float)pos;
+    bool wrapped = q32_advance_wrap(pos_q, tape_speed_q, _wl_q);
+    pos_snapshot = q32_to_float(pos_q);
     return wrapped;
   }
 
+  // Issue #198 §3.2: main-loop entry — atomic publish so the audio IRQ never
+  // observes a torn 64-bit position. The reset-vs-advance ORDER race (the IRQ
+  // may advance right before/after the reset) keeps the exact semantics the
+  // double code had; only torn values are new-ly impossible.
+  IGB_FAST_INLINE void resetPosQ(q32_t new_pos_q) {
+    q32_atomic_store(pos_q, new_pos_q);
+    pos_snapshot = q32_to_float(new_pos_q);
+  }
   IGB_FAST_INLINE void resetPos(double new_pos = 0.0) {
-    pos = new_pos;
-    pos_snapshot = (float)new_pos;
+    resetPosQ(q32_from_double(new_pos));
   }
 
   // --- native-speed recording ---
@@ -282,21 +311,28 @@ struct LoopBufferStereo {
   // prev_pos/new_pos fetch pair (LilaCRepeater issue #64). Audio context.
   IGB_FAST_INLINE bool overdub(std::pair<float, float> value, float feedback) {
     _syncWin();   // Issue #171: one key check; the scatter uses _wl_int/_winIdx
-    uint32_t pos_u32 = (uint32_t)pos;
-    double pos_frac = pos - (double)pos_u32;
+    // Issue #198: all scatter POSITION math is integer Q32.32; only the
+    // sample-gain arithmetic stays float (docs/198 §3). The extraction base
+    // saturates a (degenerate-state) negative pos_q to 0, mirroring the old
+    // `(uint32_t)pos_double` hardware saturation — see readLoopAhead. The
+    // speed-class branches compare exact integers — same branch the f64
+    // compares took for on-grid values, now branch-deterministic.
+    const q32_t pos_qc = (pos_q < 0) ? 0 : pos_q;
+    uint32_t pos_u32 = q32_idx(pos_qc);
+    uint32_t pos_frac = (uint32_t)pos_qc;   // fractional word
 
-    if (tape_speed >= 0.0) {
-      if (tape_speed < 1.0) {
+    if (tape_speed_q >= 0) {
+      if (tape_speed_q < q32_one) {
         _overdubSlow(value, feedback, pos_u32, pos_frac);
       } else {
-        _overdubFast(value, feedback, pos_u32, pos_frac);
+        _overdubFast(value, feedback, pos_qc, pos_u32, pos_frac);
       }
     } else {
-      double abs_speed = -tape_speed;
-      if (abs_speed < 1.0) {
-        _overdubSlowReverse(value, feedback, pos_u32, pos_frac, abs_speed);
+      q32_t abs_speed_q = -tape_speed_q;
+      if (abs_speed_q < q32_one) {
+        _overdubSlowReverse(value, feedback, pos_u32, pos_frac, abs_speed_q);
       } else {
-        _overdubFastReverse(value, feedback, pos_u32, pos_frac);
+        _overdubFastReverse(value, feedback, pos_qc, pos_u32, pos_frac);
       }
     }
 
@@ -315,29 +351,32 @@ struct LoopBufferStereo {
 
   IGB_FAST_INLINE void _overdubSlow(
       std::pair<float, float> value, float feedback,
-      uint32_t pos_u32, double pos_frac) {
+      uint32_t pos_u32, uint32_t pos_frac) {
     // Issue #121: pos_u32 is WINDOW-relative; wrap by winLen() and map to
     // absolute content via _winIdx so the scatter stays inside the window.
+    // Issue #198: pos_frac is the Q32.32 fractional word; the boundary test
+    // is exact integer math (was `pos_frac + tape_speed > 1.0` in f64).
     const uint32_t wl = _scatterLen();
-    float gain = (float)tape_speed;
-    if (pos_frac + tape_speed > 1.0) {
-      // crosses integer boundary
-      double rate = (1.0 - pos_frac) / tape_speed;
+    float gain = tape_speed_f;
+    if ((q32_t)pos_frac + tape_speed_q > q32_one) {
+      // crosses integer boundary. pos_frac > 0 here (frac 0 + slow speed
+      // can't cross), so q32_one - pos_frac < 2^32 fits the frac word.
+      float rate = q32_frac_to_float(q32_one - (q32_t)pos_frac) / tape_speed_f;
       // leading portion
       _writeFb(_winIdx(pos_u32), pos_u32,
-               value.first * gain * (float)rate,
-               value.second * gain * (float)rate,
+               value.first * gain * rate,
+               value.second * gain * rate,
                feedback, false);
       // trailing portion (update _last_fb_pos). Issue #67: wrap by winLen()
       // so the contribution lands on window pos 0 when we cross the boundary,
       // instead of writing past the window into other content.
       uint32_t next = pos_u32 + 1;
       while (next >= wl) next -= wl;
-      float rem = gain * (1.0f - (float)rate);
+      float rem = gain * (1.0f - rate);
       _writeFb(_winIdx(next), next,
                value.first * rem, value.second * rem,
                feedback, true);
-    } else if (pos_frac == 0.0) {
+    } else if (pos_frac == 0u) {
       // integer boundary
       _writeFb(_winIdx(pos_u32), pos_u32,
                value.first * gain, value.second * gain,
@@ -352,11 +391,12 @@ struct LoopBufferStereo {
 
   IGB_FAST_INLINE void _overdubFast(
       std::pair<float, float> value, float feedback,
-      uint32_t pos_u32, double pos_frac) {
+      q32_t pos_qc, uint32_t pos_u32, uint32_t pos_frac) {
     // Issue #121: window-relative scatter (see _overdubSlow).
     const uint32_t wl = _scatterLen();
     // leading edge
-    float lead = (pos_frac == 0.0) ? 1.0f : (1.0f - (float)pos_frac);
+    float lead = (pos_frac == 0u)
+        ? 1.0f : (1.0f - q32_frac_to_float((q32_t)pos_frac));
     _writeFb(_winIdx(pos_u32), pos_u32,
              value.first * lead, value.second * lead,
              feedback, false);
@@ -367,9 +407,14 @@ struct LoopBufferStereo {
     // on window positions 0..N-1 instead of past-the-window slots.
     // Issue #171: the wrap is carried incrementally (k advances by 1 per
     // iteration) instead of paying a `% wl` per position.
-    double next_pos = pos + tape_speed;
-    uint32_t next_pos_raw = (uint32_t)next_pos;
-    float next_pos_frac = (float)(next_pos - (double)next_pos_raw);
+    // Issue #198: next_pos_q = pos + tape_speed_q is the IDENTICAL increment
+    // movePos() applies after this call — the scatter destination and the
+    // advanced pos can never diverge (docs/198 §4-2). Based on the SATURATED
+    // pos_qc so a degenerate negative pos can't shift a huge index into the
+    // span math (matches the old per-cast hardware saturation).
+    q32_t next_pos_q = pos_qc + tape_speed_q;   // unwrapped, >= 0 (forward)
+    uint32_t next_pos_raw = q32_idx(next_pos_q);
+    float next_pos_frac = q32_frac_to_float(next_pos_q);
 
     float inv_span = 1.0f / (float)(next_pos_raw - pos_u32);
     uint32_t kw = pos_u32 + 1;
@@ -396,13 +441,16 @@ struct LoopBufferStereo {
 
   IGB_FAST_INLINE void _overdubSlowReverse(
       std::pair<float, float> value, float feedback,
-      uint32_t pos_u32, double pos_frac, double abs_speed) {
+      uint32_t pos_u32, uint32_t pos_frac, q32_t abs_speed_q) {
     // Issue #121: window-relative backward scatter (see _overdubSlow).
+    // Issue #198: boundary test in exact integer Q32.32; gains in float
+    // (abs_speed_f == the old (float)abs_speed exactly — float negate).
     const uint32_t wl = _scatterLen();
-    float gain = (float)abs_speed;
-    if (pos_frac > 0.0 && pos_frac < abs_speed) {
+    const float abs_speed_f = -tape_speed_f;
+    float gain = abs_speed_f;
+    if (pos_frac != 0u && (q32_t)pos_frac < abs_speed_q) {
       // crosses integer boundary (backward)
-      float rate = (float)(pos_frac / abs_speed);
+      float rate = q32_frac_to_float((q32_t)pos_frac) / abs_speed_f;
       // leading portion (current position)
       _writeFb(_winIdx(pos_u32), pos_u32,
                value.first * gain * rate,
@@ -415,7 +463,7 @@ struct LoopBufferStereo {
       _writeFb(_winIdx(prev), prev,
                value.first * rem, value.second * rem,
                feedback, true);
-    } else if (pos_frac == 0.0) {
+    } else if (pos_frac == 0u) {
       // integer boundary: entering previous position
       uint32_t prev = pos_u32 ? (pos_u32 - 1) : (wl - 1);
       while (prev >= wl) prev -= wl;
@@ -432,20 +480,28 @@ struct LoopBufferStereo {
 
   IGB_FAST_INLINE void _overdubFastReverse(
       std::pair<float, float> value, float feedback,
-      uint32_t pos_u32, double pos_frac) {
+      q32_t pos_qc, uint32_t pos_u32, uint32_t pos_frac) {
     // Issue #121: window-relative backward scatter (see _overdubSlow).
     const uint32_t wl = _scatterLen();
     // leading edge (at current pos)
-    float lead = (pos_frac == 0.0) ? 1.0f : (float)pos_frac;
+    float lead = (pos_frac == 0u) ? 1.0f : q32_frac_to_float((q32_t)pos_frac);
     _writeFb(_winIdx(pos_u32), pos_u32,
              value.first * lead, value.second * lead,
              feedback, false);
 
-    // backward destination (wrapped to positive)
-    double dest = pos + tape_speed;
-    if (dest < 0.0) dest += (double)wl;
-    uint32_t dest_u32 = (uint32_t)dest;
-    float dest_frac = (float)(dest - (double)dest_u32);
+    // backward destination (wrapped to positive). Issue #198 (docs/198 §8):
+    // the backward dest wraps by the INTEGER scatter modulus wl
+    // (== _scatterLen()), NOT the fractional _wl_q — preserved exactly from
+    // the double code. The defensive clamp guards the degenerate tiny-window
+    // case (wl < |speed|, dest still negative after one wrap): the double
+    // path hit UB there ((uint32_t) of a negative double); a negative dest_q
+    // would arithmetic-shift to a huge index and stall _winIdx's bounded-
+    // subtract loop inside the audio IRQ, so clamp to 0 instead.
+    q32_t dest_q = pos_qc + tape_speed_q;
+    if (dest_q < 0) dest_q += (q32_t)wl << 32;
+    if (dest_q < 0) dest_q = 0;
+    uint32_t dest_u32 = q32_idx(dest_q);
+    float dest_frac = q32_frac_to_float(dest_q);
 
     // intermediate positions (backward). Issue #171: the wrap is carried by a
     // decrementing counter instead of a `% wl` per position.
@@ -492,12 +548,47 @@ struct LoopBufferStereo {
     };
   }
 
+  // --- issue #198 Layer 2 (docs/198 §9.2): Q32.32 interp-read core ---------
+  // Post-_syncWin index math only (no fetch): the tap pair for a wrapped
+  // window-relative Q32.32 read position. Thin wrapper over the Layer 1 pure
+  // function (proven against the frozen double reference in Phase 0).
+  IGB_FAST_INLINE InterpTapsQ _interpTapsQ(q32_t read_pos_q) const {
+    return q32_interp_taps(read_pos_q, _wl_q);
+  }
+
+  // Post-_syncWin interp read at an arbitrary wrapped window-relative
+  // position: taps → _winIdx ×2 → 2-tap lerp. No boundary xfade, no pos
+  // dependence, no state change — the grain read core (Phase 2 granular
+  // engine calls this per tap after one _syncWin per frame, the same
+  // convention _advanceOdCopy uses).
+  IGB_FAST_INLINE std::pair<float, float> _readInterpQ(q32_t read_pos_q) const {
+    InterpTapsQ taps = q32_interp_taps(read_pos_q, _wl_q);
+    auto v0 = *(buf + _winIdx(taps.i0));
+    auto v1 = *(buf + _winIdx(taps.i1));
+    return {
+      (1.0f - taps.t) * v0.first  + taps.t * v1.first,
+      (1.0f - taps.t) * v0.second + taps.t * v1.second
+    };
+  }
+
+  // One-shot any-position read (audio context): sync + wrap + core. Grain
+  // entry / test convenience. Negative-saturating like readLoopAhead.
+  IGB_FAST_INLINE std::pair<float, float> readAtQ(q32_t pos_q_any) {
+    _syncWin();
+    q32_t p = q32_wrap_once(pos_q_any, _wl_q);
+    if (p < 0) p = 0;
+    return _readInterpQ(p);
+  }
+
+  // Post-_syncWin effective window length in Q32.32 (grain wrap modulus).
+  IGB_FAST_INLINE q32_t winLenQ() const { return _wl_q; }
+
   // read within loop at current pos (interpolated).
   // Issue #68: reads at pos + read_head_offset rather than pos directly, so
   // the auditory now-position is decoupled from the scatter write head. See
-  // `read_head_offset` comment above for the direction and safety reasoning.
+  // `read_head_offset_q` comment above for the direction and safety reasoning.
   IGB_FAST_INLINE std::pair<float, float> readLoop() {
-    return readLoopAhead(0.0, true);
+    return readLoopAhead(0, true);
   }
 
   // Issue #111: io-rate (96 kHz) oversampled read. Reads at pos + `ahead`
@@ -508,31 +599,30 @@ struct LoopBufferStereo {
   // ahead==0 read) gates the boundary_xfade frozen-edge refresh: a sub-frame
   // read must not refresh the snapshots from a position the loop-frame
   // bookkeeping has not yet reached. Audio context.
-  IGB_FAST_INLINE std::pair<float, float> readLoopAhead(double ahead, bool is_canonical) {
+  IGB_FAST_INLINE std::pair<float, float> readLoopAhead(q32_t ahead_q, bool is_canonical) {
     // Issue #121: read within the WINDOW ring. read_pos wraps at winLen() and
     // window-relative indices map to absolute content via _winIdx (which
     // wraps at loop_length, so a window straddling the recording end reads the
     // correct content). winLen()==loop_length when no sub-window is active.
     // Issue #171: one _syncWin() up front; the body reads the cached fields.
+    // Issue #198: pos + ahead + offset → wrap → _readInterpQ core → xfade
+    // blend. The interp-partner fractional-window seam (#121) lives inside
+    // q32_interp_taps; xfade / frozen edges / canonical refresh stay OUT of
+    // the core (playhead-seam-specific, docs/198 §9.2).
     _syncWin();
-    const double wl = _wl_d;
-    double read_pos = pos + ahead + read_head_offset;
-    if (read_pos >= wl) read_pos -= wl;
-    else if (read_pos < 0.0) read_pos += wl;
-    uint32_t pos_i = (uint32_t)read_pos;
-    float t = (float)(read_pos - (double)pos_i);
-    // Issue #121: the interp partner wraps at the (possibly FRACTIONAL) window
-    // length — next == 0 once it would reach/exceed wl, so the seam interpolates
-    // window-end → window-start without an integer-modulus off-by-one. For an
-    // integer / full window this matches the prior (pos_i+1) % wl behavior.
-    uint32_t next_i = pos_i + 1u;
-    if ((double)next_i >= wl) next_i = 0u;
-    size_t idx0 = _winIdx(pos_i);
-    size_t idx1 = _winIdx(next_i);
-    auto v0 = *(buf + idx0);
-    auto v1 = *(buf + idx1);
-    float out_l = (1.0f - t) * v0.first  + t * v1.first;
-    float out_r = (1.0f - t) * v0.second + t * v1.second;
+    const q32_t wl_q = _wl_q;
+    q32_t read_pos_q = q32_wrap_once(pos_q + ahead_q + read_head_offset_q, wl_q);
+    // Issue #198: saturate a (degenerate-state) negative read position to 0,
+    // mirroring what the old `(uint32_t)read_pos_double` did in hardware
+    // (vcvt/FCVTZU saturate negatives to 0 — UB in C++ but the de-facto
+    // behavior this code shipped with). Reachable only when pos_q has gone
+    // negative in the loop_length==0-while-playing degenerate state; without
+    // the clamp the huge idx would spin _winIdx's bounded-subtract loop
+    // INSIDE THE AUDIO IRQ (watchdog reset on device, test hang on host).
+    if (read_pos_q < 0) read_pos_q = 0;
+    auto out = _readInterpQ(read_pos_q);
+    float out_l = out.first;
+    float out_r = out.second;
 
     // Issue #84: read-time loop-boundary crossfade (overdubbed loops). Within
     // boundary_xfade_len of the wrap on each side, blend the content toward a
@@ -540,20 +630,23 @@ struct LoopBufferStereo {
     // spreading the steep 1-sample jump over the window. At the wrap both
     // sides converge to 0.5*(buf[L-1]+buf[0]) → continuous; at ±N w=0 → normal.
     if (boundary_xfade && _xfade_wide) {
+      constexpr q32_t N_q = (q32_t)boundary_xfade_len << 32;
       const float N = (float)boundary_xfade_len;
-      double dist = -1.0;
+      q32_t dist_q = -1;
       bool pre_wrap = false;
-      if (read_pos >= wl - (double)N) {
-        dist = wl - read_pos;                     // 0..N (approaching wrap)
+      if (read_pos_q >= wl_q - N_q) {
+        dist_q = wl_q - read_pos_q;               // 0..N (approaching wrap)
         pre_wrap = true;
-      } else if (read_pos < (double)N) {
-        dist = read_pos;                          // 0..N (leaving wrap)
+      } else if (read_pos_q < N_q) {
+        dist_q = read_pos_q;                      // 0..N (leaving wrap)
       }
-      if (dist >= 0.0) {
+      if (dist_q >= 0) {
         // Inside the region: bridge using the FROZEN edges (the live buf[0]/
         // buf[L-1] are overdubbed by the OD scatter while we are here, which
         // would step the bridge — issue #84 problem 2).
-        float d = (float)dist / N;                // 0 at wrap, 1 at ±N
+        // Issue #198: dist_q <= 64·2^32 exceeds the u32 frac word, so the
+        // float conversion goes through the hi/lo-split q32_to_float (§8).
+        float d = q32_to_float(dist_q) / N;       // 0 at wrap, 1 at ±N
         // Smoothstep weight: 1 at the wrap, 0 at ±N, with ZERO slope at both
         // ends AND the peak. A linear (triangle) weight has a slope kink at its
         // peak — i.e. a corner in the waveform right at the loop boundary —
