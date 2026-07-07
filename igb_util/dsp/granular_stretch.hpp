@@ -48,10 +48,15 @@ struct GranularStretch {
   uint32_t _k = 0;       // 0..hop−1: crossfade phase
   uint32_t _hop = default_grain_len / 2;
   float _env_step = 256.0f / (float)(default_grain_len / 2);
-  q32_t _pitch_q = q32_one;   // next spawn's rate (edit-time setter)
+  // Next spawn's rate. Written by the main loop (setPitch), read by the audio
+  // context (_spawn) — a 64-bit cross-context pair, so the writer goes
+  // through q32_atomic_store (#198 §3.2 PRIMASK discipline; plain read on
+  // the IRQ side).
+  alignas(8) q32_t _pitch_q = q32_one;
 
-  // Edit-time (main loop): grains in flight keep their captured rate.
-  void setPitch(q32_t p) { _pitch_q = p; }
+  // Edit-time (main loop): grains in flight keep their captured rate — a
+  // pitch change lands click-free on the next spawn (LilaC Q9).
+  void setPitch(q32_t p) { q32_atomic_store(_pitch_q, p); }
 
   // Tuning entry (spike/listening): resets the render state.
   void setGrainLen(uint32_t len) {
