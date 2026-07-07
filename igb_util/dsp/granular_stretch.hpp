@@ -58,24 +58,80 @@ struct GranularStretch {
   // pitch change lands click-free on the next spawn (LilaC Q9).
   void setPitch(q32_t p) { q32_atomic_store(_pitch_q, p); }
 
+  // --- WSOLA alignment search (design §9) ------------------------------------
+  // Plain OLA splices grains at arbitrary phase: the two live grains read
+  // positions offset by a constant (r−p)·hop, which on real hardware (PLL-
+  // wobbled r) is a few samples even at pitch ±0 — a hop-rate-modulated
+  // 2-tap comb ("gritty" broadband noise, worst near the original pitch) —
+  // and periodic material splices out of phase every hop (hop-rate sidebands
+  // on every harmonic). The fix is the "S" of WSOLA: pick the spawn anchor
+  // within ±wsola_half_range that best continues what the outgoing grain is
+  // about to play.
+  //
+  // Budget discipline: the AMDF scan is AMORTIZED — a few lags per render
+  // frame in the frames leading up to the hop, never a one-frame spike.
+  // Stretch tracks ban OD, so the buffer content is immutable during
+  // playback and the look-ahead search is race-free (a reseed cancels it).
+  //
+  // Acceptance rule: the aligned anchor is used only when its AMDF beats the
+  // nominal anchor's by wsola_accept_num/DEN — periodic/near-passthrough
+  // content aligns (the artifact cases), while aperiodic material (where the
+  // edge of the window would win a meaningless linear race, e.g. ramps)
+  // falls back to the phase-exact nominal anchor. A mild multiplicative
+  // center bias breaks periodic ties toward the nominal.
+  bool wsola_enabled = true;                          // device A/B switch
+  constexpr static uint32_t wsola_half_range = 128;   // ±samples (~2.7 ms)
+  constexpr static uint32_t wsola_taps = 64;          // template length
+  constexpr static uint32_t wsola_ref_chunk = 16;     // ref taps captured/frame
+  constexpr static float wsola_accept_num = 0.5f;     // best < 0.5 × nominal
+  constexpr static float wsola_center_bias = 0.001f;  // per-sample tie penalty
+
+  enum class SearchPhase : uint8_t { idle, ref_capture, scan, ready };
+  SearchPhase _sphase = SearchPhase::idle;
+  float _ref[wsola_taps];        // outgoing grain's predicted continuation
+  q32_t _cand_base = 0;          // lag-0 candidate position (anchor_pred − W)
+  q32_t _ref_cursor = 0;         // ref-capture walk position
+  q32_t _search_rate = 0;        // p frozen at search start
+  uint32_t _lag_idx = 0;
+  uint32_t _ref_idx = 0;
+  uint32_t _lags_per_frame = 1;
+  uint32_t _search_lead = 4 + 2 * wsola_half_range + 1 + 4;  // frames before hop
+  float _best_metric = 0.0f;
+  float _center_metric = 0.0f;
+  uint32_t _best_lag = 0;
+
   // Tuning entry (spike/listening): resets the render state.
   void setGrainLen(uint32_t len) {
     if (len < 128) len = 128;
     len &= ~1u;                        // even → exact 50% hop
     _hop = len / 2;
     _env_step = 256.0f / (float)_hop;
+    _recalcSearchPlan();
     reset();
   }
   uint32_t grainLen() const { return _hop * 2; }
 
+  // Fit the amortized scan into the frames before each hop: 4 ref-capture
+  // frames + ceil(lag_count / lags_per_frame) scan frames + margin.
+  void _recalcSearchPlan() {
+    const uint32_t lag_count = 2 * wsola_half_range + 1;
+    const uint32_t budget = (_hop > 24) ? (_hop - 16) : 8;
+    _lags_per_frame = (lag_count + budget - 5) / (budget > 4 ? budget - 4 : 1);
+    if (_lags_per_frame == 0) _lags_per_frame = 1;
+    _search_lead = 4 + (lag_count + _lags_per_frame - 1) / _lags_per_frame + 4;
+    if (_search_lead > _hop) _search_lead = _hop;
+  }
+
   // Reseed hook (docs/v2_timestretch §5): pos discontinuities (undo swap,
   // step-jump, stutter repin, window commit, loopset swap, …) drop the
   // in-flight grains; the next render spawns fresh and Hann-ramps in
-  // (~hop/48k s) — click-free by construction.
+  // (~hop/48k s) — click-free by construction. Cancels any in-flight
+  // alignment search (its predictions are stale).
   void reset() {
     _out_g.active = false;
     _in_g.active = false;
     _k = 0;
+    _sphase = SearchPhase::idle;
   }
 
   // One loop-frame render: emits the io-rate pair (canonical + half-step
@@ -115,6 +171,11 @@ struct GranularStretch {
     if (_out_g.active) _out_g.src = q32_wrap_once(_out_g.src + _out_g.rate, wl);
     _in_g.src = q32_wrap_once(_in_g.src + _in_g.rate, wl);
     ++_k;                                 // hop handled at the next frame head
+
+    // Amortized WSOLA scan for the NEXT spawn (a few lags per frame; see the
+    // member-block comment). Runs after the render so its SDRAM traffic sits
+    // in the same budget slot every frame.
+    if (wsola_enabled && _in_g.active && _k < _hop) _searchAdvance(buf, wl);
   }
 
   // --- internals -----------------------------------------------------------
@@ -123,10 +184,103 @@ struct GranularStretch {
     // anchor = pos + (r − p)·L/2 (design §3). |r−p|·L/2 can exceed one
     // window on extreme rate deltas × short windows, so wrap is a bounded
     // loop here (q32_wrap_once is a ±1-window helper).
-    const q32_t lead = (buf.tape_speed_q - _pitch_q) * (q32_t)_hop;
-    _in_g.src = _wrapBounded(buf.pos_q + lead, wl);
+    const q32_t nominal =
+        buf.pos_q + (buf.tape_speed_q - _pitch_q) * (q32_t)_hop;
+    q32_t anchor = nominal;
+    if (_sphase == SearchPhase::ready && _search_rate == _pitch_q) {
+      // Acceptance rule (member-block comment): only a decisively better
+      // splice replaces the phase-exact nominal anchor.
+      if (_best_metric < wsola_accept_num * _center_metric) {
+        anchor = _cand_base + ((q32_t)(_best_lag) << 32);
+      }
+    }
+    _sphase = SearchPhase::idle;   // consume; the next cycle re-arms
+    _in_g.src = _wrapBounded(anchor, wl);
     _in_g.rate = _pitch_q;
     _in_g.active = true;
+  }
+
+  // Alignment-tap read: nearest-sample mono sum (L+R). Interp is unnecessary
+  // for AMDF alignment; the ±0.5-sample quantization is far below the comb
+  // offsets being corrected.
+  IGB_FAST_INLINE float _tapAt(const LoopBuf& buf, q32_t p, q32_t wl) const {
+    q32_t w = _wrapBounded(p, wl);
+    if (w < 0) w = 0;
+    const auto v = *(buf.buf + buf._winIdx(q32_idx(w)));
+    return v.first + v.second;
+  }
+
+  IGB_FAST_INLINE void _searchAdvance(LoopBuf& buf, q32_t wl) {
+    const uint32_t lag_count = 2 * wsola_half_range + 1;
+    switch (_sphase) {
+      case SearchPhase::idle: {
+        if (_hop - _k > _search_lead) return;
+        // Degenerate windows (shorter than the candidate span) skip the
+        // search — real play windows are ≥ one step (thousands of samples).
+        if ((uint32_t)(wl >> 32) < 2048) return;
+        // Freeze the plan: predict where the outgoing grain (= the current
+        // incoming one) and the nominal anchor will be at the hop. Content
+        // is immutable during stretch playback (OD is gated off), so the
+        // look-ahead reads stay valid; r may drift a hair over ≤10 ms, which
+        // only biases the window the accepted lag was searched in.
+        const q32_t remain = (q32_t)(_hop - _k);
+        const q32_t r = buf.tape_speed_q;
+        _search_rate = _pitch_q;
+        // Timing: _in_g.src is post-advance for THIS frame while pos_q is
+        // pre-movePos, and the spawn-frame renderIo runs before that frame's
+        // movePos — so the grain advances `remain` more times but pos
+        // advances `remain + 1` times before the spawn reads them.
+        const q32_t ref_start = _in_g.src + remain * _search_rate;
+        const q32_t anchor_pred =
+            buf.pos_q + (remain + 1) * r + (r - _search_rate) * (q32_t)_hop;
+        _cand_base = anchor_pred - ((q32_t)wsola_half_range << 32);
+        _ref_idx = 0;
+        _lag_idx = 0;
+        _best_metric = 0.0f;
+        _center_metric = 0.0f;
+        _best_lag = wsola_half_range;
+        // Stash ref_start in _ref[] capture via the grain-rate stride; the
+        // capture itself starts next frame (keeps this frame's cost flat).
+        _ref_cursor = ref_start;
+        _sphase = SearchPhase::ref_capture;
+        return;
+      }
+      case SearchPhase::ref_capture: {
+        for (uint32_t n = 0; n < wsola_ref_chunk && _ref_idx < wsola_taps; ++n) {
+          _ref[_ref_idx++] = _tapAt(buf, _ref_cursor, wl);
+          _ref_cursor += _search_rate;
+        }
+        if (_ref_idx >= wsola_taps) _sphase = SearchPhase::scan;
+        return;
+      }
+      case SearchPhase::scan: {
+        for (uint32_t n = 0; n < _lags_per_frame && _lag_idx < lag_count; ++n) {
+          const uint32_t lag = _lag_idx++;
+          q32_t cp = _cand_base + ((q32_t)lag << 32);
+          float amdf = 0.0f;
+          for (uint32_t t = 0; t < wsola_taps; ++t) {
+            const float d = _tapAt(buf, cp, wl) - _ref[t];
+            amdf += (d < 0.0f) ? -d : d;
+            cp += _search_rate;
+          }
+          // Scale-free center bias: periodic ties resolve toward the
+          // phase-exact nominal anchor.
+          const float off = (lag > wsola_half_range)
+                                ? (float)(lag - wsola_half_range)
+                                : (float)(wsola_half_range - lag);
+          const float metric = amdf * (1.0f + wsola_center_bias * off);
+          if (lag == wsola_half_range) _center_metric = amdf;
+          if (lag == 0 || metric < _best_metric) {
+            _best_metric = metric;
+            _best_lag = lag;
+          }
+        }
+        if (_lag_idx >= lag_count) _sphase = SearchPhase::ready;
+        return;
+      }
+      case SearchPhase::ready:
+        return;
+    }
   }
 
   IGB_FAST_INLINE std::pair<float, float> _readG(const LoopBuf& buf, q32_t wl,
