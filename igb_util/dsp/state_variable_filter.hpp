@@ -181,7 +181,7 @@ struct StateVariableFilter {
   // Block-rate coefficient update: a handful of mul + one FDIV (hardware
   // instruction) — no libcalls. g from svf_g_from_v01, k from
   // svf_damp_from_v01 (or any g > 0, k > 0 pair).
-  void setCoef(float g, float k) {
+  IGB_FAST_INLINE void setCoef(float g, float k) {
     _k = k;
     _a1 = 1.0f / (1.0f + g * (g + k));
     _a2 = g * _a1;
