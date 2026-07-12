@@ -80,7 +80,7 @@ IGB_FAST_INLINE float fastroot(float f, int n) {
   lp = (long *)(&f);
   l  = *lp;
   l -= 0x3F800000;
-  l >>= (n = 1);
+  l >>= (n - 1);   // 旧 `(n = 1)` は代入バグ (fastpower の `(n - 1)` と対になる指数シフト)
   l += 0x3F800000;
   *lp = l;
   return f;
