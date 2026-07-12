@@ -10,8 +10,15 @@
 
 // Issue #62: place code in ITCM (Instruction Tightly-Coupled Memory) on
 // STM32H7. 0-wait-state fetch beats QSPI XIP by ~10x. No-op on host builds.
+// セクション名は使用ごとに一意 (.itcm.N)。同一 TU 内で comdat (inline/template) と
+// 非 comdat (通常関数) が同名セクションを共有すると GCC が "section type conflict"
+// を出すため。noclone は ipa-sra クローン (.isra、非 comdat ローカル) がテンプレート
+// 実体 (comdat) と同名セクションで衝突するのを防ぐ。リンカスクリプト側は .itcm.* も
+// 収容すること。
 #if defined(STM32H750xx)
-  #define IGB_ITCM __attribute__((section(".itcm")))
+  #define IGB_SECTION_STR2(x) #x
+  #define IGB_SECTION_STR(x) IGB_SECTION_STR2(x)
+  #define IGB_ITCM __attribute__((section(".itcm." IGB_SECTION_STR(__COUNTER__)), noclone))
 #else
   #define IGB_ITCM
 #endif
