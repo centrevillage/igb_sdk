@@ -3,6 +3,7 @@
 #include <cmath>
 #include <array>
 #include <algorithm>
+#include <igb_util/macro.hpp>
 #include <igb_util/random.hpp>
 #include <igb_util/dsp/dsp_tbl_func.hpp>
 #include <igb_util/dsp/config.hpp>
@@ -19,30 +20,57 @@ struct PerlinNoise {
 
   float a_max = 4.0f;
 
+  // Private random stream: a seeded instance replays the same wavelet
+  // sequence deterministically (reconstruct + init(seed) — init alone keeps
+  // x/y evolved, see RandomXorshift). The unseeded init() below draws the
+  // seed from the global stream, preserving the legacy behavior.
+  igb::RandomXorshift rng;
+
   void init(float _freq) {
+    init(_freq, igb::rand_u32());
+  }
+
+  void init(float _freq, uint32_t seed) {
+    initAt(_freq, Config::getSamplingRateF(), seed);
+  }
+
+  // Explicit-rate variant: callers stepping process() at a non-audio cadence
+  // (e.g. once per control block) pass that cadence as `sample_rate` instead
+  // of relying on the global Config sampling rate.
+  void initAt(float _freq, float sample_rate, uint32_t seed) {
     phase = 0.0f;
-    changeFreq(_freq);
-    a1 = (igb::rand_f() - 0.5f) * a_max * 2.0f;
-    a2 = (igb::rand_f() - 0.5f) * a_max * 2.0f;
+    rng = igb::RandomXorshift{};
+    rng.init(seed);
+    changeFreqAt(_freq, sample_rate);
+    a1 = (rng.getf() - 0.5f) * a_max * 2.0f;
+    a2 = (rng.getf() - 0.5f) * a_max * 2.0f;
   }
 
   void changeFreq(float _freq) {
-    freq = _freq;
-    delta = freq / Config::getSamplingRateF();
+    changeFreqAt(_freq, Config::getSamplingRateF());
   }
 
-  float process() {
+  void changeFreqAt(float _freq, float sample_rate) {
+    freq = _freq;
+    delta = freq / sample_rate;
+  }
+
+  // always_inline: runs on audio-IRQ paths (ITCM) — an out-of-line body in
+  // flash would be long-called through a veneer per call.
+  IGB_FAST_INLINE float process() {
     phase += delta;
     if (phase >= 1.0f) {
       phase -= (uint32_t)phase;
       a1 = a2;
-      a2 = (igb::rand_f() - 0.5f) * a_max * 2.0f;
+      a2 = (rng.getf() - 0.5f) * a_max * 2.0f;
     }
     float wavelet_v1 = igb::dsp::perlin_5order_fast(phase) * (phase * a1);
     float phase2 = -1.0f + phase;
     float wavelet_v2 = igb::dsp::perlin_5order_fast(phase2) * (phase2 * a2);
-    
-    return std::lerp(wavelet_v1, wavelet_v2, phase);
+
+    // Manual lerp: std::lerp is not always_inline and gets outlined to flash
+    // when the (ITCM) caller exceeds GCC's inline budget (LilaC #202 audit).
+    return wavelet_v1 + (wavelet_v2 - wavelet_v1) * phase;
   }
 };
 
@@ -63,6 +91,19 @@ struct FractalNoise {
     }
   }
 
+  // Deterministic + explicit-rate variant (see PerlinNoise::initAt): octave i
+  // seeds `seed + (i+1)·golden` so the per-octave streams differ but the
+  // whole stack replays from one seed.
+  void initAt(float _freq, float _decay, float sample_rate, uint32_t seed) {
+    decay = _decay;
+    freq = _freq;
+    float freq_tmp = freq;
+    for (size_t i = 0; i < order_size; ++i) {
+      noises[i].initAt(freq_tmp, sample_rate, seed + 0x9E3779B9u * (uint32_t)(i + 1));
+      freq_tmp *= 2.0f;
+    }
+  }
+
   void changeFreq(float _freq) {
     freq = _freq;
     float freq_tmp = freq;
@@ -72,7 +113,7 @@ struct FractalNoise {
     }
   }
 
-  float process() {
+  IGB_FAST_INLINE float process() {
     float v = 0.0f;
     float gain = 1.0f;
     for (size_t i = 0; i < order_size; ++i) {

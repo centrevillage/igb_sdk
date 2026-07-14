@@ -16,16 +16,19 @@ struct RandomXorshift {
     w = x ^ z;
   }
 
-  inline uint32_t get() {
+  // always_inline (LilaC #202): drawn on audio-IRQ (ITCM) paths (fx_mod S&H,
+  // PerlinNoise wrap) — plain inline gets outlined to flash once the caller
+  // exceeds GCC's inline budget, adding a veneer long-call per draw.
+  IGB_FAST_INLINE uint32_t get() {
     uint32_t t = x ^ (x << 11);
     x = y;
     y = z;
     z = w;
-    w = (w ^ (w >> 19)) ^ (t ^ (t >> 8)); 
+    w = (w ^ (w >> 19)) ^ (t ^ (t >> 8));
     return w;
   }
 
-  inline float getf() {
+  IGB_FAST_INLINE float getf() {
     return (float)get() / (float)0xFFFFFFFF;
   }
 
