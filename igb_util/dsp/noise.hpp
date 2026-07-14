@@ -10,6 +10,17 @@
 
 namespace igb::dsp {
 
+// Closed form of dsp_func_perlin_5order_tbl: 1 − smootherstep(u) =
+// 1 − (6u⁵ − 15u⁴ + 10u³), u ∈ [0, 1]. ~8 FLOPs and NO memory access —
+// the table lives in .rodata (QSPI XIP on LilaC) and costs a D-cache line
+// fill per draw whenever other streams churn the cache (LilaC #202: the
+// per-block noise draws measured ~10µs/IRQ of QSPI fills on a busy cache).
+// Also exact where the 256-entry nearest-neighbor table quantizes.
+IGB_FAST_INLINE float perlin_5order_shape(float u /* 0.0 ~ 1.0 */) {
+  const float u3 = u * u * u;
+  return 1.0f - u3 * (u * (6.0f * u - 15.0f) + 10.0f);
+}
+
 struct PerlinNoise {
   float freq = 10.0f;
   float delta = 0.0f;
@@ -64,9 +75,11 @@ struct PerlinNoise {
       a1 = a2;
       a2 = (rng.getf() - 0.5f) * a_max * 2.0f;
     }
-    float wavelet_v1 = igb::dsp::perlin_5order_fast(phase) * (phase * a1);
+    // perlin_5order_shape == the perlin_5order_fast table's closed form
+    // (see above): phase ∈ [0,1), the mirrored arm reads at 1−phase.
+    float wavelet_v1 = perlin_5order_shape(phase) * (phase * a1);
     float phase2 = -1.0f + phase;
-    float wavelet_v2 = igb::dsp::perlin_5order_fast(phase2) * (phase2 * a2);
+    float wavelet_v2 = perlin_5order_shape(-phase2) * (phase2 * a2);
 
     // Manual lerp: std::lerp is not always_inline and gets outlined to flash
     // when the (ITCM) caller exceeds GCC's inline budget (LilaC #202 audit).
