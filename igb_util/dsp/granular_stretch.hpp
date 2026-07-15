@@ -93,8 +93,13 @@ struct GranularStretch {
   constexpr static float wsola_accept_num = 0.5f;     // best < 0.5 × nominal
   constexpr static float wsola_center_bias = 0.001f;  // per-sample tie penalty
   // Per-frame micro-budgets, per track (scaled up for tiny hops).
-  constexpr static uint32_t wsola_fill_per_frame = 4;   // SDRAM reads
-  constexpr static uint32_t wsola_taps_per_frame = 8;   // scratch AMDF taps
+  // LilaC issue #208 (perf audit C1): 4/8 → 3/6 — the SAME total search work
+  // spread over more frames (results identical, so quality-invariant; only
+  // the per-IRQ worst-case slice shrinks). At the standard hop 512 the plan
+  // still fits at scale 1: frames_at_1x 300 → 398, search_lead 308 → 406
+  // ≤ hop. Tiny hops compress via _recalcSearchPlan exactly as before.
+  constexpr static uint32_t wsola_fill_per_frame = 3;   // SDRAM reads
+  constexpr static uint32_t wsola_taps_per_frame = 6;   // scratch AMDF taps
   // Scratch spans the candidate walk in BOTH directions (reverse grains read
   // backwards): taps·|p|max(4) margin on each side of the 2W lag range.
   constexpr static uint32_t wsola_scratch_len =
@@ -115,9 +120,14 @@ struct GranularStretch {
   uint32_t _fine_end = 0;
   uint32_t _tap_idx = 0;     // partial-lag resume point
   float _amdf_acc = 0.0f;
-  uint32_t _fill_pf = wsola_fill_per_frame;
-  uint32_t _taps_pf = wsola_taps_per_frame;
-  uint32_t _search_lead = 320;
+  // Schedule state — the defaults MUST equal what _recalcSearchPlan derives
+  // for the default hop, so they come from the same _plan* maths below
+  // (LilaC issue #208 C1: a stale hand-set lead default silently starved the
+  // search when the per-frame budgets shrank — the engine runs on these
+  // defaults in production, setGrainLen is a tuning-only entry).
+  uint32_t _fill_pf = wsola_fill_per_frame * _planScale(default_grain_len / 2);
+  uint32_t _taps_pf = wsola_taps_per_frame * _planScale(default_grain_len / 2);
+  uint32_t _search_lead = _planLead(default_grain_len / 2);
   float _best_metric = 0.0f;
   float _center_metric = 0.0f;
   uint32_t _best_lag = 0;
@@ -134,22 +144,32 @@ struct GranularStretch {
   uint32_t grainLen() const { return _hop * 2; }
 
   // Fit the amortized schedule into the frames before each hop; tiny hops
-  // compress it by raising the per-frame budgets proportionally.
-  void _recalcSearchPlan() {
+  // compress it by raising the per-frame budgets proportionally. constexpr
+  // so the member defaults above are derived from the SAME maths (they are
+  // the production values — setGrainLen/_recalcSearchPlan is tuning-only).
+  constexpr static uint32_t _planFrames1x() {
     const uint32_t coarse_lags = wsola_half_range / wsola_coarse_step * 2 + 1;
     const uint32_t fine_lags = 2 * wsola_fine_reach + 1;
-    uint32_t frames_at_1x =
-        (wsola_scratch_len + wsola_fill_per_frame - 1) / wsola_fill_per_frame
-        + (wsola_taps + wsola_fill_per_frame - 1) / wsola_fill_per_frame
-        + ((coarse_lags + fine_lags) * wsola_taps + wsola_taps_per_frame - 1)
-              / wsola_taps_per_frame
-        + 8;
-    const uint32_t budget = (_hop > 24) ? (_hop - 16) : 8;
-    const uint32_t scale = (frames_at_1x + budget - 1) / budget;
+    return (wsola_scratch_len + wsola_fill_per_frame - 1) / wsola_fill_per_frame
+         + (wsola_taps + wsola_fill_per_frame - 1) / wsola_fill_per_frame
+         + ((coarse_lags + fine_lags) * wsola_taps + wsola_taps_per_frame - 1)
+               / wsola_taps_per_frame
+         + 8;
+  }
+  constexpr static uint32_t _planScale(uint32_t hop) {
+    const uint32_t budget = (hop > 24) ? (hop - 16) : 8;
+    return (_planFrames1x() + budget - 1) / budget;
+  }
+  constexpr static uint32_t _planLead(uint32_t hop) {
+    const uint32_t lead = _planFrames1x() / _planScale(hop) + 8;
+    return (lead > hop) ? hop : lead;
+  }
+
+  void _recalcSearchPlan() {
+    const uint32_t scale = _planScale(_hop);
     _fill_pf = wsola_fill_per_frame * scale;
     _taps_pf = wsola_taps_per_frame * scale;
-    _search_lead = frames_at_1x / scale + 8;
-    if (_search_lead > _hop) _search_lead = _hop;
+    _search_lead = _planLead(_hop);
   }
 
   // Reseed hook (docs/v2_timestretch §5): pos discontinuities (undo swap,
@@ -387,14 +407,26 @@ struct GranularStretch {
     return v;
   }
 
+  // LilaC issue #208 (perf audit B4): the envelope LUT pointer. Defaults to
+  // the in-class constexpr table (.rodata — host/parity paths unchanged); on
+  // the device the owner repoints it at a zero-wait TCM mirror of the same
+  // values (the table is read ×2 per rendered frame, and an XIP-flash
+  // .rodata read is D-cache-missable on the hot path). Wiring, not state —
+  // reset() must not touch it; owners re-wire after reconstruction (the
+  // WowFlutterFx tape-ring class of hooks).
+  const float* _env_lut = hann_ramp_lut;
+  void setEnvLut(const float* lut257) { _env_lut = lut257; }
+
   // Half-Hann rise 0→1 over index 0..256, linear-interpolated. Literal table
-  // (bit-identical host/device, .rodata — no boot-time trig).
-  IGB_FAST_INLINE static float _env(float idx256) {
+  // (bit-identical host/device, .rodata — no boot-time trig); reads go
+  // through _env_lut (same values wherever it points, so still bit-exact).
+  IGB_FAST_INLINE float _env(float idx256) const {
     if (idx256 <= 0.0f) return 0.0f;
     if (idx256 >= 256.0f) return 1.0f;
     const uint32_t i = (uint32_t)idx256;
     const float t = idx256 - (float)i;
-    return hann_ramp_lut[i] + t * (hann_ramp_lut[i + 1] - hann_ramp_lut[i]);
+    const float* lut = _env_lut;
+    return lut[i] + t * (lut[i + 1] - lut[i]);
   }
 
   constexpr static float hann_ramp_lut[257] = {
