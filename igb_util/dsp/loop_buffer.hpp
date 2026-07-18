@@ -305,38 +305,54 @@ struct LoopBufferStereo {
 
   // --- variable-speed overdub with de-interpolation ---
 
-  // Scatter-write `value` at current pos with feedback, advance pos, and
-  // return true if the pos advance crossed the loop boundary. The wrap
-  // signal lets callers detect OD one-lap-completed without an extra
-  // prev_pos/new_pos fetch pair (LilaCRepeater issue #64). Audio context.
-  IGB_FAST_INLINE bool overdub(std::pair<float, float> value, float feedback) {
+  // Issue #210: positioned scatter write — the overdub() body with the write
+  // anchor and speed made EXPLICIT and the pos advance left to the caller.
+  // Deferred class-2 record writes capture {pos_q, tape_speed_q/f} at render
+  // time (movePos still advances per frame) and replay here at the block
+  // tail. Passing the CAPTURED speed preserves the #198 §4-2 invariant (the
+  // scatter span always matches the advance the PAIRED movePos made — a
+  // mid-block changeSpeed must not skew the replay). Replays must keep frame
+  // order: the deinterp state and the _last_fb_pos first-touch bookkeeping
+  // are sequential.
+  IGB_FAST_INLINE void overdubAt(q32_t at_pos_q, q32_t speed_q, float speed_f,
+                                 std::pair<float, float> value, float feedback) {
     _syncWin();   // Issue #171: one key check; the scatter uses _wl_int/_winIdx
     // Issue #198: all scatter POSITION math is integer Q32.32; only the
     // sample-gain arithmetic stays float (docs/198 §3). The extraction base
-    // saturates a (degenerate-state) negative pos_q to 0, mirroring the old
+    // saturates a (degenerate-state) negative pos to 0, mirroring the old
     // `(uint32_t)pos_double` hardware saturation — see readLoopAhead. The
     // speed-class branches compare exact integers — same branch the f64
     // compares took for on-grid values, now branch-deterministic.
-    const q32_t pos_qc = (pos_q < 0) ? 0 : pos_q;
+    const q32_t pos_qc = (at_pos_q < 0) ? 0 : at_pos_q;
     uint32_t pos_u32 = q32_idx(pos_qc);
     uint32_t pos_frac = (uint32_t)pos_qc;   // fractional word
 
-    if (tape_speed_q >= 0) {
-      if (tape_speed_q < q32_one) {
-        _overdubSlow(value, feedback, pos_u32, pos_frac);
+    if (speed_q >= 0) {
+      if (speed_q < q32_one) {
+        _overdubSlow(value, feedback, pos_u32, pos_frac, speed_q, speed_f);
       } else {
-        _overdubFast(value, feedback, pos_qc, pos_u32, pos_frac);
+        _overdubFast(value, feedback, pos_qc, pos_u32, pos_frac, speed_q);
       }
     } else {
-      q32_t abs_speed_q = -tape_speed_q;
+      q32_t abs_speed_q = -speed_q;
       if (abs_speed_q < q32_one) {
-        _overdubSlowReverse(value, feedback, pos_u32, pos_frac, abs_speed_q);
+        _overdubSlowReverse(value, feedback, pos_u32, pos_frac, abs_speed_q,
+                            speed_f);
       } else {
-        _overdubFastReverse(value, feedback, pos_qc, pos_u32, pos_frac);
+        _overdubFastReverse(value, feedback, pos_qc, pos_u32, pos_frac, speed_q);
       }
     }
 
     _deinterp.update(value);
+  }
+
+  // Scatter-write `value` at current pos with feedback, advance pos, and
+  // return true if the pos advance crossed the loop boundary. The wrap
+  // signal lets callers detect OD one-lap-completed without an extra
+  // prev_pos/new_pos fetch pair (LilaCRepeater issue #64). Audio context.
+  // Issue #210: == overdubAt at the live pos/speed + the paired movePos.
+  IGB_FAST_INLINE bool overdub(std::pair<float, float> value, float feedback) {
+    overdubAt(pos_q, tape_speed_q, tape_speed_f, value, feedback);
     return movePos();
   }
 
@@ -351,17 +367,19 @@ struct LoopBufferStereo {
 
   IGB_FAST_INLINE void _overdubSlow(
       std::pair<float, float> value, float feedback,
-      uint32_t pos_u32, uint32_t pos_frac) {
+      uint32_t pos_u32, uint32_t pos_frac, q32_t speed_q, float speed_f) {
     // Issue #121: pos_u32 is WINDOW-relative; wrap by winLen() and map to
     // absolute content via _winIdx so the scatter stays inside the window.
     // Issue #198: pos_frac is the Q32.32 fractional word; the boundary test
     // is exact integer math (was `pos_frac + tape_speed > 1.0` in f64).
+    // Issue #210: speed is a parameter (deferred replays pass the captured
+    // value; the live overdub() passes the members).
     const uint32_t wl = _scatterLen();
-    float gain = tape_speed_f;
-    if ((q32_t)pos_frac + tape_speed_q > q32_one) {
+    float gain = speed_f;
+    if ((q32_t)pos_frac + speed_q > q32_one) {
       // crosses integer boundary. pos_frac > 0 here (frac 0 + slow speed
       // can't cross), so q32_one - pos_frac < 2^32 fits the frac word.
-      float rate = q32_frac_to_float(q32_one - (q32_t)pos_frac) / tape_speed_f;
+      float rate = q32_frac_to_float(q32_one - (q32_t)pos_frac) / speed_f;
       // leading portion
       _writeFb(_winIdx(pos_u32), pos_u32,
                value.first * gain * rate,
@@ -391,7 +409,7 @@ struct LoopBufferStereo {
 
   IGB_FAST_INLINE void _overdubFast(
       std::pair<float, float> value, float feedback,
-      q32_t pos_qc, uint32_t pos_u32, uint32_t pos_frac) {
+      q32_t pos_qc, uint32_t pos_u32, uint32_t pos_frac, q32_t speed_q) {
     // Issue #121: window-relative scatter (see _overdubSlow).
     const uint32_t wl = _scatterLen();
     // leading edge
@@ -407,12 +425,13 @@ struct LoopBufferStereo {
     // on window positions 0..N-1 instead of past-the-window slots.
     // Issue #171: the wrap is carried incrementally (k advances by 1 per
     // iteration) instead of paying a `% wl` per position.
-    // Issue #198: next_pos_q = pos + tape_speed_q is the IDENTICAL increment
-    // movePos() applies after this call — the scatter destination and the
-    // advanced pos can never diverge (docs/198 §4-2). Based on the SATURATED
-    // pos_qc so a degenerate negative pos can't shift a huge index into the
-    // span math (matches the old per-cast hardware saturation).
-    q32_t next_pos_q = pos_qc + tape_speed_q;   // unwrapped, >= 0 (forward)
+    // Issue #198: next_pos_q = pos + speed_q is the IDENTICAL increment
+    // the PAIRED movePos() applies — the scatter destination and the
+    // advanced pos can never diverge (docs/198 §4-2; #210: deferred replays
+    // pass the captured speed for exactly this reason). Based on the
+    // SATURATED pos_qc so a degenerate negative pos can't shift a huge index
+    // into the span math (matches the old per-cast hardware saturation).
+    q32_t next_pos_q = pos_qc + speed_q;        // unwrapped, >= 0 (forward)
     uint32_t next_pos_raw = q32_idx(next_pos_q);
     float next_pos_frac = q32_frac_to_float(next_pos_q);
 
@@ -441,12 +460,12 @@ struct LoopBufferStereo {
 
   IGB_FAST_INLINE void _overdubSlowReverse(
       std::pair<float, float> value, float feedback,
-      uint32_t pos_u32, uint32_t pos_frac, q32_t abs_speed_q) {
+      uint32_t pos_u32, uint32_t pos_frac, q32_t abs_speed_q, float speed_f) {
     // Issue #121: window-relative backward scatter (see _overdubSlow).
     // Issue #198: boundary test in exact integer Q32.32; gains in float
     // (abs_speed_f == the old (float)abs_speed exactly — float negate).
     const uint32_t wl = _scatterLen();
-    const float abs_speed_f = -tape_speed_f;
+    const float abs_speed_f = -speed_f;
     float gain = abs_speed_f;
     if (pos_frac != 0u && (q32_t)pos_frac < abs_speed_q) {
       // crosses integer boundary (backward)
@@ -480,7 +499,7 @@ struct LoopBufferStereo {
 
   IGB_FAST_INLINE void _overdubFastReverse(
       std::pair<float, float> value, float feedback,
-      q32_t pos_qc, uint32_t pos_u32, uint32_t pos_frac) {
+      q32_t pos_qc, uint32_t pos_u32, uint32_t pos_frac, q32_t speed_q) {
     // Issue #121: window-relative backward scatter (see _overdubSlow).
     const uint32_t wl = _scatterLen();
     // leading edge (at current pos)
@@ -497,7 +516,7 @@ struct LoopBufferStereo {
     // path hit UB there ((uint32_t) of a negative double); a negative dest_q
     // would arithmetic-shift to a huge index and stall _winIdx's bounded-
     // subtract loop inside the audio IRQ, so clamp to 0 instead.
-    q32_t dest_q = pos_qc + tape_speed_q;
+    q32_t dest_q = pos_qc + speed_q;
     if (dest_q < 0) dest_q += (q32_t)wl << 32;
     if (dest_q < 0) dest_q = 0;
     uint32_t dest_u32 = q32_idx(dest_q);
