@@ -105,15 +105,99 @@ struct GranularStretch {
   constexpr static uint32_t wsola_scratch_len =
       2 * wsola_half_range + 2 * wsola_taps * 4 + 16;   // = 336
 
-  enum class SearchPhase : uint8_t { idle, fill, ref_capture, coarse, fine, ready };
+  // --- Wide pre-pass (LilaC issue #219: low-frequency splice rumble) --------
+  // The grain gap (r−p)·hop folded mod the material period T lands outside
+  // ±wsola_half_range whenever T is long (f0 under ~240 Hz) and the pitch
+  // offset is big — every hop then splices out of phase (hop-rate "rumble").
+  // Widening the fine search 4× would blow the lead ≤ hop plan, so a COARSE
+  // pre-pass scans ±wsola_pre_half_range at wsola_pre_stride on a DECIMATED
+  // scratch first, then the normal coarse/fine machinery refines
+  // ±wsola_refine_reach around the pre winner at full resolution (reusing
+  // _scratch). Long-period alignment tolerates the ±stride/2 pre quantization
+  // (T=800: ±4 samples ≈ π/100 of phase — inaudible).
+  //
+  // Engagement: only when the gap exceeds wsola_half_range — below that the
+  // needed correction ALWAYS folds inside the fine reach (T > 2·range → the
+  // fold is the gap itself; T ≤ 2·range → fold ≤ T/2 ≤ range), so the classic
+  // single-stage pipeline runs untouched (the #200 near-unity grit cases stay
+  // bit-exact, pinned by test). The decimated metric sees aliasing above
+  // fs/(2·stride); a misled pre winner fails the full-res acceptance and
+  // falls back to the nominal anchor — never worse than the pre-#219 output.
+  constexpr static uint32_t wsola_pre_stride = 8;        // scratch decimation
+  constexpr static uint32_t wsola_pre_half_range = 400;  // ±samples (covers T≤800 folds)
+  constexpr static uint32_t wsola_refine_reach = 8;      // full-res ± around pre winner
+  // Pre-metric geometry (retuned after the first device listen — the noisy-
+  // material probe showed broadband content dragging the AMDF off the
+  // fundamental's alignment lattice): the template observes LONG (taps ×
+  // tap_stride·stride·p = 320·p source samples ≈ T/5 at T=800, p=0.5) and
+  // averages MORE taps, paid for by a coarser lag walk (lag_stride·stride =
+  // 16 samples; winner accuracy ±8 = exactly wsola_refine_reach, so the
+  // full-res refine still lands sample-exact).
+  constexpr static uint32_t wsola_pre_taps = 20;         // pre template length
+  constexpr static uint32_t wsola_pre_tap_stride = 2;    // decimated units per tap
+  constexpr static uint32_t wsola_pre_lag_stride = 2;    // decimated units per lag
+  static_assert(wsola_pre_lag_stride * wsola_pre_stride / 2 <= wsola_refine_reach,
+                "refine reach must cover the pre winner quantization");
+  // Search eligibility: every scratch margin assumes |p| ≤ 4, but bend+macro
+  // stacking can push the effective pitch to ±48 st = ratio 16 (#216/#220)
+  // where clipped taps read 0.0f and bias the metrics asymmetrically — the
+  // search abstains entirely (nominal anchors) beyond ratio 4.
+  constexpr static q32_t wsola_max_abs_pitch = q32_t(4) << 32;
+  // Sweep tolerance (#219 v3): a pitch edit between search freeze and spawn
+  // used to discard the result outright — a CONTINUOUS bend/macro sweep
+  // (#216/#220 performance gestures) therefore ran with no alignment at
+  // all. A small pitch delta only shifts the predicted anchor by ≈ Δp·hop
+  // samples, so results within a bounded anchor error are kept instead:
+  // ±2 samples on the classic path (its targets are few-sample PLL-grit
+  // corrections), ±8 on the wide path (long-period phase tolerates it).
+  // A slow bend (~4 st/s) moves ≈1.3 samples/hop — inside both bounds.
+  constexpr static uint32_t wsola_sweep_tol_classic = 2;   // samples
+  constexpr static uint32_t wsola_sweep_tol_wide = 8;      // samples
+  constexpr static uint32_t wsola_pre_scratch_len =
+      2 * wsola_pre_half_range / wsola_pre_stride
+      + 2 * wsola_pre_taps * wsola_pre_tap_stride * 4 + 16;   // = 436
+  constexpr static uint32_t wsola_refine_scratch_len =
+      2 * (wsola_refine_reach + wsola_fine_reach) + 2 * wsola_taps * 4 + 16;  // = 164
+  static_assert(wsola_refine_scratch_len <= wsola_scratch_len,
+                "wide-path refine reuses _scratch");
+  // The wide pre-pass predicts further ahead (±(pre range + template span));
+  // require a window comfortably beyond that span or stay on the classic
+  // path (short windows keep today's behavior).
+  constexpr static uint32_t wsola_wide_min_win = 4096;
+
+  enum class SearchPhase : uint8_t {
+    idle, fill, ref_capture, coarse, fine, ready,
+    pre_fill, pre_ref, pre_coarse, center_ref,   // wide-path extras (#219)
+  };
   SearchPhase _sphase = SearchPhase::idle;
   float _scratch[wsola_scratch_len];   // mono (L+R) candidate region, SRAM
   float _ref[wsola_taps];              // outgoing grain's predicted continuation
+  float _pre_scratch[wsola_pre_scratch_len];   // decimated wide region (#219)
+  float _pre_ref[wsola_pre_taps];      // continuation, tap_stride·stride·p apart
   q32_t _scratch_base = 0;   // window-relative pos of _scratch[0] (integer q32)
   q32_t _cand0_off = 0;      // lag-0 candidate offset inside the scratch (q32)
+  q32_t _pre_base = 0;       // window-relative pos of _pre_scratch[0] (integer)
+  q32_t _anchor_pred = 0;    // frozen nominal-anchor prediction (#219)
+  q32_t _ref_start = 0;      // frozen template start (outgoing grain @ hop)
   q32_t _fill_cursor = 0;
   q32_t _ref_cursor = 0;
   q32_t _search_rate = 0;    // p frozen at search start
+  // Active-scan view consumed by _lagStep — the classic path sets it once in
+  // idle; the wide path repoints it per stage (pre scan → full-res refine).
+  const float* _scan_buf = nullptr;
+  const float* _scan_ref = nullptr;
+  q32_t _scan_cand0 = 0;     // lag-domain-center candidate offset (scan units)
+  q32_t _tap_step = 0;       // cursor step per tap (scan units; pre: ×tap_stride)
+  uint32_t _scan_taps = wsola_taps;   // template length of the active scan
+  uint32_t _scan_len = 0;    // valid floats in _scan_buf (idx guard)
+  uint32_t _scan_half = 0;   // lag value of the scan center
+  uint32_t _scan_end = 0;    // last coarse lag
+  uint32_t _scan_step = 0;   // coarse lag stride
+  uint32_t _scan_unit = 1;   // source samples per lag unit (pre: stride)
+  uint32_t _fine_max = 0;    // fine-lag upper clamp
+  int32_t _bias_base = 0;    // scan-center distance from nominal (samples)
+  uint32_t _fill_target = 0; // floats to fill into _scratch this stage
+  bool _wide = false;        // this search runs the #219 wide pre-pass
   uint32_t _fill_idx = 0;
   uint32_t _ref_idx = 0;
   uint32_t _lag = 0;         // current lag (samples, 0..2W)
@@ -128,9 +212,31 @@ struct GranularStretch {
   uint32_t _fill_pf = wsola_fill_per_frame * _planScale(default_grain_len / 2);
   uint32_t _taps_pf = wsola_taps_per_frame * _planScale(default_grain_len / 2);
   uint32_t _search_lead = _planLead(default_grain_len / 2);
+  uint32_t _search_lead_wide = _planLeadWide(default_grain_len / 2);
+  q32_t _sweep_tol_classic_q = _planSweepTol(wsola_sweep_tol_classic,
+                                             default_grain_len / 2);
+  q32_t _sweep_tol_wide_q = _planSweepTol(wsola_sweep_tol_wide,
+                                          default_grain_len / 2);
   float _best_metric = 0.0f;
   float _center_metric = 0.0f;
+  // Wide path (#219): the pre scan's own best/center pair. Its template is
+  // longer and denser than the full-res one, so on noisy material it is the
+  // BETTER-conditioned acceptance evidence — _spawn accepts when either
+  // metric pair clears wsola_accept_num (a rejected wide hop falls back to
+  // the nominal anchor, which in the wide regime is a guaranteed full-depth
+  // splice error, so false rejection costs more than false acceptance).
+  float _pre_best_metric = 0.0f;
+  float _pre_center_metric = 0.0f;
   uint32_t _best_lag = 0;
+  // Sub-sample refinement (#219 v3): raw (unbiased) AMDF of each fine-scan
+  // lag, kept so _spawn can interpolate a fractional lag around the accepted
+  // winner. Integer lags leave up to ±0.5 sample of splice error whose phase
+  // impact scales with harmonic number — the "sizzle" on pitch offsets with
+  // fractional grain gaps. Grain anchors are Q32.32, so applying the
+  // fraction is free.
+  float _fine_metrics[8] = {};
+  uint32_t _fine_start = 0;
+  float _last_amdf = 0.0f;
 
   // Tuning entry (spike/listening): resets the render state.
   void setGrainLen(uint32_t len) {
@@ -156,20 +262,58 @@ struct GranularStretch {
                / wsola_taps_per_frame
          + 8;
   }
+  // Wide-path (#219) frame count: pre fill + pre template + decimated scan,
+  // then refine fill + template + full-res center + the ±refine_reach scan.
+  // At the default hop this is ~440 ≤ 512 with the SAME per-frame budgets —
+  // reach ×4 paid in busy frames, not in per-IRQ cost.
+  constexpr static uint32_t _planFrames1xWide() {
+    const uint32_t pre_lags =
+        2 * (wsola_pre_half_range / wsola_pre_stride) / wsola_pre_lag_stride + 1;
+    const uint32_t refine_lags = wsola_refine_reach / wsola_coarse_step * 2 + 1;
+    const uint32_t fine_lags = 2 * wsola_fine_reach + 1;
+    return (wsola_pre_scratch_len + wsola_fill_per_frame - 1) / wsola_fill_per_frame
+         + (wsola_pre_taps + wsola_fill_per_frame - 1) / wsola_fill_per_frame
+         + (pre_lags * wsola_pre_taps + wsola_taps_per_frame - 1)
+               / wsola_taps_per_frame
+         + (wsola_refine_scratch_len + wsola_fill_per_frame - 1) / wsola_fill_per_frame
+         + 2 * ((wsola_taps + wsola_fill_per_frame - 1) / wsola_fill_per_frame)
+         + ((refine_lags + fine_lags) * wsola_taps + wsola_taps_per_frame - 1)
+               / wsola_taps_per_frame
+         + 8;
+  }
+  // Scale from the WIDE plan (the larger of the two) so tiny hops compress
+  // both paths; at the default hop both scales are 1 (production unchanged).
   constexpr static uint32_t _planScale(uint32_t hop) {
     const uint32_t budget = (hop > 24) ? (hop - 16) : 8;
-    return (_planFrames1x() + budget - 1) / budget;
+    return (_planFrames1xWide() + budget - 1) / budget;
   }
   constexpr static uint32_t _planLead(uint32_t hop) {
     const uint32_t lead = _planFrames1x() / _planScale(hop) + 8;
     return (lead > hop) ? hop : lead;
   }
+  constexpr static uint32_t _planLeadWide(uint32_t hop) {
+    const uint32_t lead = _planFrames1xWide() / _planScale(hop) + 8;
+    return (lead > hop) ? hop : lead;
+  }
+  // Per-hop pitch-delta bound equivalent to `tol` samples of anchor error.
+  constexpr static q32_t _planSweepTol(uint32_t tol_samples, uint32_t hop) {
+    return ((q32_t)tol_samples << 32) / (q32_t)hop;
+  }
 
   void _recalcSearchPlan() {
+    // The wide plan must fit one default hop WITHOUT a budget raise — if a
+    // tuning change breaks this, the lead cap would silently starve the
+    // search (#208 C1 class). Checked here because in-class static_assert
+    // cannot call member constexpr functions (incomplete class).
+    static_assert(_planFrames1xWide() + 8 <= default_grain_len / 2,
+                  "wide WSOLA plan must fit one hop at per-frame budget 1x");
     const uint32_t scale = _planScale(_hop);
     _fill_pf = wsola_fill_per_frame * scale;
     _taps_pf = wsola_taps_per_frame * scale;
     _search_lead = _planLead(_hop);
+    _search_lead_wide = _planLeadWide(_hop);
+    _sweep_tol_classic_q = _planSweepTol(wsola_sweep_tol_classic, _hop);
+    _sweep_tol_wide_q = _planSweepTol(wsola_sweep_tol_wide, _hop);
   }
 
   // Reseed hook (docs/v2_timestretch §5): pos discontinuities (undo swap,
@@ -237,13 +381,63 @@ struct GranularStretch {
     const q32_t nominal =
         buf.pos_q + (buf.tape_speed_q - _pitch_q) * (q32_t)_hop;
     q32_t anchor = nominal;
-    if (_sphase == SearchPhase::ready && _search_rate == _pitch_q) {
+    q32_t dp = _pitch_q - _search_rate;
+    if (dp < 0) dp = -dp;
+    if (_sphase == SearchPhase::ready
+        && dp <= (_wide ? _sweep_tol_wide_q : _sweep_tol_classic_q)) {
       // Acceptance rule (member-block comment): only a decisively better
-      // splice replaces the phase-exact nominal anchor.
-      if (_best_metric < wsola_accept_num * _center_metric) {
+      // splice replaces the phase-exact nominal anchor. _cand0_off points at
+      // the scan center (classic: nominal; wide: the pre winner) and the
+      // final scan's lag domain is centered at _scan_half on both paths.
+      // Wide dual acceptance: the pre metric pair also qualifies (see the
+      // _pre_best_metric member comment — a wide rejection is a guaranteed
+      // full-depth splice error, so it needs only ONE convincing witness).
+      bool ok = _best_metric < wsola_accept_num * _center_metric;
+      if (!ok && _wide)
+        ok = _pre_best_metric < wsola_accept_num * _pre_center_metric;
+      if (ok) {
+        // Sub-sample interp (#219 v3) from the fine scan's raw AMDF
+        // neighbors. An L1 metric has a V-shaped minimum, so the exact
+        // sub-lag is the piecewise-linear intersection, NOT the parabola
+        // fit (which underestimates V minima). Only when both neighbors
+        // were scanned; skipped at window edges and on degenerate shapes.
+        // |p| ≥ 1 ONLY: below unity the template taps stride < 1 sample and
+        // floor-read DUPLICATE source samples — the AMDF bottom flattens,
+        // carries no sub-sample information, and the interp fits noise
+        // (probe-measured: −7 st got 2× WORSE with it, +5 st 5× better).
+        q32_t frac_q = 0;
+        if ((_search_rate >= q32_one || _search_rate <= -q32_one)
+            && _best_lag > _fine_start && _best_lag < _fine_end) {
+          const uint32_t bi = _best_lag - _fine_start;
+          if (bi + 1 < 8) {
+            const float m0 = _fine_metrics[bi - 1];
+            const float m1 = _fine_metrics[bi];
+            const float m2 = _fine_metrics[bi + 1];
+            // Symmetric V intersection + a depth gate. The AMDF minimum of
+            // real (multi-harmonic) material is smooth, where the symmetric
+            // form is the better estimator (probe: +5 st 0.021 vs 0.044 for
+            // the two-slope variant). Its failure mode — an exactly-integer
+            // minimum with asymmetric slopes manufactures a spurious
+            // fraction (+12 st: 0.000 → 0.089) — is gated out by depth:
+            // when m1 is already far below both neighbors the minimum IS
+            // the integer lag, so the fraction is skipped.
+            float fr = 0.0f;
+            const float lo_n = (m0 < m2) ? m0 : m2;
+            if (m1 > 0.05f * lo_n) {
+              const float hi = (m0 > m2) ? m0 : m2;
+              const float den = 2.0f * (hi - m1);
+              if (den > 1e-20f) fr = (m0 - m2) / den;
+            }
+            fr = (fr > 0.5f) ? 0.5f : ((fr < -0.5f) ? -0.5f : fr);
+            // Two-step float→q32: a single f64 cast would be an int64
+            // libcall on the device (#198 discipline).
+            frac_q = (q32_t)(int32_t)(fr * 65536.0f) * (q32_t)65536;
+          }
+        }
         anchor = _scratch_base + _cand0_off
                + ((q32_t)(_best_lag) << 32)
-               - ((q32_t)wsola_half_range << 32);
+               - ((q32_t)_scan_half << 32)
+               + frac_q;
       }
     }
     _sphase = SearchPhase::idle;   // consume; the next cycle re-arms
@@ -258,47 +452,92 @@ struct GranularStretch {
   IGB_FAST_INLINE float _tapAt(const LoopBuf& buf, q32_t p, q32_t wl) const {
     q32_t w = _wrapBounded(p, wl);
     if (w < 0) w = 0;
-    const auto v = *(buf.buf + buf._winIdx(q32_idx(w)));
-    return v.first + v.second;
+    // Member reads through the pointer, NOT `auto v = *ptr`: the pair copy
+    // constructs, and inside the out-of-line _searchAdvance the optimize
+    // attribute boundary made GCC emit it as a CALL into flash (+veneer,
+    // the #202 class — caught by the nm audit).
+    const auto* v = buf.buf + buf._winIdx(q32_idx(w));
+    return v->first + v->second;
   }
 
-  // One AMDF lag evaluated against the SRAM scratch, resumable mid-lag via
-  // _tap_idx (the per-frame budget can be smaller than one lag). Candidate
-  // tap positions are scratch-relative: _cand0_off + (lag − W) + k·p.
+  // One AMDF lag evaluated against the active scan buffer, resumable mid-lag
+  // via _tap_idx (the per-frame budget can be smaller than one lag).
+  // Candidate tap positions are scan-relative: _scan_cand0 + (lag − center)
+  // + k·p — in the decimated pre scan the SAME arithmetic applies because
+  // one decimated unit per lag/tap equals stride source samples.
   IGB_FAST_INLINE bool _lagStep(uint32_t budget_taps) {
-    const q32_t base = _cand0_off
-        + (((q32_t)_lag - (q32_t)wsola_half_range) << 32);
-    q32_t cp = base + (q32_t)_tap_idx * _search_rate;
+    const q32_t base = _scan_cand0
+        + (((q32_t)_lag - (q32_t)_scan_half) << 32);
+    q32_t cp = base + (q32_t)_tap_idx * _tap_step;
+    const float* sbuf = _scan_buf;
+    const float* ref = _scan_ref;
+    const uint32_t slen = _scan_len;
+    const uint32_t taps = _scan_taps;
     uint32_t done = 0;
-    while (_tap_idx < wsola_taps && done < budget_taps) {
+    while (_tap_idx < taps && done < budget_taps) {
       const uint32_t idx = (uint32_t)(cp >> 32);
-      const float d =
-          ((idx < wsola_scratch_len) ? _scratch[idx] : 0.0f) - _ref[_tap_idx];
+      const float d = ((idx < slen) ? sbuf[idx] : 0.0f) - ref[_tap_idx];
       _amdf_acc += (d < 0.0f) ? -d : d;
-      cp += _search_rate;
+      cp += _tap_step;
       ++_tap_idx;
       ++done;
     }
-    if (_tap_idx < wsola_taps) return false;   // resume next frame
-    // Lag complete: score with the scale-free center bias.
-    const float off = (_lag > wsola_half_range)
-                          ? (float)(_lag - wsola_half_range)
-                          : (float)(wsola_half_range - _lag);
-    const float metric = _amdf_acc * (1.0f + wsola_center_bias * off);
-    if (_lag == wsola_half_range) _center_metric = _amdf_acc;
+    if (_tap_idx < taps) return false;   // resume next frame
+    // Lag complete: score with the scale-free center bias. The distance is
+    // measured from the NOMINAL anchor in source samples on every path
+    // (_bias_base carries the pre winner's offset in the wide refine).
+    int32_t off_i = _bias_base
+        + ((int32_t)_lag - (int32_t)_scan_half) * (int32_t)_scan_unit;
+    if (off_i < 0) off_i = -off_i;
+    const float metric = _amdf_acc * (1.0f + wsola_center_bias * (float)off_i);
+    // The classic path measures the nominal's own AMDF here; the wide path
+    // gets its full-res center from the dedicated center_ref stage, and the
+    // pre scan records its own (decimated) nominal metric for the dual
+    // acceptance in _spawn. The refine scan records neither (its center lag
+    // is the pre winner, not the nominal).
+    if (_lag == _scan_half) {
+      if (!_wide) _center_metric = _amdf_acc;
+      else if (_sphase == SearchPhase::pre_coarse) _pre_center_metric = _amdf_acc;
+    }
     if (metric < _best_metric) {
       _best_metric = metric;
       _best_lag = _lag;
     }
+    _last_amdf = _amdf_acc;   // raw value for the fine-scan sub-sample interp
     _amdf_acc = 0.0f;
     _tap_idx = 0;
     return true;
   }
 
-  IGB_FAST_INLINE void _searchAdvance(LoopBuf& buf, q32_t wl) {
+  // OUT-OF-LINE on purpose (#219): renderIo is force-inlined at two call
+  // sites per track, and the wide-path state machine is big enough that
+  // duplicating it there costs ~5KB of ITCM. One ITCM-resident copy plus a
+  // BL is a few cycles against a 3-fill/6-tap frame budget — noise. IGB_ITCM
+  // keeps it out of flash (no per-frame veneer, the #201 class); the inner
+  // helpers (_tapAt/_lagStep) stay always_inline INSIDE this body.
+  IGB_ITCM __attribute__((noinline, optimize("Ofast")))
+  void _searchAdvance(LoopBuf& buf, q32_t wl) {
     switch (_sphase) {
       case SearchPhase::idle: {
-        if (_hop - _k > _search_lead) return;
+        // #219 eligibility: every scratch margin assumes |p| ≤ 4 — beyond
+        // that (bend+macro stacking, up to ratio 16) clipped taps would bias
+        // the metrics, so the search abstains entirely (nominal anchors).
+        const q32_t p = _pitch_q;
+        if (p > wsola_max_abs_pitch || p < -wsola_max_abs_pitch) return;
+        // #219 wide-path decision on the constant grain gap (r−p)·hop:
+        // within ±wsola_half_range the fold always lands inside the fine
+        // reach and the classic pipeline runs unchanged. Dual lead — the
+        // longer wide lead applies only when the pre-pass engages, so
+        // classic searches freeze on the same frame as before.
+        const q32_t r = buf.tape_speed_q;
+        q32_t gap = (r - p) * (q32_t)_hop;
+        if (gap < 0) gap = -gap;
+        // >= not >: a FRACTIONAL gap in [range, range+1) floors to `range`
+        // yet its correction can exceed the classic reach — the probe caught
+        // +3 st (gap 96.87) fully unaligned on the classic path.
+        const bool wide = ((uint32_t)(gap >> 32) >= wsola_half_range)
+            && ((uint32_t)(wl >> 32) >= wsola_wide_min_win);
+        if (_hop - _k > (wide ? _search_lead_wide : _search_lead)) return;
         // Degenerate windows (shorter than the candidate span) skip the
         // search — real play windows are ≥ one step (thousands of samples).
         if ((uint32_t)(wl >> 32) < 2048) return;
@@ -308,23 +547,16 @@ struct GranularStretch {
         // look-ahead reads stay valid; r may drift a hair over ≤10 ms, which
         // only biases the window the accepted lag was searched in.
         const q32_t remain = (q32_t)(_hop - _k);
-        const q32_t r = buf.tape_speed_q;
-        _search_rate = _pitch_q;
+        _search_rate = p;
         // Timing: _in_g.src is post-advance for THIS frame while pos_q is
         // pre-movePos, and the spawn-frame renderIo runs before that frame's
         // movePos — so the grain advances `remain` more times but pos
         // advances `remain + 1` times before the spawn reads them.
-        _ref_cursor = _in_g.src + remain * _search_rate;
-        const q32_t anchor_pred =
+        _ref_start = _in_g.src + remain * _search_rate;
+        _ref_cursor = _ref_start;
+        _anchor_pred =
             buf.pos_q + (remain + 1) * r + (r - _search_rate) * (q32_t)_hop;
-        // Scratch covers [anchor_pred − W − taps·4, … + W + taps·4]: the
-        // integer-floored base keeps candidate flooring identical to the
-        // direct-read path (passthrough AMDF must stay exactly 0).
-        const q32_t lo = anchor_pred
-            - ((q32_t)(wsola_half_range + wsola_taps * 4) << 32);
-        _scratch_base = (q32_t)((uint64_t)lo & ~0xFFFFFFFFull);
-        _cand0_off = anchor_pred - _scratch_base;   // ≥ 0 by construction
-        _fill_cursor = _scratch_base;
+        _wide = wide;
         _fill_idx = 0;
         _ref_idx = 0;
         _lag = 0;
@@ -332,16 +564,138 @@ struct GranularStretch {
         _amdf_acc = 0.0f;
         _best_metric = 3.4e38f;
         _center_metric = 0.0f;
+        if (wide) {
+          // Decimated pre-scan setup: _pre_scratch covers anchor_pred ±
+          // (pre range + template span). One decimated unit is
+          // wsola_pre_stride source samples; the division is exact in q32
+          // (anchor − base > 0), so candidate flooring stays grid-aligned.
+          const q32_t plo = _anchor_pred
+              - ((q32_t)(wsola_pre_half_range
+                         + wsola_pre_taps * wsola_pre_tap_stride * 4
+                               * wsola_pre_stride) << 32);
+          _pre_base = (q32_t)((uint64_t)plo & ~0xFFFFFFFFull);
+          _scan_cand0 =
+              (q32_t)((uint64_t)(_anchor_pred - _pre_base) / wsola_pre_stride);
+          _scan_buf = _pre_scratch;
+          _scan_ref = _pre_ref;
+          _scan_taps = wsola_pre_taps;
+          _tap_step = _search_rate * (q32_t)wsola_pre_tap_stride;
+          _scan_len = wsola_pre_scratch_len;
+          _scan_half = wsola_pre_half_range / wsola_pre_stride;
+          _scan_end = 2 * (wsola_pre_half_range / wsola_pre_stride);
+          _scan_step = wsola_pre_lag_stride;
+          _scan_unit = wsola_pre_stride;
+          _bias_base = 0;
+          _best_lag = _scan_half;
+          _fill_cursor = _pre_base;
+          _sphase = SearchPhase::pre_fill;
+          return;
+        }
+        // Classic single-stage setup (#200) — data flow unchanged.
+        // Scratch covers [anchor_pred − W − taps·4, … + W + taps·4]: the
+        // integer-floored base keeps candidate flooring identical to the
+        // direct-read path (passthrough AMDF must stay exactly 0).
+        const q32_t lo = _anchor_pred
+            - ((q32_t)(wsola_half_range + wsola_taps * 4) << 32);
+        _scratch_base = (q32_t)((uint64_t)lo & ~0xFFFFFFFFull);
+        _cand0_off = _anchor_pred - _scratch_base;   // ≥ 0 by construction
+        _scan_cand0 = _cand0_off;
+        _scan_buf = _scratch;
+        _scan_ref = _ref;
+        _scan_taps = wsola_taps;
+        _tap_step = _search_rate;
+        _scan_len = wsola_scratch_len;
+        _scan_half = wsola_half_range;
+        _scan_end = 2 * wsola_half_range;
+        _scan_step = wsola_coarse_step;
+        _scan_unit = 1;
+        _fine_max = 2 * wsola_half_range;
+        _bias_base = 0;
         _best_lag = wsola_half_range;
+        _fill_cursor = _scratch_base;
+        _fill_target = wsola_scratch_len;
         _sphase = SearchPhase::fill;
         return;
       }
+      case SearchPhase::pre_fill: {
+        for (uint32_t n = 0;
+             n < _fill_pf && _fill_idx < wsola_pre_scratch_len; ++n) {
+          _pre_scratch[_fill_idx++] = _tapAt(buf, _fill_cursor, wl);
+          _fill_cursor += (q32_t)wsola_pre_stride << 32;
+        }
+        if (_fill_idx >= wsola_pre_scratch_len) _sphase = SearchPhase::pre_ref;
+        return;
+      }
+      case SearchPhase::pre_ref: {
+        // Template = the outgoing grain's continuation sampled every
+        // stride·tap_stride output frames (source step = tap_stride decimated
+        // units per tap, matching the pre scan's tap walk).
+        for (uint32_t n = 0; n < _fill_pf && _ref_idx < wsola_pre_taps; ++n) {
+          _pre_ref[_ref_idx++] = _tapAt(buf, _ref_cursor, wl);
+          _ref_cursor +=
+              _search_rate * (q32_t)(wsola_pre_stride * wsola_pre_tap_stride);
+        }
+        if (_ref_idx >= wsola_pre_taps) {
+          _ref_idx = 0;                       // reused by ref_capture below
+          _sphase = SearchPhase::pre_coarse;
+        }
+        return;
+      }
+      case SearchPhase::pre_coarse: {
+        uint32_t budget = _taps_pf;
+        while (budget > 0) {
+          const uint32_t before = _tap_idx;
+          if (!_lagStep(budget)) return;       // budget exhausted mid-lag
+          budget -= (_scan_taps - before);
+          if (_lag + _scan_step > _scan_end) {
+            // Pre scan done → full-res refine around the winner, reusing
+            // _scratch (wsola_refine_scratch_len ≤ wsola_scratch_len; the
+            // _scan_len guard keeps stale floats beyond it unreadable).
+            _pre_best_metric = _best_metric;   // dual-acceptance evidence
+            _bias_base = ((int32_t)_best_lag - (int32_t)_scan_half)
+                       * (int32_t)wsola_pre_stride;
+            // (multiply, not <<: _bias_base is signed and a negative left
+            // shift is UB before C++20)
+            const q32_t center = _anchor_pred + (q32_t)_bias_base * q32_one;
+            const q32_t lo = center
+                - ((q32_t)(wsola_refine_reach + wsola_fine_reach
+                           + wsola_taps * 4) << 32);
+            _scratch_base = (q32_t)((uint64_t)lo & ~0xFFFFFFFFull);
+            _cand0_off = center - _scratch_base;
+            _scan_cand0 = _cand0_off;
+            _scan_buf = _scratch;
+            _scan_ref = _ref;
+            _scan_taps = wsola_taps;
+            _tap_step = _search_rate;
+            _scan_len = wsola_refine_scratch_len;
+            _scan_half = wsola_half_range;     // refine lag-domain center
+            _scan_end = wsola_half_range + wsola_refine_reach;
+            _scan_step = wsola_coarse_step;
+            _scan_unit = 1;
+            _fine_max =
+                wsola_half_range + wsola_refine_reach + wsola_fine_reach;
+            _best_metric = 3.4e38f;
+            _best_lag = _scan_half;
+            _lag = wsola_half_range - wsola_refine_reach;
+            _tap_idx = 0;
+            _amdf_acc = 0.0f;
+            _fill_cursor = _scratch_base;
+            _fill_idx = 0;
+            _fill_target = wsola_refine_scratch_len;
+            _ref_cursor = _ref_start;
+            _sphase = SearchPhase::fill;
+            return;
+          }
+          _lag += _scan_step;
+        }
+        return;
+      }
       case SearchPhase::fill: {
-        for (uint32_t n = 0; n < _fill_pf && _fill_idx < wsola_scratch_len; ++n) {
+        for (uint32_t n = 0; n < _fill_pf && _fill_idx < _fill_target; ++n) {
           _scratch[_fill_idx++] = _tapAt(buf, _fill_cursor, wl);
           _fill_cursor += q32_one;
         }
-        if (_fill_idx >= wsola_scratch_len) _sphase = SearchPhase::ref_capture;
+        if (_fill_idx >= _fill_target) _sphase = SearchPhase::ref_capture;
         return;
       }
       case SearchPhase::ref_capture: {
@@ -349,7 +703,28 @@ struct GranularStretch {
           _ref[_ref_idx++] = _tapAt(buf, _ref_cursor, wl);
           _ref_cursor += _search_rate;
         }
-        if (_ref_idx >= wsola_taps) _sphase = SearchPhase::coarse;
+        if (_ref_idx >= wsola_taps)
+          _sphase = _wide ? SearchPhase::center_ref : SearchPhase::coarse;
+        return;
+      }
+      case SearchPhase::center_ref: {
+        // Wide path only: the NOMINAL anchor's full-res AMDF via direct
+        // reads (it may lie outside the refine scratch) — keeps the
+        // acceptance semantics identical to the classic path (best <
+        // accept_num × center, both full-res). Flooring matches a scratch
+        // read: _tapAt floors, and scratch bases are integer q32.
+        for (uint32_t n = 0; n < _fill_pf && _tap_idx < wsola_taps; ++n) {
+          const float d =
+              _tapAt(buf, _anchor_pred + (q32_t)_tap_idx * _search_rate, wl)
+              - _ref[_tap_idx];
+          _amdf_acc += (d < 0.0f) ? -d : d;
+          ++_tap_idx;
+        }
+        if (_tap_idx < wsola_taps) return;
+        _center_metric = _amdf_acc;
+        _amdf_acc = 0.0f;
+        _tap_idx = 0;
+        _sphase = SearchPhase::coarse;
         return;
       }
       case SearchPhase::coarse: {
@@ -357,18 +732,18 @@ struct GranularStretch {
         while (budget > 0) {
           const uint32_t before = _tap_idx;
           if (!_lagStep(budget)) return;       // budget exhausted mid-lag
-          budget -= (wsola_taps - before);
-          if (_lag + wsola_coarse_step > 2 * wsola_half_range) {
+          budget -= (_scan_taps - before);
+          if (_lag + _scan_step > _scan_end) {
             // Coarse pass done → refine around the best (stride 1).
             const uint32_t b = _best_lag;
             _lag = (b > wsola_fine_reach) ? (b - wsola_fine_reach) : 0;
             _fine_end = b + wsola_fine_reach;
-            if (_fine_end > 2 * wsola_half_range)
-              _fine_end = 2 * wsola_half_range;
+            if (_fine_end > _fine_max) _fine_end = _fine_max;
+            _fine_start = _lag;
             _sphase = SearchPhase::fine;
             return;
           }
-          _lag += wsola_coarse_step;
+          _lag += _scan_step;
         }
         return;
       }
@@ -377,7 +752,9 @@ struct GranularStretch {
         while (budget > 0) {
           const uint32_t before = _tap_idx;
           if (!_lagStep(budget)) return;
-          budget -= (wsola_taps - before);
+          budget -= (_scan_taps - before);
+          const uint32_t fi = _lag - _fine_start;
+          if (fi < 8) _fine_metrics[fi] = _last_amdf;
           if (_lag >= _fine_end) {
             _sphase = SearchPhase::ready;
             return;
