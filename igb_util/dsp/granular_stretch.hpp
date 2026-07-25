@@ -396,10 +396,18 @@ struct GranularStretch {
 
     const float e0 = _env((float)_k * _env_step);
     const float e1 = _env(((float)_k + 0.5f) * _env_step);
+    // LilaC #224: at |rate| ≥ 4 (beyond ±24 st) the sub-frame read strides
+    // onto its own D-cache line every frame (SDRAM loop buffer) — half of
+    // the high-pitch fill traffic (device-measured +13.5 µs at ±48 st) buys
+    // a ZOH'd sub-frame on a signal whose resampling imaging already
+    // dominates at those ratios. Fills can NOT be hidden instead: the M7
+    // has two linefill buffers and the render loop is track-major
+    // (back-to-back frames), so demand misses keep the buffers saturated
+    // and PLD hints are dropped (the #224 probe measured exactly zero).
     const auto o0 = _readG(buf, wl, _out_g, 0);
-    const auto o1 = _readG(buf, wl, _out_g, 1);
+    const auto o1 = _subZoh(_out_g) ? o0 : _readG(buf, wl, _out_g, 1);
     const auto i0 = _readG(buf, wl, _in_g, 0);
-    const auto i1 = _readG(buf, wl, _in_g, 1);
+    const auto i1 = _subZoh(_in_g) ? i0 : _readG(buf, wl, _in_g, 1);
     out2[0] = { (1.0f - e0) * o0.first  + e0 * i0.first,
                 (1.0f - e0) * o0.second + e0 * i0.second };
     out2[1] = { (1.0f - e1) * o1.first  + e1 * i1.first,
@@ -813,6 +821,14 @@ struct GranularStretch {
       case SearchPhase::ready:
         return;
     }
+  }
+
+  // LilaC #224: sub-frame ZOH gate — see the renderIo read block. ±4.0 in
+  // grain-rate units (samples/frame); the vari-mod engage seed carries the
+  // TRANSPORT rate (|r| ≤ ~2.2), so hand-off parity is never gated.
+  constexpr static q32_t subread_zoh_min_rate = q32_t(4) << 32;
+  IGB_FAST_INLINE static bool _subZoh(const Grain& g) {
+    return g.rate >= subread_zoh_min_rate || g.rate <= -subread_zoh_min_rate;
   }
 
   IGB_FAST_INLINE std::pair<float, float> _readG(const LoopBuf& buf, q32_t wl,
