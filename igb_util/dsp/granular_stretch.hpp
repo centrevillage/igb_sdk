@@ -66,6 +66,21 @@ struct GranularStretch {
   bool _seed_passthrough = false;
   void armPassthroughSeed() { _seed_passthrough = true; }
 
+  // LilaC #222: constant read-anchor offset in source samples (Q32.32).
+  // The direct path reads at pos + read_head_offset (LilaC #68, 16 samples
+  // — scatter-write separation), while grains anchor on pos itself: an
+  // instant direct↔grain switch therefore TIME-JUMPS the waveform by the
+  // offset (the audible click the LilaC #222 probe pinned; the sync-flip
+  // crossfade used to mask it). The vari-mod owner sets the same offset
+  // here so seed/spawn/search all present the direct path's alignment and
+  // the hand-off is continuous by construction. True stretch tracks keep 0
+  // (the #200/#219 pins stay bit-exact). Written on engage transitions
+  // only (main loop, atomic store; per-spawn plain read in the audio
+  // context). Wiring-adjacent but resettable state: reset() keeps it — the
+  // owner re-arms it on every engage edge.
+  alignas(8) q32_t _anchor_off = 0;
+  void setAnchorOffset(q32_t off) { q32_atomic_store(_anchor_off, off); }
+
   // --- WSOLA alignment search (design §9) ------------------------------------
   // Plain OLA splices grains at arbitrary phase: the two live grains read
   // positions offset by a constant (r−p)·hop, which on real hardware (PLL-
@@ -360,7 +375,7 @@ struct GranularStretch {
     // render cost.
     if (_seed_passthrough) {
       _seed_passthrough = false;
-      _out_g.src = buf.pos_q;
+      _out_g.src = _wrapBounded(buf.pos_q + _anchor_off, wl);
       _out_g.rate = buf.tape_speed_q;
       _out_g.active = true;
       _in_g.active = false;               // force the fresh spawn below
@@ -406,8 +421,10 @@ struct GranularStretch {
     // anchor = pos + (r − p)·L/2 (design §3). |r−p|·L/2 can exceed one
     // window on extreme rate deltas × short windows, so wrap is a bounded
     // loop here (q32_wrap_once is a ±1-window helper).
+    // LilaC #222: _anchor_off shifts the whole anchor lattice to the direct
+    // path's read position (see the member comment); 0 in true stretch.
     const q32_t nominal =
-        buf.pos_q + (buf.tape_speed_q - _pitch_q) * (q32_t)_hop;
+        buf.pos_q + _anchor_off + (buf.tape_speed_q - _pitch_q) * (q32_t)_hop;
     q32_t anchor = nominal;
     q32_t dp = _pitch_q - _search_rate;
     if (dp < 0) dp = -dp;
@@ -582,8 +599,10 @@ struct GranularStretch {
         // advances `remain + 1` times before the spawn reads them.
         _ref_start = _in_g.src + remain * _search_rate;
         _ref_cursor = _ref_start;
-        _anchor_pred =
-            buf.pos_q + (remain + 1) * r + (r - _search_rate) * (q32_t)_hop;
+        // LilaC #222: same _anchor_off as _spawn's nominal — the scan stays
+        // centered on the lattice the spawn will actually use.
+        _anchor_pred = buf.pos_q + _anchor_off
+            + (remain + 1) * r + (r - _search_rate) * (q32_t)_hop;
         _wide = wide;
         _fill_idx = 0;
         _ref_idx = 0;
