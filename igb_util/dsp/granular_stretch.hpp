@@ -58,6 +58,14 @@ struct GranularStretch {
   // pitch change lands click-free on the next spawn (LilaC Q9).
   void setPitch(q32_t p) { q32_atomic_store(_pitch_q, p); }
 
+  // LilaC #222: one-shot hand-off seed for a direct-read → grain engage
+  // (varispeed pitch-mod). Consumed at the next renderIo head, where the
+  // LIVE pos/r are captured in the audio context — a main-loop capture
+  // would lag by up to one block and open a phase step at the switch.
+  // Single-core bool cross-context write: plain store suffices.
+  bool _seed_passthrough = false;
+  void armPassthroughSeed() { _seed_passthrough = true; }
+
   // --- WSOLA alignment search (design §9) ------------------------------------
   // Plain OLA splices grains at arbitrary phase: the two live grains read
   // positions offset by a constant (r−p)·hop, which on real hardware (PLL-
@@ -326,6 +334,10 @@ struct GranularStretch {
     _in_g.active = false;
     _k = 0;
     _sphase = SearchPhase::idle;
+    // LilaC #222: a reseed invalidates an armed hand-off seed too — after a
+    // pos jump the passthrough continuation is the WRONG trajectory; the
+    // ramp-in above is the click-free entry. (Engage arms AFTER reset().)
+    _seed_passthrough = false;
   }
 
   // One loop-frame render: emits the io-rate pair (canonical + half-step
@@ -338,6 +350,22 @@ struct GranularStretch {
       out2[0] = {0.0f, 0.0f};
       out2[1] = {0.0f, 0.0f};
       return;
+    }
+    // LilaC #222: consume an armed hand-off seed — the outgoing grain
+    // becomes a passthrough continuation of the direct read (src = pos,
+    // rate = r, full weight at k = 0: _env(0) == 0 so this frame's output
+    // is bit-equal to the direct read), and the incoming grain spawns at
+    // the frame head below, Hann-morphing r → p over one hop. This replaces
+    // the dual-render crossfade for the varispeed engage at zero extra
+    // render cost.
+    if (_seed_passthrough) {
+      _seed_passthrough = false;
+      _out_g.src = buf.pos_q;
+      _out_g.rate = buf.tape_speed_q;
+      _out_g.active = true;
+      _in_g.active = false;               // force the fresh spawn below
+      _k = 0;
+      _sphase = SearchPhase::idle;        // stale predictions (reset() rule)
     }
     // Spawn/rotate at the FRAME HEAD so a fresh grain's first read happens
     // at the same pos its anchor was derived from — spawning at the frame
