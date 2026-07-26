@@ -559,7 +559,12 @@ struct GranularStretch {
   // The window/content wrapping is resolved HERE (planStrideSegments applies
   // exactly the addressing _tapAt would), so the provider receives plain
   // pointers and never needs to know what a loop buffer is.
-  IGB_FAST_INLINE void _stageBegin(LoopBuf& buf, q32_t base, uint32_t stride,
+  // noinline: this runs at most three times per search (per track), i.e.
+  // ~1 kHz across the whole device, while _searchAdvance is ITCM-resident
+  // and ITCM is the scarcest memory here. Inlining the wrap solver into it
+  // cost ~1.6 KB for a path that is never on a frame's budget.
+  __attribute__((noinline))
+  void _stageBegin(LoopBuf& buf, q32_t base, uint32_t stride,
                                    uint32_t count, q32_t wl) {
     _stage_active = false;
     if (!_stage || !_stage->begin || !_stage->win) return;
