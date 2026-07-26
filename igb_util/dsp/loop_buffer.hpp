@@ -12,8 +12,44 @@ namespace igb::dsp {
 template<typename Deinterp = DeinterpNo>
 struct LoopBufferStereo {
   std::pair<float, float> _dummy_buf = {0.0f, 0.0f};
-  std::pair<float, float>* buf = nullptr;
+  // LilaC #225: the sample body is exposed READ-ONLY. Every mutation must go
+  // through mutableBuf() (or the mutators below), which is what sets
+  // content_dirty — so a future writer cannot silently skip the mark: it does
+  // not compile. Reads (`buf[i]`, `buf + idx`, the interp core, the WSOLA
+  // taps) are unchanged.
+  const std::pair<float, float>* buf = nullptr;
   size_t buf_size = 1;
+
+  // LilaC #225: "the SDRAM body may hold D-cache lines that have not been
+  // written back yet". Set by every write path (see mutableBuf / write /
+  // overdubAt / fadeInAddAt / gainAt), cleared by the owner AFTER a
+  // SCB_CleanDCache(). A DMA reader (the WSOLA search fill) must treat a set
+  // flag as "SDRAM may be stale" and fall back to CPU reads.
+  // Starts TRUE on purpose: a fresh/reconstructed buffer is assumed dirty
+  // until someone proves otherwise (fail-safe default).
+  // Single-core cross-context bool (audio IRQ sets, main loop clears): a plain
+  // store suffices — the owner clears BEFORE cleaning, so a write landing
+  // during the clean re-sets it and the next pass cleans again.
+  bool content_dirty = true;
+
+  // The only const_cast in the class: the underlying storage is NOT a const
+  // object (it is `sdram_buf`), the pointer is merely published as const to
+  // force writers through the marking accessor above.
+  IGB_FAST_INLINE std::pair<float, float>* mutableBuf() {
+    content_dirty = true;
+    return _rawBuf();
+  }
+
+private:
+  // Non-marking raw access — for the class's OWN mutators only, which set
+  // content_dirty once at their public entry instead of once per sample (the
+  // OD scatter calls _writeFb ~14x per frame per track; marking there would
+  // cost ~336 stores per audio IRQ for no added safety).
+  IGB_FAST_INLINE std::pair<float, float>* _rawBuf() const {
+    return const_cast<std::pair<float, float>*>(buf);
+  }
+
+public:
 
   size_t write_pos = 0;      // native-speed recording
   size_t loop_start = 0;     // absolute start of recorded region (LilaC: always 0)
@@ -235,7 +271,9 @@ struct LoopBufferStereo {
   IGB_FAST_INLINE void _writeFb(
       size_t abs_idx, uint32_t loop_pos,
       float val_l, float val_r, float feedback, bool update_last) {
-    auto& b = *(buf + abs_idx);
+    // LilaC #225: content_dirty is set once at the public entry (overdubAt /
+    // fadeInAddAt), not here — see _rawBuf().
+    auto& b = *(_rawBuf() + abs_idx);
     if (loop_pos != _last_fb_pos) {
       b.first  = b.first  * feedback + val_l;
       b.second = b.second * feedback + val_r;
@@ -281,7 +319,8 @@ struct LoopBufferStereo {
   // --- native-speed recording ---
 
   IGB_FAST_INLINE void write(std::pair<float, float> value) {
-    *(buf + write_pos) = value;
+    content_dirty = true;                   // LilaC #225
+    *(_rawBuf() + write_pos) = value;
     // Issue #171: write_pos < buf_size is an invariant, so the old % buf_size
     // was a single conditional wrap paying a udiv per recorded sample.
     if (++write_pos >= buf_size) write_pos = 0;
@@ -292,13 +331,15 @@ struct LoopBufferStereo {
   // 追跡と干渉させないため)。
   IGB_FAST_INLINE void fadeInAddAt(
       uint32_t loop_pos, float val_l, float val_r, float feedback) {
+    content_dirty = true;                   // LilaC #225
     _writeFb(_toAbsIdx(loop_pos), loop_pos, val_l, val_r, feedback, false);
   }
 
   // Issue #57 ループ境界スムージング用。loop-relative 位置の既存値に gain を
   // in-place 乗算 (録音 tail の fade_out retroactive 用)。
   IGB_FAST_INLINE void gainAt(uint32_t loop_pos, float gain) {
-    auto& b = *(buf + _toAbsIdx(loop_pos));
+    content_dirty = true;                   // LilaC #225
+    auto& b = *(_rawBuf() + _toAbsIdx(loop_pos));
     b.first  *= gain;
     b.second *= gain;
   }
@@ -316,6 +357,7 @@ struct LoopBufferStereo {
   // are sequential.
   IGB_FAST_INLINE void overdubAt(q32_t at_pos_q, q32_t speed_q, float speed_f,
                                  std::pair<float, float> value, float feedback) {
+    content_dirty = true;   // LilaC #225 (once per call, not per _writeFb)
     _syncWin();   // Issue #171: one key check; the scatter uses _wl_int/_winIdx
     // Issue #198: all scatter POSITION math is integer Q32.32; only the
     // sample-gain arithmetic stays float (docs/198 §3). The extraction base
