@@ -612,11 +612,16 @@ struct GranularStretch {
   // The window/content wrapping is resolved HERE (planStrideSegments applies
   // exactly the addressing _tapAt would), so the provider receives plain
   // pointers and never needs to know what a loop buffer is.
-  // noinline: this runs at most three times per search (per track), i.e.
-  // ~1 kHz across the whole device, while _searchAdvance is ITCM-resident
-  // and ITCM is the scarcest memory here. Inlining the wrap solver into it
-  // cost ~1.6 KB for a path that is never on a frame's budget.
-  __attribute__((noinline))
+  // noinline: keeps the wrap solver from duplicating into the 4 call sites
+  // inside ITCM-resident _searchAdvance (~1.6 KB of the scarcest memory).
+  // ITCM (LilaC #225): this runs from the audio IRQ every few IRQs during
+  // steady-state stretch playback — PERIODIC, not event-driven, so flash
+  // placement is the #201 spike class (a cold QSPI I-fetch of its ~13 cache
+  // lines costs ~5 us inside the IRQ). A flash-resident version of this very
+  // function contaminated BOTH sides of the #225 device A/B and nearly
+  // cemented the wrong architectural verdict — "called once every few IRQs"
+  // is not a cold path; only event-driven code is.
+  IGB_ITCM __attribute__((noinline))
   void _stageBegin(LoopBuf& buf, q32_t base, uint32_t stride,
                                    uint32_t count, q32_t wl) {
     _stage_active = false;
