@@ -124,6 +124,16 @@ struct GranularStretch {
   // ≤ hop. Tiny hops compress via _recalcSearchPlan exactly as before.
   constexpr static uint32_t wsola_fill_per_frame = 3;   // SDRAM reads
   constexpr static uint32_t wsola_taps_per_frame = 6;   // scratch AMDF taps
+  // LilaC issue #225 (stage 2): when a stage is served from staging its reads
+  // are TCM loads, not SDRAM line fills, so the per-frame slice can be wider
+  // for free — and the frames that buys are spent thinning the ONE stage that
+  // cannot be staged. pre_ref's taps are rate·16 apart, so its span is up to
+  // 64x its tap count and gathering it would move more traffic than it saves;
+  // it stays on direct reads, at a third of the rate. Neither number changes
+  // WHICH samples are read or in what order, so results stay bit-identical —
+  // only the frame each read lands on moves.
+  constexpr static uint32_t wsola_fill_per_frame_staged = 4;
+  constexpr static uint32_t wsola_pre_ref_per_frame_staged = 1;
   // Scratch spans the candidate walk in BOTH directions (reverse grains read
   // backwards): taps·|p|max(4) margin on each side of the 2W lag range.
   constexpr static uint32_t wsola_scratch_len =
@@ -220,6 +230,13 @@ struct GranularStretch {
   // would put the SDRAM reads back one frame at a time, which is the cost
   // this whole mechanism exists to remove.
   bool _stage_active = false;
+  // Whether THIS search's first fill was staged. The per-frame budgets that
+  // depend on staging are chosen from it once, at freeze, so a stage that
+  // later falls back cannot end up reading SDRAM at the wider staged rate.
+  bool _staged_plan = false;
+  // Base of the staged span for the reference stages (integer q32): a tap at
+  // window-relative p reads staging[q32_idx(p - _ref_stage_base)].
+  q32_t _ref_stage_base = 0;
 
   enum class SearchPhase : uint8_t {
     idle, fill, ref_capture, coarse, fine, ready,
@@ -267,6 +284,11 @@ struct GranularStretch {
   // defaults in production, setGrainLen is a tuning-only entry).
   uint32_t _fill_pf = wsola_fill_per_frame * _planScale(default_grain_len / 2);
   uint32_t _taps_pf = wsola_taps_per_frame * _planScale(default_grain_len / 2);
+  // LilaC #225 stage 2 companions of _fill_pf (see the constants above).
+  uint32_t _fill_pf_staged =
+      wsola_fill_per_frame_staged * _planScale(default_grain_len / 2);
+  uint32_t _pre_ref_pf =
+      wsola_pre_ref_per_frame_staged * _planScale(default_grain_len / 2);
   uint32_t _search_lead = _planLead(default_grain_len / 2);
   uint32_t _search_lead_wide = _planLeadWide(default_grain_len / 2);
   q32_t _sweep_tol_classic_q = _planSweepTol(wsola_sweep_tol_classic,
@@ -351,6 +373,31 @@ struct GranularStretch {
     const uint32_t lead = _planFrames1xWide() / _planScale(hop) + 8;
     return (lead > hop) ? hop : lead;
   }
+  // LilaC #225 (stage 2): the wide plan's WORST staged mix — the first fill
+  // staged (so pre_ref is thinned to 1/frame) but every later stage declining
+  // and falling back to direct reads at the legacy rate. This must still fit
+  // the SAME lead the legacy plan sets: the lead is a frozen contract, since
+  // it fixes the search freeze point and moving that moves every alignment
+  // result. Staging may only make the schedule shorter, never the lead.
+  constexpr static uint32_t _planFramesStagedWorstWide() {
+    const uint32_t pre_lags =
+        2 * (wsola_pre_half_range / wsola_pre_stride) / wsola_pre_lag_stride + 1;
+    const uint32_t refine_lags = wsola_refine_reach / wsola_coarse_step * 2 + 1;
+    const uint32_t fine_lags = 2 * wsola_fine_reach + 1;
+    return (wsola_pre_scratch_len + wsola_fill_per_frame_staged - 1)
+               / wsola_fill_per_frame_staged
+         + (wsola_pre_taps + wsola_pre_ref_per_frame_staged - 1)
+               / wsola_pre_ref_per_frame_staged
+         + (pre_lags * wsola_pre_taps + wsola_taps_per_frame - 1)
+               / wsola_taps_per_frame
+         + (wsola_refine_scratch_len + wsola_fill_per_frame - 1)
+               / wsola_fill_per_frame
+         + 2 * ((wsola_taps + wsola_fill_per_frame - 1) / wsola_fill_per_frame)
+         + ((refine_lags + fine_lags) * wsola_taps + wsola_taps_per_frame - 1)
+               / wsola_taps_per_frame
+         + 8;
+  }
+
   // Per-hop pitch-delta bound equivalent to `tol` samples of anchor error.
   constexpr static q32_t _planSweepTol(uint32_t tol_samples, uint32_t hop) {
     return ((q32_t)tol_samples << 32) / (q32_t)hop;
@@ -363,9 +410,15 @@ struct GranularStretch {
     // cannot call member constexpr functions (incomplete class).
     static_assert(_planFrames1xWide() + 8 <= default_grain_len / 2,
                   "wide WSOLA plan must fit one hop at per-frame budget 1x");
+    // LilaC #225: staging must never need MORE lead than the legacy plan.
+    static_assert(_planFramesStagedWorstWide()
+                      <= _planLeadWide(default_grain_len / 2),
+                  "staged wide schedule must fit the legacy search lead");
     const uint32_t scale = _planScale(_hop);
     _fill_pf = wsola_fill_per_frame * scale;
     _taps_pf = wsola_taps_per_frame * scale;
+    _fill_pf_staged = wsola_fill_per_frame_staged * scale;
+    _pre_ref_pf = wsola_pre_ref_per_frame_staged * scale;
     _search_lead = _planLead(_hop);
     _search_lead_wide = _planLeadWide(_hop);
     _sweep_tol_classic_q = _planSweepTol(wsola_sweep_tol_classic, _hop);
@@ -583,6 +636,41 @@ struct GranularStretch {
     _stage_active = _stage->begin(_stage->ctx, runs, n, count);
   }
 
+  // LilaC #225 (stage 2): stage the SPAN the reference taps walk. Their step
+  // is the pitch itself, so the walk is fractional — not a gather — but it
+  // covers at most taps·|p|max + 1 = 61 contiguous samples, which is small
+  // enough that fetching the span costs about what fetching the taps would.
+  // (pre_ref is the opposite case and stays direct: its step is 16x larger.)
+  // The base is floored, exactly like _scratch_base, so a staged tap index is
+  // a plain q32_idx difference.
+  IGB_FAST_INLINE void _stageRefSpan(LoopBuf& buf, q32_t base, q32_t wl) {
+    _stage_active = false;
+    if (!_staged_plan) return;   // legacy plan: legacy reads and rates
+    const q32_t last = base + (q32_t)(wsola_taps - 1) * _search_rate;
+    const q32_t lo = (last < base) ? last : base;
+    const q32_t hi = (last < base) ? base : last;
+    _ref_stage_base = (q32_t)((uint64_t)lo & ~0xFFFFFFFFull);
+    _stageBegin(buf, _ref_stage_base, 1,
+                q32_idx(hi - _ref_stage_base) + 1u, wl);
+  }
+
+  // One staged reference tap, or nullptr while it has not landed. Reverse
+  // grains walk the span backwards, so this must not assume the index only
+  // grows — which is why the provider is required to publish a request that
+  // fits its chunk in a single window (see stage_gather.hpp).
+  IGB_FAST_INLINE const std::pair<float, float>* _stagedTap(q32_t p) {
+    // A provider that has already slid its window past the start of the span
+    // can never serve a backwards walk again, so give staging up for this
+    // stage and let the direct path finish it. Waiting instead would stall
+    // until the hop and silently lose the search.
+    if (_stage->win->first != 0) {
+      _stage_active = false;
+      return nullptr;
+    }
+    uint32_t avail = 0;
+    return _stagedRun(q32_idx(p - _ref_stage_base), avail);
+  }
+
   // Consecutive staged items readable from `i`, or nullptr if the provider
   // has not caught up yet (the stage then simply idles this frame — the
   // plan's slack absorbs it). At most ONE poll per call: the window is
@@ -731,6 +819,7 @@ struct GranularStretch {
           _best_lag = _scan_half;
           _fill_cursor = _pre_base;
           _stageBegin(buf, _pre_base, wsola_pre_stride, wsola_pre_scratch_len, wl);
+          _staged_plan = _stage_active;
           _sphase = SearchPhase::pre_fill;
           return;
         }
@@ -758,6 +847,7 @@ struct GranularStretch {
         _fill_cursor = _scratch_base;
         _fill_target = wsola_scratch_len;
         _stageBegin(buf, _scratch_base, 1, _fill_target, wl);
+        _staged_plan = _stage_active;
         _sphase = SearchPhase::fill;
         return;
       }
@@ -769,7 +859,7 @@ struct GranularStretch {
         if (_stage_active) {
           uint32_t avail = 0;
           const auto* s = _stagedRun(_fill_idx, avail);
-          for (uint32_t n = 0; s && n < _fill_pf && n < avail
+          for (uint32_t n = 0; s && n < _fill_pf_staged && n < avail
                                && _fill_idx < wsola_pre_scratch_len; ++n) {
             _pre_scratch[_fill_idx++] = s->first + s->second;
             ++s;
@@ -792,7 +882,8 @@ struct GranularStretch {
         // Template = the outgoing grain's continuation sampled every
         // stride·tap_stride output frames (source step = tap_stride decimated
         // units per tap, matching the pre scan's tap walk).
-        for (uint32_t n = 0; n < _fill_pf && _ref_idx < wsola_pre_taps; ++n) {
+        const uint32_t budget = _staged_plan ? _pre_ref_pf : _fill_pf;
+        for (uint32_t n = 0; n < budget && _ref_idx < wsola_pre_taps; ++n) {
           _pre_ref[_ref_idx++] = _tapAt(buf, _ref_cursor, wl);
           _ref_cursor +=
               _search_rate * (q32_t)(wsola_pre_stride * wsola_pre_tap_stride);
@@ -857,7 +948,7 @@ struct GranularStretch {
         if (_stage_active) {
           uint32_t avail = 0;
           const auto* s = _stagedRun(_fill_idx, avail);
-          for (uint32_t n = 0; s && n < _fill_pf && n < avail
+          for (uint32_t n = 0; s && n < _fill_pf_staged && n < avail
                                && _fill_idx < _fill_target; ++n) {
             _scratch[_fill_idx++] = s->first + s->second;
             ++s;
@@ -870,18 +961,32 @@ struct GranularStretch {
           }
         }
         if (_fill_idx >= _fill_target) {
-          _stage_active = false;
+          _stageRefSpan(buf, _ref_start, wl);
           _sphase = SearchPhase::ref_capture;
         }
         return;
       }
       case SearchPhase::ref_capture: {
-        for (uint32_t n = 0; n < _fill_pf && _ref_idx < wsola_taps; ++n) {
-          _ref[_ref_idx++] = _tapAt(buf, _ref_cursor, wl);
+        const uint32_t budget = _stage_active ? _fill_pf_staged : _fill_pf;
+        for (uint32_t n = 0; n < budget && _ref_idx < wsola_taps; ++n) {
+          if (_stage_active) {
+            const auto* s = _stagedTap(_ref_cursor);
+            if (!s) break;                     // not landed yet: idle a frame
+            _ref[_ref_idx++] = s->first + s->second;
+          } else {
+            _ref[_ref_idx++] = _tapAt(buf, _ref_cursor, wl);
+          }
           _ref_cursor += _search_rate;
         }
-        if (_ref_idx >= wsola_taps)
-          _sphase = _wide ? SearchPhase::center_ref : SearchPhase::coarse;
+        if (_ref_idx >= wsola_taps) {
+          if (_wide) {
+            _stageRefSpan(buf, _anchor_pred, wl);
+            _sphase = SearchPhase::center_ref;
+          } else {
+            _stage_active = false;
+            _sphase = SearchPhase::coarse;
+          }
+        }
         return;
       }
       case SearchPhase::center_ref: {
@@ -890,14 +995,23 @@ struct GranularStretch {
         // acceptance semantics identical to the classic path (best <
         // accept_num × center, both full-res). Flooring matches a scratch
         // read: _tapAt floors, and scratch bases are integer q32.
-        for (uint32_t n = 0; n < _fill_pf && _tap_idx < wsola_taps; ++n) {
-          const float d =
-              _tapAt(buf, _anchor_pred + (q32_t)_tap_idx * _search_rate, wl)
-              - _ref[_tap_idx];
+        const uint32_t budget = _stage_active ? _fill_pf_staged : _fill_pf;
+        for (uint32_t n = 0; n < budget && _tap_idx < wsola_taps; ++n) {
+          const q32_t p = _anchor_pred + (q32_t)_tap_idx * _search_rate;
+          float v;
+          if (_stage_active) {
+            const auto* s = _stagedTap(p);
+            if (!s) break;                     // not landed yet: idle a frame
+            v = s->first + s->second;
+          } else {
+            v = _tapAt(buf, p, wl);
+          }
+          const float d = v - _ref[_tap_idx];
           _amdf_acc += (d < 0.0f) ? -d : d;
           ++_tap_idx;
         }
         if (_tap_idx < wsola_taps) return;
+        _stage_active = false;
         _center_metric = _amdf_acc;
         _amdf_acc = 0.0f;
         _tap_idx = 0;
