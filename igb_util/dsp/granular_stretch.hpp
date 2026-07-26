@@ -4,6 +4,7 @@
 #include <utility>
 #include <igb_util/macro.hpp>
 #include <igb_util/dsp/q32_pos.hpp>
+#include <igb_util/dsp/stage_gather.hpp>
 
 namespace igb::dsp {
 
@@ -188,6 +189,38 @@ struct GranularStretch {
   // path (short windows keep today's behavior).
   constexpr static uint32_t wsola_wide_min_win = 4096;
 
+  // --- Background staging of the fill reads (LilaC issue #225) ------------
+  // The two FILL stages walk the loop buffer at a FIXED INTEGER stride from
+  // a base frozen at plan time (pre_fill: stride 8 over the decimated wide
+  // region; fill: stride 1 over the candidate region), which makes them a
+  // pure gather — no speculation, every address known up front. On the
+  // device that is handed to a DMA that can write TCM, so the reads leave
+  // the audio IRQ's critical path entirely (the SDRAM line fills they cause
+  // are the dominant term of the search's cost; see docs/225 §2).
+  //
+  // The engine stays platform-agnostic: an owner may install a provider,
+  // and if none is installed — or it declines a request — the direct read
+  // path below runs exactly as before. The staged data is a byte copy of
+  // the same pairs in the same order, and the L+R sum is still taken here,
+  // so a staged search is BIT-IDENTICAL to a direct one (the host tests pin
+  // exactly that).
+  //
+  // Wiring, not state: reset() must not clear the hooks (the setEnvLut
+  // class), only the in-flight request.
+  // Wrapping splits a strided walk into at most (span/window + span/content
+  // + 1) linear runs; the widest gather here spans 3488 samples against a
+  // window of at least 2048, so 4 covers it with room. A walk that needs
+  // more is simply not staged.
+  constexpr static uint32_t stage_max_runs = 4;
+  using StageT = StageHooks<std::pair<float, float>>;
+  StageT* _stage = nullptr;
+  void setStageHooks(StageT* hooks) { _stage = hooks; }
+  // True while the CURRENT fill stage is being served from staging. Decided
+  // once per request at plan time and never mid-stage: a half-staged stage
+  // would put the SDRAM reads back one frame at a time, which is the cost
+  // this whole mechanism exists to remove.
+  bool _stage_active = false;
+
   enum class SearchPhase : uint8_t {
     idle, fill, ref_capture, coarse, fine, ready,
     pre_fill, pre_ref, pre_coarse, center_ref,   // wide-path extras (#219)
@@ -349,6 +382,12 @@ struct GranularStretch {
     _in_g.active = false;
     _k = 0;
     _sphase = SearchPhase::idle;
+    // LilaC #225: drop the in-flight staging request. This is a plain bool
+    // store on purpose — reset() is reachable from the MAIN LOOP (the
+    // reseedStretch hooks), and the provider owns hardware that only the
+    // audio context may touch. An abandoned transfer just finishes into a
+    // buffer nobody reads; the next begin() cleans up.
+    _stage_active = false;
     // LilaC #222: a reseed invalidates an armed hand-off seed too — after a
     // pos jump the passthrough continuation is the WRONG trajectory; the
     // ramp-in above is the click-free entry. (Engage arms AFTER reset().)
@@ -513,6 +552,49 @@ struct GranularStretch {
     return v->first + v->second;
   }
 
+  // LilaC #225: ask the provider to stage a fill stage's whole gather. Sets
+  // _stage_active for the stage; a false return leaves it clear and the
+  // stage reads directly, on the unchanged per-frame budget.
+  //
+  // The window/content wrapping is resolved HERE (planStrideSegments applies
+  // exactly the addressing _tapAt would), so the provider receives plain
+  // pointers and never needs to know what a loop buffer is.
+  IGB_FAST_INLINE void _stageBegin(LoopBuf& buf, q32_t base, uint32_t stride,
+                                   uint32_t count, q32_t wl) {
+    _stage_active = false;
+    if (!_stage || !_stage->begin || !_stage->win) return;
+    // A background reader bypasses the D-cache, so it must not run while the
+    // source may still hold dirty lines (LilaC #225 §6.5 — the owner cleans
+    // and clears this from the main loop).
+    if (buf.content_dirty) return;
+    typename LoopBuf::StrideSegment segs[stage_max_runs];
+    const uint32_t n =
+        buf.planStrideSegments(base, stride, count, wl, segs, stage_max_runs);
+    if (!n) return;
+    StageRun<std::pair<float, float>> runs[stage_max_runs];
+    for (uint32_t i = 0; i < n; ++i) {
+      runs[i] = { buf.buf + segs[i].start_idx, stride, segs[i].count };
+    }
+    _stage_active = _stage->begin(_stage->ctx, runs, n, count);
+  }
+
+  // Consecutive staged items readable from `i`, or nullptr if the provider
+  // has not caught up yet (the stage then simply idles this frame — the
+  // plan's slack absorbs it). At most ONE poll per call: the window is
+  // plain memory, so the common case costs three loads and no call.
+  IGB_FAST_INLINE const std::pair<float, float>* _stagedRun(uint32_t i,
+                                                            uint32_t& avail) {
+    const auto* win = _stage->win;
+    if (i < win->first || i - win->first >= win->count) {
+      if (!_stage->poll) return nullptr;
+      _stage->poll(_stage->ctx);
+      if (i < win->first || i - win->first >= win->count) return nullptr;
+    }
+    const uint32_t off = i - win->first;
+    avail = win->count - off;
+    return win->data + off;
+  }
+
   // One AMDF lag evaluated against the active scan buffer, resumable mid-lag
   // via _tap_idx (the per-frame budget can be smaller than one lag).
   // Candidate tap positions are scan-relative: _scan_cand0 + (lag − center)
@@ -643,6 +725,7 @@ struct GranularStretch {
           _bias_base = 0;
           _best_lag = _scan_half;
           _fill_cursor = _pre_base;
+          _stageBegin(buf, _pre_base, wsola_pre_stride, wsola_pre_scratch_len, wl);
           _sphase = SearchPhase::pre_fill;
           return;
         }
@@ -669,16 +752,35 @@ struct GranularStretch {
         _best_lag = wsola_half_range;
         _fill_cursor = _scratch_base;
         _fill_target = wsola_scratch_len;
+        _stageBegin(buf, _scratch_base, 1, _fill_target, wl);
         _sphase = SearchPhase::fill;
         return;
       }
       case SearchPhase::pre_fill: {
-        for (uint32_t n = 0;
-             n < _fill_pf && _fill_idx < wsola_pre_scratch_len; ++n) {
-          _pre_scratch[_fill_idx++] = _tapAt(buf, _fill_cursor, wl);
-          _fill_cursor += (q32_t)wsola_pre_stride << 32;
+        // LilaC #225: staged reads are the SAME pairs summed in the SAME
+        // order as _tapAt — bit-identical, only the memory they come from
+        // differs. When staging is active the direct path is not used as a
+        // partial fallback (see _stage_active).
+        if (_stage_active) {
+          uint32_t avail = 0;
+          const auto* s = _stagedRun(_fill_idx, avail);
+          for (uint32_t n = 0; s && n < _fill_pf && n < avail
+                               && _fill_idx < wsola_pre_scratch_len; ++n) {
+            _pre_scratch[_fill_idx++] = s->first + s->second;
+            ++s;
+            _fill_cursor += (q32_t)wsola_pre_stride << 32;
+          }
+        } else {
+          for (uint32_t n = 0;
+               n < _fill_pf && _fill_idx < wsola_pre_scratch_len; ++n) {
+            _pre_scratch[_fill_idx++] = _tapAt(buf, _fill_cursor, wl);
+            _fill_cursor += (q32_t)wsola_pre_stride << 32;
+          }
         }
-        if (_fill_idx >= wsola_pre_scratch_len) _sphase = SearchPhase::pre_ref;
+        if (_fill_idx >= wsola_pre_scratch_len) {
+          _stage_active = false;
+          _sphase = SearchPhase::pre_ref;
+        }
         return;
       }
       case SearchPhase::pre_ref: {
@@ -737,6 +839,7 @@ struct GranularStretch {
             _fill_cursor = _scratch_base;
             _fill_idx = 0;
             _fill_target = wsola_refine_scratch_len;
+            _stageBegin(buf, _scratch_base, 1, _fill_target, wl);
             _ref_cursor = _ref_start;
             _sphase = SearchPhase::fill;
             return;
@@ -746,11 +849,25 @@ struct GranularStretch {
         return;
       }
       case SearchPhase::fill: {
-        for (uint32_t n = 0; n < _fill_pf && _fill_idx < _fill_target; ++n) {
-          _scratch[_fill_idx++] = _tapAt(buf, _fill_cursor, wl);
-          _fill_cursor += q32_one;
+        if (_stage_active) {
+          uint32_t avail = 0;
+          const auto* s = _stagedRun(_fill_idx, avail);
+          for (uint32_t n = 0; s && n < _fill_pf && n < avail
+                               && _fill_idx < _fill_target; ++n) {
+            _scratch[_fill_idx++] = s->first + s->second;
+            ++s;
+            _fill_cursor += q32_one;
+          }
+        } else {
+          for (uint32_t n = 0; n < _fill_pf && _fill_idx < _fill_target; ++n) {
+            _scratch[_fill_idx++] = _tapAt(buf, _fill_cursor, wl);
+            _fill_cursor += q32_one;
+          }
         }
-        if (_fill_idx >= _fill_target) _sphase = SearchPhase::ref_capture;
+        if (_fill_idx >= _fill_target) {
+          _stage_active = false;
+          _sphase = SearchPhase::ref_capture;
+        }
         return;
       }
       case SearchPhase::ref_capture: {

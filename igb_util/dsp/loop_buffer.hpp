@@ -267,6 +267,85 @@ public:
     return idx;
   }
 
+  // Issue #225: one linear run of a strided walk, in ABSOLUTE buffer index
+  // space. `count` items live at start_idx, start_idx + stride, ...
+  struct StrideSegment {
+    uint32_t start_idx;
+    uint32_t count;
+  };
+
+  // Issue #225: split a window-relative strided walk into the linear runs a
+  // block-repeat DMA can express. The walk is exactly the one a caller would
+  // get from repeatedly wrapping a position and indexing through _winIdx()
+  // — this is that same address arithmetic, solved for the break points
+  // instead of evaluated per item.
+  //
+  // Breaks come from the two moduli _winIdx() applies (the window wrap at
+  // `wl`, then the content wrap at loop_length) plus the buffer wrap; a run
+  // of a few thousand samples over a window of >= 2048 hits each at most
+  // once, so 4 slots is a generous bound. Returns the segment count, or 0
+  // when the walk needs more than max_out (or has nothing to do) — callers
+  // treat 0 as "cannot stage this" and read directly instead.
+  //
+  // AUDIO-CONTEXT rules: call after _syncWin() (it reads the resolved
+  // window cache), and note the arithmetic stays inside 32-bit division —
+  // a 64/64 divide would be an __aeabi_uldivmod call into QSPI-resident
+  // newlib, which the audio IRQ must not make (issue #198 §4-7).
+  uint32_t planStrideSegments(q32_t base, uint32_t stride, uint32_t count,
+                              q32_t wl, StrideSegment* out,
+                              uint32_t max_out) const {
+    if (!count || !stride || !max_out || wl <= 0) return 0;
+    const size_t L = loop_length ? loop_length : 1;
+
+    // Same entry normalization as a direct read: wrap into [0, wl), then
+    // saturate a degenerate negative to 0.
+    q32_t p = base;
+    while (p >= wl) p -= wl;
+    while (p < 0)   p += wl;
+
+    uint32_t n_seg = 0;
+    uint32_t left = count;
+    while (left) {
+      if (n_seg >= max_out) return 0;
+
+      // Window-relative integer position, then the two _winIdx moduli.
+      const uint32_t win_rel = q32_idx(p);
+      size_t w = _wstart + (size_t)win_rel;
+      while (w >= L) w -= L;
+      size_t idx = loop_start + w;
+      while (idx >= buf_size) idx -= buf_size;
+
+      // Steps available before each wrap. For a wrap boundary `rem`
+      // samples away, the last usable step index is (rem - 1) / stride, so
+      // the run length is that + 1. The window boundary is fractional, and
+      // ceil() is what keeps "p + k*stride < wl" exact for both an integer
+      // and a fractional wl.
+      const q32_t rem_win_q = wl - p;                       // > 0
+      const uint32_t rem_win =
+          (uint32_t)((uint64_t)(rem_win_q + (q32_t)0xFFFFFFFF) >> 32);  // ceil
+      uint32_t run = (rem_win - 1u) / stride + 1u;
+
+      const uint32_t rem_content = (uint32_t)(L - w);
+      const uint32_t run_c = (rem_content - 1u) / stride + 1u;
+      if (run_c < run) run = run_c;
+
+      const uint32_t rem_buf = (uint32_t)(buf_size - idx);
+      const uint32_t run_b = (rem_buf - 1u) / stride + 1u;
+      if (run_b < run) run = run_b;
+
+      if (run > left) run = left;
+
+      out[n_seg].start_idx = (uint32_t)idx;
+      out[n_seg].count = run;
+      ++n_seg;
+
+      left -= run;
+      p += (q32_t)((uint64_t)run * stride) << 32;
+      while (p >= wl) p -= wl;
+    }
+    return n_seg;
+  }
+
   // feedback-aware write: apply feedback on first touch, += on revisit
   IGB_FAST_INLINE void _writeFb(
       size_t abs_idx, uint32_t loop_pos,
