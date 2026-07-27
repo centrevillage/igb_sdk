@@ -199,6 +199,35 @@ struct GranularStretch {
   // path (short windows keep today's behavior).
   constexpr static uint32_t wsola_wide_min_win = 4096;
 
+  // --- Search-phase stagger (LilaC issue #223 C2) --------------------------
+  // Synchronized stretch tracks share hop and reseed instant, so every
+  // instance walks the SAME search stage on the SAME frame — the per-IRQ cost
+  // of any stage that still touches SDRAM (after #225 that is `pre_ref`, one
+  // read/frame whose taps are 16·|p| samples apart = a fresh cache line at
+  // every playback rate) multiplies by the track count on those frames, and
+  // the max-hold reading is exactly what catches it.
+  //
+  // Fix: START each instance's search this many frames EARLIER than the plan
+  // requires. Starting early can only ever GIVE the schedule frames (the
+  // freeze predicts `remain = hop − k` frames ahead for any remain), so no
+  // stage can starve; the search simply finishes and waits in `ready`. The
+  // cost is a slightly longer constant-rate assumption between freeze and
+  // spawn (48 frames ≈ 1 ms more), which the sweep tolerance already covers.
+  //
+  // Owner-set WIRING, not state: reset() must not clear it (the setEnvLut /
+  // setStageHooks class). Default 0 = the pre-#223 schedule, so host pins
+  // that don't set it stay bit-identical.
+  uint32_t _search_stagger = 0;
+  void setSearchStagger(uint32_t frames) { _search_stagger = frames; }
+  // Clamped to the room the hop actually has (lead + 1 ≤ hop): a lead at or
+  // past the hop would start the search on the spawn frame itself, which is
+  // harmless but buys no separation. Tiny hops (planScale > 1) run leads
+  // close to the hop and therefore stagger by less — or not at all.
+  IGB_FAST_INLINE uint32_t _staggerFrames(uint32_t lead) const {
+    const uint32_t room = (_hop > lead + 1) ? (_hop - lead - 1) : 0;
+    return (_search_stagger < room) ? _search_stagger : room;
+  }
+
   // --- Background staging of the fill reads (LilaC issue #225) ------------
   // The two FILL stages walk the loop buffer at a FIXED INTEGER stride from
   // a base frozen at plan time (pre_fill: stride 8 over the decimated wide
@@ -770,7 +799,11 @@ struct GranularStretch {
         // +3 st (gap 96.87) fully unaligned on the classic path.
         const bool wide = ((uint32_t)(gap >> 32) >= wsola_half_range)
             && ((uint32_t)(wl >> 32) >= wsola_wide_min_win);
-        if (_hop - _k > (wide ? _search_lead_wide : _search_lead)) return;
+        // LilaC #223 C2: + this instance's stagger (0 by default — see the
+        // member comment). The lead is still the CONTRACT for how late a
+        // search may start; the stagger only lets it start earlier.
+        const uint32_t lead = wide ? _search_lead_wide : _search_lead;
+        if (_hop - _k > lead + _staggerFrames(lead)) return;
         // Degenerate windows (shorter than the candidate span) skip the
         // search — real play windows are ≥ one step (thousands of samples).
         if ((uint32_t)(wl >> 32) < 2048) return;

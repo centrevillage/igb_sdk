@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <igb_util/macro.hpp>
 #include <igb_util/math.hpp>
 #include <igb_util/dsp/config.hpp>
 #include <igb_util/dsp/math.hpp>
@@ -41,8 +42,12 @@ struct EnvFollower {
     release_coeff = igb::dsp::tau2pole(release_time);
   }
 
-  float process(Context& ctx, float x) {
-    x = std::abs(x);
+  // IGB_FAST_INLINE: audio-IRQ callers (LilaCRepeater's block-head meter / mod
+  // env flush) must not long-call this — an out-of-line body lands in QSPI
+  // flash and gets veneer-called from the IRQ every block, which is the #201 /
+  // #225 cold-I-fetch failure regardless of how rarely it runs.
+  IGB_FAST_INLINE float process(Context& ctx, float x) {
+    x = __builtin_fabsf(x);   // vabs, not a call: see the note above
     float coeff = (x > ctx.y1) ? attack_coeff : release_coeff;
     ctx.y1 = (1.0f - coeff) * x + coeff * ctx.y1;
     return ctx.y1;
