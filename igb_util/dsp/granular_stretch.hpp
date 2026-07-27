@@ -267,6 +267,86 @@ struct GranularStretch {
   // window-relative p reads staging[q32_idx(p - _ref_stage_base)].
   q32_t _ref_stage_base = 0;
 
+  // --- Background staging of the GRAIN reads (LilaC issue #227) ------------
+  // The render's own reads are the other half of the picture #225 opened. At
+  // grain rate 4 (+24 st, the true worst) each read walks 32 B forward, so
+  // every read owns a fresh D-cache line of which it uses 8-16 B: ~48 lines
+  // per IRQ stream through the 16 KB cache and evict the MAIN LOOP's working
+  // set, which is why the main loop measures ~30 µs slower there than its CPU
+  // share predicts (#223 Phase 1). Reuse cannot fix that — the stride IS one
+  // line per read — so the fix is to move the traffic to a DMA that writes
+  // TCM, where the CPU allocates nothing.
+  //
+  // What makes this plannable: `Grain::rate` is frozen at _spawn and pitch
+  // edits only land at the NEXT spawn, so a grain's read positions are the
+  // exact arithmetic sequence src + k·rate for a whole block, known one block
+  // ahead. Requests are therefore issued at the END of a block for the next
+  // one (stageBlock), giving the transfer the IRQ-free remainder of the
+  // period to land — one channel per slot, no ping-pong.
+  //
+  // Slots vs trajectories: at a hop renderIo does `_out_g = _in_g`, so the
+  // incoming grain CONTINUES as the outgoing one — one arithmetic sequence
+  // spanning both roles. The staging instance therefore follows the
+  // trajectory (the _gs_out rotation below), and only the freshly spawned
+  // grain — whose anchor the search decides at the spawn instant, after the
+  // plan was made — falls back to direct reads for the rest of that block.
+  //
+  // Safety: a staged read is served ONLY when the request's window identity
+  // still matches and the position maps inside the request. Anything else
+  // (a window commit, a content swap, a not-yet-landed transfer, a span that
+  // crosses the window wrap, a rate too fast for the buffer) falls back to
+  // the direct read, so a stale or mislabelled buffer can never return the
+  // wrong samples — it can only cost the fill it was meant to save.
+  //
+  // Span cap: at 6 frames the span is (5·|rate| + 2) samples, so 32 items
+  // covers |rate| ≤ 6 — past the ±24 st worst the whole feature targets, and
+  // past the point where the fetched span would move more bytes than the
+  // demand misses it replaces. Beyond it (bend+macro stacking reaches ±48 st
+  // = rate 16) the request is simply not made.
+  constexpr static uint32_t grain_stage_max_items = 32;
+  // A/B switch (LilaC #227). It gates the WHOLE feature, not just the
+  // hardware request: with it off nothing is planned, so the resolved
+  // pointers stay null and the render reads exactly as it did before #227.
+  // That is what makes a device A/B a SAME-SESSION control — the only way to
+  // separate a real cost from the ~6.7 µs of session-to-session drift. Owner
+  // wiring, not state: reset() must not touch it.
+  bool grain_stage_enabled = true;
+  constexpr static uint8_t grain_slot_count = 2;   // outgoing / incoming
+  StageT* _grain_stage[grain_slot_count] = { nullptr, nullptr };
+  void setGrainStageHooks(uint8_t slot, StageT* hooks) {
+    if (slot < grain_slot_count) _grain_stage[slot] = hooks;
+  }
+  // Rate floor (LilaC #227, device round 1): staging only pays when the reads
+  // actually miss. A read takes 2 samples (16 B) and a cache line holds 4, so
+  // a grain at rate r opens a new line every 4/r frames — at r = 1 the CPU
+  // hits the same line for four frames and there is nothing to save, while
+  // the plan still costs. Below this the request is not made at all.
+  constexpr static q32_t grain_stage_min_rate = q32_t(2) << 32;
+  // Per-INSTANCE request state (rotates with _gs_out, so it always describes
+  // the trajectory the instance currently carries).
+  q32_t _gs_base[grain_slot_count] = { 0, 0 };        // floored, wrapped
+  uint32_t _gs_base_idx[grain_slot_count] = { 0, 0 };
+  uint32_t _gs_count[grain_slot_count] = { 0, 0 };    // 0 = nothing staged
+  // Window identity the request was planned against (see Safety above).
+  size_t _gs_wstart[grain_slot_count] = { 0, 0 };
+  q32_t _gs_wl[grain_slot_count] = { 0, 0 };
+  // Resolved staging base, or nullptr while the request cannot serve reads
+  // (not landed, window moved, nothing planned). Resolved ONCE PER FRAME by
+  // _gsResolve — the per-READ path may then cost no more than a null test and
+  // a range check (device round 1: doing the validation per read, through a
+  // noinline helper, cost ~13 µs/block — MORE than the line fills it saved.
+  // The four reads per frame sit inside the hottest loop in the engine; any
+  // call there also breaks its register allocation, the #201 spike-2 shape).
+  const std::pair<float, float>* _gs_ptr[grain_slot_count] = { nullptr, nullptr };
+  uint8_t _gs_out = 0;   // instance serving the OUTGOING grain; in = ^1
+  // Diagnostics: staged reads that had a plan but whose data had NOT landed
+  // in time, so the direct read served them anyway. This is the "staging ran
+  // but did not help" case #225 learned to make visible — it cannot be told
+  // apart from "staging never ran" by a timing number alone. Incremented only
+  // on that rare branch (never on the fast path), plain counter, not reset by
+  // reset() (it is a measurement, not state).
+  uint32_t gs_stat_late = 0;
+
   enum class SearchPhase : uint8_t {
     idle, fill, ref_capture, coarse, fine, ready,
     pre_fill, pre_ref, pre_coarse, center_ref,   // wide-path extras (#219)
@@ -470,6 +550,10 @@ struct GranularStretch {
     // audio context may touch. An abandoned transfer just finishes into a
     // buffer nobody reads; the next begin() cleans up.
     _stage_active = false;
+    // LilaC #227: the grains themselves are gone, so every staged trajectory
+    // is stale. Same plain-store reasoning as above (main-loop reachable).
+    _gsDrop(0);
+    _gsDrop(1);
     // LilaC #222: a reseed invalidates an armed hand-off seed too — after a
     // pos jump the passthrough continuation is the WRONG trajectory; the
     // ramp-in above is the click-free entry. (Engage arms AFTER reset().)
@@ -487,6 +571,7 @@ struct GranularStretch {
       out2[1] = {0.0f, 0.0f};
       return;
     }
+    _gsResolve(buf, wl);   // LilaC #227: per-frame, so the reads stay cheap
     // LilaC #222: consume an armed hand-off seed — the outgoing grain
     // becomes a passthrough continuation of the direct read (src = pos,
     // rate = r, full weight at k = 0: _env(0) == 0 so this frame's output
@@ -502,6 +587,8 @@ struct GranularStretch {
       _in_g.active = false;               // force the fresh spawn below
       _k = 0;
       _sphase = SearchPhase::idle;        // stale predictions (reset() rule)
+      _gsDrop(0);                         // #227: both trajectories replaced
+      _gsDrop(1);
     }
     // Spawn/rotate at the FRAME HEAD so a fresh grain's first read happens
     // at the same pos its anchor was derived from — spawning at the frame
@@ -509,10 +596,19 @@ struct GranularStretch {
     // measurable phase error the passthrough test catches).
     if (!_in_g.active) {
       _spawn(buf, wl);                    // first grain after reset()
+      // LilaC #227: nothing was planned for a grain that did not exist.
+      _gsDrop(_gs_out ^ 1u);
     } else if (_k >= _hop) {              // hop: incoming becomes outgoing
       _out_g = _in_g;
       _spawn(buf, wl);
       _k = 0;
+      // LilaC #227: staging follows the TRAJECTORY, not the slot — the
+      // instance that carried the incoming grain now carries the outgoing
+      // one (same src sequence, so its plan stays exactly valid), and the
+      // freed instance has nothing for the grain just spawned (its anchor
+      // was decided here, after the plan was made).
+      _gs_out ^= 1u;
+      _gsDrop(_gs_out ^ 1u);
     }
 
     const float e0 = _env((float)_k * _env_step);
@@ -525,14 +621,36 @@ struct GranularStretch {
     // has two linefill buffers and the render loop is track-major
     // (back-to-back frames), so demand misses keep the buffers saturated
     // and PLD hints are dropped (the #224 probe measured exactly zero).
-    const auto o0 = _readG(buf, wl, _out_g, 0);
-    const auto o1 = _subZoh(_out_g) ? o0 : _readG(buf, wl, _out_g, 1);
-    const auto i0 = _readG(buf, wl, _in_g, 0);
-    const auto i1 = _subZoh(_in_g) ? i0 : _readG(buf, wl, _in_g, 1);
-    out2[0] = { (1.0f - e0) * o0.first  + e0 * i0.first,
-                (1.0f - e0) * o0.second + e0 * i0.second };
-    out2[1] = { (1.0f - e1) * o1.first  + e1 * i1.first,
-                (1.0f - e1) * o1.second + e1 * i1.second };
+    // LilaC #227: two read paths, chosen once per frame. With nothing staged
+    // for this frame — every playback rate below the staging floor, i.e. the
+    // ordinary case — the else branch is the pre-#227 code EXACTLY, so it
+    // costs one predicted branch and nothing else: no extra loads in the
+    // read, and its own register allocation (device round 2 measured ~5 µs
+    // of allocation pressure when the two paths shared one body).
+    // SCALARS, not std::pair values: the pair helpers are not always_inline,
+    // and at this inline budget GCC outlines their ctor/assign to flash and
+    // veneer-calls them per frame (the #202 class — the nm audit caught
+    // exactly that on the first build of this branch). `g4` is never
+    // address-taken, so it stays in registers.
+    //
+    // Device round 3: splitting this into a staged and a direct body (with
+    // the staged one out-of-line) cost 4.5 µs of the staging advantage at
+    // +24 st and recovered nothing at unity — handing eight floats across a
+    // call forces them through memory. One body with the staged branch
+    // inlined per read is the cheaper shape.
+    const uint8_t inst_out = _gs_out;
+    const uint8_t inst_in = (uint8_t)(_gs_out ^ 1u);
+    float g4[8];   // o0 l/r, o1 l/r, i0 l/r, i1 l/r
+    _readG(buf, wl, _out_g, 0, inst_out, g4[0], g4[1]);
+    if (_subZoh(_out_g)) { g4[2] = g4[0]; g4[3] = g4[1]; }
+    else _readG(buf, wl, _out_g, 1, inst_out, g4[2], g4[3]);
+    _readG(buf, wl, _in_g, 0, inst_in, g4[4], g4[5]);
+    if (_subZoh(_in_g)) { g4[6] = g4[4]; g4[7] = g4[5]; }
+    else _readG(buf, wl, _in_g, 1, inst_in, g4[6], g4[7]);
+    out2[0].first  = (1.0f - e0) * g4[0] + e0 * g4[4];
+    out2[0].second = (1.0f - e0) * g4[1] + e0 * g4[5];
+    out2[1].first  = (1.0f - e1) * g4[2] + e1 * g4[6];
+    out2[1].second = (1.0f - e1) * g4[3] + e1 * g4[7];
 
     if (_out_g.active) _out_g.src = q32_wrap_once(_out_g.src + _out_g.rate, wl);
     _in_g.src = q32_wrap_once(_in_g.src + _in_g.rate, wl);
@@ -546,7 +664,12 @@ struct GranularStretch {
 
   // --- internals -----------------------------------------------------------
 
-  IGB_FAST_INLINE void _spawn(LoopBuf& buf, q32_t wl) {
+  // noinline/ITCM (LilaC #227): a spawn happens once per HOP — 512 frames —
+  // but renderIo is force-inlined at two call sites, so an inlined body puts
+  // two copies of the acceptance test and the sub-sample interpolation in the
+  // scarcest memory. The same trade #219 made for _searchAdvance.
+  IGB_ITCM __attribute__((noinline))
+  void _spawn(LoopBuf& buf, q32_t wl) {
     // anchor = pos + (r − p)·L/2 (design §3). |r−p|·L/2 can exceed one
     // window on extreme rate deltas × short windows, so wrap is a bounded
     // loop here (q32_wrap_once is a ±1-window helper).
@@ -668,6 +791,130 @@ struct GranularStretch {
       runs[i] = { buf.buf + segs[i].start_idx, stride, segs[i].count };
     }
     _stage_active = _stage->begin(_stage->ctx, runs, n, count);
+  }
+
+  // LilaC #227: plan the NEXT block's grain reads and hand them to the
+  // providers. Called at the END of an audio block, after its frames were
+  // rendered (see the member-block comment for why that timing lets one
+  // channel per slot suffice).
+  //
+  // Every path out of here leaves the instances it did not stage invalidated,
+  // so "no plan" always means "direct reads", never "stale plan".
+  // ITCM/noinline on the device for the same reason _stageBegin is: this runs
+  // on EVERY audio block (#201/#225 cold-I-fetch class).
+  IGB_ITCM __attribute__((noinline))
+  void stageBlock(LoopBuf& buf, uint32_t nframes) {
+    // A plan that never resolved is the "staged but did not help" case — the
+    // block ran on direct reads. Counted once per request, here, rather than
+    // per read (the read path must stay branch-and-compare only).
+    for (uint8_t i = 0; i < grain_slot_count; ++i) {
+      if (_gs_count[i] && !_gs_ptr[i]) ++gs_stat_late;
+      _gsDrop(i);
+    }
+    if (!grain_stage_enabled) return;
+    if (!nframes || !_grain_stage[0] || !_grain_stage[1]) return;
+    // A background reader bypasses the D-cache, so it must not run while the
+    // source may still hold dirty lines (#225 §6.5 — the owner cleans and
+    // clears this from the main loop).
+    if (buf.content_dirty) return;
+    buf._syncWin();
+    const q32_t wl = buf.winLenQ();
+    if (wl <= 0) return;
+    // The hop fires at the head of the frame whose _k reaches _hop, so the
+    // outgoing grain lives for `remain` more frames and the incoming one
+    // covers the whole block (it continues as the outgoing grain past the
+    // hop — the rotation in renderIo hands it the same staging instance).
+    const uint32_t remain = (_k < _hop) ? (_hop - _k) : 0u;
+    const uint32_t out_frames = (remain < nframes) ? remain : nframes;
+    _stageGrain(buf, wl, _gs_out, _out_g, out_frames);
+    _stageGrain(buf, wl, (uint8_t)(_gs_out ^ 1u), _in_g, nframes);
+  }
+
+  // Drop any staged plan (the owner calls this for a block the track will not
+  // render through the engine, so a later block cannot inherit one).
+  void dropGrainStage() {
+    _gsDrop(0);
+    _gsDrop(1);
+  }
+
+  // One grain's block span. `frames` may be shorter than the block (the
+  // outgoing grain stops at the hop). noinline: two call sites, and the wrap
+  // solver it inlines is ~0.5 KB of the scarcest memory (the #219 lesson).
+  IGB_ITCM __attribute__((noinline))
+  void _stageGrain(LoopBuf& buf, q32_t wl, uint8_t inst, const Grain& g,
+                   uint32_t frames) {
+    if (!frames || !g.active) return;
+    // Rate floor: below it the CPU's own reads hit the cache and the plan
+    // would be pure overhead (see grain_stage_min_rate).
+    if (g.rate < grain_stage_min_rate && g.rate > -grain_stage_min_rate) return;
+    // Extremes of this block's read positions, UNWRAPPED: src + k·rate for
+    // k = 0..frames-1, plus the half-step sub-frame read where #224's ZOH
+    // gate has not removed it. `rate >> 1` is exactly what _readG uses (an
+    // arithmetic shift, so a reverse grain's half step floors the same way).
+    const q32_t last = g.src + (q32_t)(frames - 1u) * g.rate
+                     + (_subZoh(g) ? (q32_t)0 : (g.rate >> 1));
+    const q32_t lo = (last < g.src) ? last : g.src;
+    const q32_t hi = (last < g.src) ? g.src : last;
+    // A span that crosses the window wrap is NOT staged. The staged index is
+    // a plain `i0 - base_idx` subtraction; making it survive the wrap would
+    // mean reasoning about a FRACTIONAL window length in index space, and the
+    // failure mode of getting that wrong is silently reading the wrong
+    // samples. A grain crosses the wrap once per window pass (thousands of
+    // blocks), so the direct-read fallback costs nothing measurable.
+    if (lo < 0 || hi >= wl) return;
+    const q32_t base = (q32_t)((uint64_t)lo & ~0xFFFFFFFFull);
+    // +1 to include the integer part of `hi`, +1 for its interpolation
+    // partner (the direct read pairs i0 with i0+1 — see q32_interp_taps).
+    const uint32_t count = q32_idx(hi - base) + 2u;
+    if (count > grain_stage_max_items) return;    // rate too fast to be worth it
+    typename LoopBuf::StrideSegment segs[stage_max_runs];
+    const uint32_t n =
+        buf.planStrideSegments(base, 1, count, wl, segs, stage_max_runs);
+    if (!n) return;
+    StageRun<std::pair<float, float>> runs[stage_max_runs];
+    for (uint32_t i = 0; i < n; ++i) {
+      runs[i] = { buf.buf + segs[i].start_idx, 1, segs[i].count };
+    }
+    StageT* h = _grain_stage[inst];
+    if (!h->begin || !h->win) return;
+    if (!h->begin(h->ctx, runs, n, count)) return;
+    _gs_base[inst] = base;
+    _gs_base_idx[inst] = q32_idx(base);
+    _gs_wstart[inst] = buf._wstart;
+    _gs_wl[inst] = wl;
+    _gs_count[inst] = count;
+  }
+
+  // Drop one instance's plan (both halves together — a live pointer with a
+  // dead count would be a contradiction waiting to be read).
+  IGB_FAST_INLINE void _gsDrop(uint8_t inst) {
+    _gs_count[inst] = 0;
+    _gs_ptr[inst] = nullptr;
+  }
+
+  // Once per FRAME: decide, per instance, whether staging can serve this
+  // frame's reads, and publish the base pointer the read path uses. Every
+  // check that is not per-read lives here — window identity, the provider's
+  // window, the poll — so the read itself is a null test plus a range check.
+  //
+  // Requiring the WHOLE request to have landed (not just the item in hand)
+  // is deliberate: it is the natural granularity here (one request per grain
+  // per block) and it collapses the per-read test to one comparison.
+  IGB_FAST_INLINE void _gsResolve(const LoopBuf& buf, q32_t wl) {
+    for (uint8_t i = 0; i < grain_slot_count; ++i) {
+      if (_gs_ptr[i] || !_gs_count[i]) continue;   // resolved, or nothing to do
+      // A window commit between plan and read remaps every index, so the
+      // staged copy describes a different window and must be dropped.
+      if (_gs_wl[i] != wl || _gs_wstart[i] != buf._wstart) { _gsDrop(i); continue; }
+      StageT* h = _grain_stage[i];
+      const StageWindow<std::pair<float, float>>* win = h->win;
+      if (win->first != 0 || win->count < _gs_count[i]) {
+        if (!h->poll) { _gsDrop(i); continue; }
+        h->poll(h->ctx);
+        if (win->first != 0 || win->count < _gs_count[i]) continue;  // retry next frame
+      }
+      _gs_ptr[i] = win->data;
+    }
   }
 
   // LilaC #225 (stage 2): stage the SPAN the reference taps walk. Their step
@@ -1105,14 +1352,38 @@ struct GranularStretch {
     return g.rate >= subread_zoh_min_rate || g.rate <= -subread_zoh_min_rate;
   }
 
-  IGB_FAST_INLINE std::pair<float, float> _readG(const LoopBuf& buf, q32_t wl,
-                                                 const Grain& g, uint32_t sub) const {
-    if (!g.active) return {0.0f, 0.0f};
+  // `inst` = the staging instance carrying this grain's trajectory (LilaC
+  // #227). The staged and direct paths differ ONLY in where the two samples
+  // come from — same taps, same expression, same order — so a staged read is
+  // bit-identical to _readInterpQ by construction, and the extra ITCM per
+  // inlined copy is a null test, a subtraction and a compare.
+  IGB_FAST_INLINE void _readG(const LoopBuf& buf, q32_t wl, const Grain& g,
+                              uint32_t sub, uint8_t inst,
+                              float& l, float& r) const {
+    if (!g.active) { l = 0.0f; r = 0.0f; return; }
     // Sub-frame 1 reads half a rate step ahead (io oversample, #111) —
     // wrapped per read since the base src is only wrapped once per frame.
     q32_t p = (sub == 0) ? g.src : q32_wrap_once(g.src + (g.rate >> 1), wl);
     if (p < 0) p = 0;   // negative-saturate like readLoopAhead (#198)
-    return buf._readInterpQ(p);
+    const InterpTapsQ taps = q32_interp_taps(p, wl);
+    const std::pair<float, float>* v0;
+    const std::pair<float, float>* v1;
+    const std::pair<float, float>* st = _gs_ptr[inst];
+    uint32_t j = 0;
+    // Unsigned subtraction: a position BELOW the staged base wraps to a huge
+    // index and fails the same bound, so one compare covers both ends.
+    if (st && (j = taps.i0 - _gs_base_idx[inst]) + 1u < _gs_count[inst]) {
+      v0 = st + j;
+      v1 = st + j + 1u;
+    } else {
+      v0 = buf.buf + buf._winIdx(taps.i0);
+      v1 = buf.buf + buf._winIdx(taps.i1);
+    }
+    // Member reads through the pointers, NOT pair copies (the #202 class:
+    // std::pair's helpers are not always_inline and get outlined once the
+    // ITCM caller runs out of inline budget).
+    l = (1.0f - taps.t) * v0->first  + taps.t * v1->first;
+    r = (1.0f - taps.t) * v0->second + taps.t * v1->second;
   }
 
   static q32_t _wrapBounded(q32_t v, q32_t len) {

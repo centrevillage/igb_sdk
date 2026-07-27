@@ -323,15 +323,26 @@ public:
       const q32_t rem_win_q = wl - p;                       // > 0
       const uint32_t rem_win =
           (uint32_t)((uint64_t)(rem_win_q + (q32_t)0xFFFFFFFF) >> 32);  // ceil
-      uint32_t run = (rem_win - 1u) / stride + 1u;
-
       const uint32_t rem_content = (uint32_t)(L - w);
-      const uint32_t run_c = (rem_content - 1u) / stride + 1u;
-      if (run_c < run) run = run_c;
-
       const uint32_t rem_buf = (uint32_t)(buf_size - idx);
-      const uint32_t run_b = (rem_buf - 1u) / stride + 1u;
-      if (run_b < run) run = run_b;
+
+      // stride == 1 is the contiguous case (LilaC #227 uses it once per grain
+      // per audio BLOCK, and #225's `fill` stage uses it too), where every
+      // (rem - 1) / stride + 1 below is just `rem`. `stride` is a runtime
+      // argument, so without this branch the compiler must emit three udivs
+      // per segment on the hot path.
+      uint32_t run;
+      if (stride == 1) {
+        run = rem_win;
+        if (rem_content < run) run = rem_content;
+        if (rem_buf < run) run = rem_buf;
+      } else {
+        run = (rem_win - 1u) / stride + 1u;
+        const uint32_t run_c = (rem_content - 1u) / stride + 1u;
+        if (run_c < run) run = run_c;
+        const uint32_t run_b = (rem_buf - 1u) / stride + 1u;
+        if (run_b < run) run = run_b;
+      }
 
       if (run > left) run = left;
 

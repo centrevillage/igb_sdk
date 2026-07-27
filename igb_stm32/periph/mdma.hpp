@@ -499,6 +499,92 @@ struct MdmaChannel {
 };
 
 // ============================================================
+// MdmaChannelRt — the same channel, addressed at RUN TIME
+// ============================================================
+//
+// MdmaChannel<CH> above resolves every register address at compile time,
+// which is the right default: the access is a literal store. The cost is one
+// full copy of the CODE per channel, and a driver that runs the same logic on
+// several channels pays it once per channel — in LilaCRepeater's case (issue
+// #227) twelve copies of a DMA staging provider, 4 KB of the 64 KB ITCM.
+//
+// This variant carries the channel's register block as a pointer instead, so
+// one copy of the logic serves every channel. It deliberately covers only the
+// operations a driver needs on its HOT path; the protected configuration
+// (configure(), which touches ~20 fields under EN = 0) stays on the
+// compile-time type, where a boot-time caller pays only flash.
+//
+// Every accessor below mirrors its MdmaChannel<CH> counterpart field for
+// field — same masks, same positions, same read-modify-write shape — so the
+// two must be kept in step if either changes.
+struct MdmaChannelRt {
+  MDMA_Channel_TypeDef* ch = nullptr;
+
+  IGB_FAST_INLINE static MdmaChannelRt of(uint8_t idx) {
+    return MdmaChannelRt{ (MDMA_Channel_TypeDef*)(uintptr_t)
+        (MDMA_Channel0_BASE + (uint32_t)idx * 0x40UL) };
+  }
+
+  IGB_FAST_INLINE void start()   { ch->CCR |= MDMA_CCR_EN; }
+  IGB_FAST_INLINE void trigger() { ch->CCR |= MDMA_CCR_SWRQ; }
+  // RM0433 §14.3.14: clearing EN does not stop the channel at once — the
+  // buffer transfer in flight finishes first. Never spin here on a
+  // real-time path; poll isIdle() later (MdmaChannel<CH>::abort()).
+  IGB_FAST_INLINE void abort()   { ch->CCR &= ~MDMA_CCR_EN; }
+  IGB_FAST_INLINE bool isIdle() const { return !(ch->CCR & MDMA_CCR_EN); }
+
+  IGB_FAST_INLINE bool isChannelTransferComplete() const {
+    return ch->CISR & MDMA_CISR_CTCIF;
+  }
+  IGB_FAST_INLINE bool isAnyError() const {
+    return (ch->CISR & MDMA_CISR_TEIF)
+        || (ch->CESR & (MDMA_CESR_ASE | MDMA_CESR_BSE));
+  }
+  // CxIFCR is write-1-to-clear only, so a plain store is correct.
+  IGB_FAST_INLINE void clearAllFlags() {
+    ch->CIFCR = MDMA_CIFCR_CTEIF | MDMA_CIFCR_CCTCIF | MDMA_CIFCR_CBRTIF
+              | MDMA_CIFCR_CBTIF | MDMA_CIFCR_CLTCIF;
+  }
+
+  // Addresses, sizes and the between-block stepping (EN = 0 only) — the
+  // MdmaChannel<CH>::setBlock body with runtime addresses.
+  IGB_FAST_INLINE void setBlock(const MdmaBlockConf& conf) {
+    ch->CSAR = conf.srcAddress;
+    ch->CDAR = conf.dstAddress;
+
+    const bool s_dec = conf.srcBlockOffset < 0;
+    const bool d_dec = conf.dstBlockOffset < 0;
+    const uint32_t suv =
+        (uint32_t)(s_dec ? -conf.srcBlockOffset : conf.srcBlockOffset);
+    const uint32_t duv =
+        (uint32_t)(d_dec ? -conf.dstBlockOffset : conf.dstBlockOffset);
+    uint32_t brur = ch->CBRUR;
+    brur &= ~(MDMA_CBRUR_SUV_Msk | MDMA_CBRUR_DUV_Msk);
+    brur |= ((suv << MDMA_CBRUR_SUV_Pos) & MDMA_CBRUR_SUV_Msk)
+          | ((duv << MDMA_CBRUR_DUV_Pos) & MDMA_CBRUR_DUV_Msk);
+    ch->CBRUR = brur;
+
+    const uint32_t s_up = (uint32_t)(s_dec ? MdmaBlockAddrUpdate::decrement
+                                           : MdmaBlockAddrUpdate::increment);
+    const uint32_t d_up = (uint32_t)(d_dec ? MdmaBlockAddrUpdate::decrement
+                                           : MdmaBlockAddrUpdate::increment);
+    uint32_t bndtr = ch->CBNDTR;
+    bndtr &= ~(MDMA_CBNDTR_BNDT_Msk | MDMA_CBNDTR_BRC_Msk
+               | MDMA_CBNDTR_BRSUM_Msk | MDMA_CBNDTR_BRDUM_Msk);
+    bndtr |= ((conf.blockBytes << MDMA_CBNDTR_BNDT_Pos) & MDMA_CBNDTR_BNDT_Msk)
+           | (((uint32_t)conf.blockRepeatCount << MDMA_CBNDTR_BRC_Pos)
+              & MDMA_CBNDTR_BRC_Msk)
+           | ((s_up << MDMA_CBNDTR_BRSUM_Pos) & MDMA_CBNDTR_BRSUM_Msk)
+           | ((d_up << MDMA_CBNDTR_BRDUM_Pos) & MDMA_CBNDTR_BRDUM_Msk);
+    ch->CBNDTR = bndtr;
+
+    ch->CLAR = conf.linkAddress;
+    ch->CMAR = conf.maskAddress;
+    ch->CMDR = conf.maskData;
+  }
+};
+
+// ============================================================
 // Mdma — controller-level access
 // ============================================================
 
