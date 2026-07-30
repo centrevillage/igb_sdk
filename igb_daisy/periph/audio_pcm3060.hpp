@@ -174,6 +174,7 @@ struct AudioPcm3060 {
 
   // TX FIFO preload word count (LilaCRepeater issue #250).
   //
+  // === What this fixes ===
   // The callback is driven by the RX DMA half/complete events, but TX is an
   // independent circular DMA. Without a preload, dma_tx.start() below finds an
   // empty TX FIFO with the request already asserted and instantly prefetches
@@ -187,23 +188,43 @@ struct AudioPcm3060 {
   //
   // Preloading k zero words keeps the FIFO level above the threshold at DMA
   // start, so the initial request burst never happens and the TX pointer runs
-  // k words later permanently (FIFO level = preload + fetched - consumed, and
-  // the DMA regulates level to the threshold — so fetched = consumed +
-  // threshold - preload). k = 6 cancels the measured lead, restoring the full
-  // 125 us deadline. Side effect: +6 words (~31 us) of output latency and 6
-  // silent words at boot — both negligible.
+  // k words later permanently (fetched = consumed + threshold - preload).
   //
-  // Verified on device via the parent firmware's T1+T3 overlay: entry_min
-  // (words until TX enters the half being written, at callback entry) must
-  // read ~0x17-0x18 (23-24) after this change, and the race count must stay 0.
-  // Do NOT preload more than the measured lead: overshooting makes TX LAG the
-  // boundary, and a callback that finishes faster than the lag (5.2 us/word)
-  // would overwrite tail words the previous window still needs.
+  // === Honest assessment: this is a phase COMPENSATION, i.e. ad hoc ===
+  // Writing SAI_xDR while SAIEN=0 is itself ST-sanctioned (the official HAL
+  // does exactly this in SAI_FillFifo(): "fill the fifo with data before to
+  // enabled the SAI"; RM0433 51.4.9 puts no SAIEN precondition on DR loads,
+  // and the FIFO was flushed in initSai() as required). The ~6-word skew is
+  // also mostly derivable from RM0433 51.4.9: TX FTH=quarter prefetches 2
+  // words + 1 TX shift-register slot, RX FTH=quarter delays draining by 2
+  // words + 1 RX shift-register slot. BUT the last +-1-2 words are NOT
+  // specified (shift-register accounting, request granularity) and were tuned
+  // empirically. The value below is therefore COUPLED to: the FIFO threshold
+  // configs above, the DMA/SAI enable order in start(), and the silicon.
+  // If any of those change, RE-MEASURE (see verification below). The
+  // phase-INDEPENDENT alternative — writing the previous block's output at
+  // the head of the next callback (+125 us latency) — was considered and
+  // declined for latency; see LilaCRepeater docs/250 section 10.
+  //
+  // === Tuning history (device-measured, T1+T3 overlay) ===
+  //   preload 0: entry 18-20 words -> effective deadline 93.7 us (the bug)
+  //   preload 6: entry 25-26      -> deadline ~130 us, but TX LAGS the
+  //              boundary by 1-2 words: a callback finishing faster than the
+  //              lag (5.2 us/word) would overwrite tail words the previous
+  //              window still needs. Too far.
+  //   preload 4: entry target 23-24 -> deadline ~120-125 us, zero lag. Chosen.
+  //
+  // === Verification (MANDATORY after touching thresholds/enable order) ===
+  // Parent firmware T1+T3 overlay: entry_min/entry_max (words until TX enters
+  // the half being written, at callback entry) must read 23-24/<=24 and the
+  // race count must stay 0. entry_max >= 25 means the preload overshot (lag
+  // hazard above); entry_min well below 23 means it undershot (deadline
+  // shrinks back toward the bug).
   //
   // MUST BE EVEN: the buffer is interleaved L,R and the preload shifts which
   // word lands on which slot. An even count shifts by whole frames (channel
   // mapping preserved); an odd count would SWAP left and right permanently.
-  static constexpr uint32_t tx_fifo_preload_words = 6;
+  static constexpr uint32_t tx_fifo_preload_words = 4;
   static_assert(tx_fifo_preload_words % 2 == 0,
                 "odd preload would swap L/R channel mapping");
   static_assert(tx_fifo_preload_words <= 8, "SAI FIFO is 8 words deep");
