@@ -172,6 +172,42 @@ struct AudioPcm3060 {
     dma_rx.init(igb::stm32::DmaMux1ReqId::sai1B, 1);
   }
 
+  // TX FIFO preload word count (LilaCRepeater issue #250).
+  //
+  // The callback is driven by the RX DMA half/complete events, but TX is an
+  // independent circular DMA. Without a preload, dma_tx.start() below finds an
+  // empty TX FIFO with the request already asserted and instantly prefetches
+  // several words BEFORE the SAI is even enabled; combined with the RX FIFO
+  // threshold lag this leaves the TX read pointer ~6 words (31 us at 192 kHz
+  // word rate) AHEAD of the RX half boundary at every callback entry. The
+  // effective deadline for writing the tx half-buffer was therefore 18 words
+  // (93.7 us), not 24 (125 us) — callbacks longer than that had their leading
+  // samples consumed before they were written (device-measured: 64.9% of
+  // blocks raced in the worst configuration; audible as a fizzing noise).
+  //
+  // Preloading k zero words keeps the FIFO level above the threshold at DMA
+  // start, so the initial request burst never happens and the TX pointer runs
+  // k words later permanently (FIFO level = preload + fetched - consumed, and
+  // the DMA regulates level to the threshold — so fetched = consumed +
+  // threshold - preload). k = 6 cancels the measured lead, restoring the full
+  // 125 us deadline. Side effect: +6 words (~31 us) of output latency and 6
+  // silent words at boot — both negligible.
+  //
+  // Verified on device via the parent firmware's T1+T3 overlay: entry_min
+  // (words until TX enters the half being written, at callback entry) must
+  // read ~0x17-0x18 (23-24) after this change, and the race count must stay 0.
+  // Do NOT preload more than the measured lead: overshooting makes TX LAG the
+  // boundary, and a callback that finishes faster than the lag (5.2 us/word)
+  // would overwrite tail words the previous window still needs.
+  //
+  // MUST BE EVEN: the buffer is interleaved L,R and the preload shifts which
+  // word lands on which slot. An even count shifts by whole frames (channel
+  // mapping preserved); an odd count would SWAP left and right permanently.
+  static constexpr uint32_t tx_fifo_preload_words = 6;
+  static_assert(tx_fifo_preload_words % 2 == 0,
+                "odd preload would swap L/R channel mapping");
+  static_assert(tx_fifo_preload_words <= 8, "SAI FIFO is 8 words deep");
+
   void start(Callback cb) {
     callback = cb;
 
@@ -179,6 +215,13 @@ struct AudioPcm3060 {
     for (size_t i = 0; i < dma_size; ++i) {
       tx_buf[i] = 0;
       rx_buf[i] = 0;
+    }
+
+    // Issue #250: preload the TX FIFO with silence BEFORE the TX DMA starts
+    // (see tx_fifo_preload_words above). SAI_xDR writes load the FIFO
+    // regardless of SAIEN; the FIFO was flushed in initSai().
+    for (uint32_t i = 0; i < tx_fifo_preload_words; ++i) {
+      *reinterpret_cast<volatile uint32_t*>(sai.blockA.addr_DR) = 0u;
     }
 
     // DMA configuration: 32-bit, circular, HT+TC interrupts
