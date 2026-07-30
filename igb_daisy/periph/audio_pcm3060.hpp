@@ -42,7 +42,32 @@ template <
   typename DmaTxStreamT,
   typename DmaRxStreamT,
   uint32_t sample_rate = 48000,
-  size_t block_size = 48
+  size_t block_size = 48,
+  // TX FIFO preload word count (0 = stock behavior, no preload).
+  //
+  // The audio callback is driven by the RX DMA half/complete events, but TX
+  // is an independent circular DMA. At dma_tx.start() the empty TX FIFO has
+  // its DMA request already asserted, so the stream prefetches words into the
+  // FIFO before the SAI is even enabled; the RX FIFO threshold adds lag on
+  // the other side. The TX read pointer therefore runs several words AHEAD of
+  // the RX event phase, which silently shortens the effective deadline for
+  // writing the tx half-buffer below the nominal half period. Preloading k
+  // zero words into the TX FIFO before starting the DMA suppresses the
+  // initial prefetch burst and shifts the TX pointer k words later,
+  // permanently (fetched = consumed + threshold - preload).
+  //
+  // The correct k is a phase COMPENSATION and must be measured on the target
+  // system: it depends on both FIFO thresholds, the DMA/SAI enable order, and
+  // the silicon (RM0433 51.4.9 pins the threshold fill levels, but the
+  // shift-register accounting is +-1-2 words in practice). Constraints:
+  //  - must be EVEN, or the interleaved L/R channel mapping swaps permanently
+  //  - at most 8 (FIFO depth)
+  //  - do not exceed the measured lead: overshooting makes TX LAG the
+  //    boundary, and a callback finishing faster than the lag (one word
+  //    period per word) overwrites tail words the previous window still needs
+  // Writing SAI_xDR while the SAI is disabled is ST-sanctioned (the official
+  // HAL's SAI_FillFifo() does the same; the FIFO is flushed in initSai()).
+  uint32_t tx_fifo_preload_words = 0
 >
 struct AudioPcm3060 {
   static constexpr size_t channels = 2;                          // PCM3060 is stereo
@@ -172,59 +197,6 @@ struct AudioPcm3060 {
     dma_rx.init(igb::stm32::DmaMux1ReqId::sai1B, 1);
   }
 
-  // TX FIFO preload word count (LilaCRepeater issue #250).
-  //
-  // === What this fixes ===
-  // The callback is driven by the RX DMA half/complete events, but TX is an
-  // independent circular DMA. Without a preload, dma_tx.start() below finds an
-  // empty TX FIFO with the request already asserted and instantly prefetches
-  // several words BEFORE the SAI is even enabled; combined with the RX FIFO
-  // threshold lag this leaves the TX read pointer ~6 words (31 us at 192 kHz
-  // word rate) AHEAD of the RX half boundary at every callback entry. The
-  // effective deadline for writing the tx half-buffer was therefore 18 words
-  // (93.7 us), not 24 (125 us) — callbacks longer than that had their leading
-  // samples consumed before they were written (device-measured: 64.9% of
-  // blocks raced in the worst configuration; audible as a fizzing noise).
-  //
-  // Preloading k zero words keeps the FIFO level above the threshold at DMA
-  // start, so the initial request burst never happens and the TX pointer runs
-  // k words later permanently (fetched = consumed + threshold - preload).
-  //
-  // === Honest assessment: this is a phase COMPENSATION, i.e. ad hoc ===
-  // Writing SAI_xDR while SAIEN=0 is itself ST-sanctioned (the official HAL
-  // does exactly this in SAI_FillFifo(): "fill the fifo with data before to
-  // enabled the SAI"; RM0433 51.4.9 puts no SAIEN precondition on DR loads,
-  // and the FIFO was flushed in initSai() as required). The ~6-word skew is
-  // also mostly derivable from RM0433 51.4.9: TX FTH=quarter prefetches 2
-  // words + 1 TX shift-register slot, RX FTH=quarter delays draining by 2
-  // words + 1 RX shift-register slot. BUT the last +-1-2 words are NOT
-  // specified (shift-register accounting, request granularity) and were tuned
-  // empirically. The value below is therefore COUPLED to: the FIFO threshold
-  // configs above, the DMA/SAI enable order in start(), and the silicon.
-  // If any of those change, RE-MEASURE (see verification below). The
-  // phase-INDEPENDENT alternative — writing the previous block's output at
-  // the head of the next callback (+125 us latency) — was considered and
-  // declined for latency; see LilaCRepeater docs/250 section 10.
-  //
-  // === Tuning history (device-measured, T1+T3 overlay) ===
-  //   preload 0: entry 18-20 words -> effective deadline 93.7 us (the bug)
-  //   preload 6: entry 25-26      -> deadline ~130 us, but TX LAGS the
-  //              boundary by 1-2 words: a callback finishing faster than the
-  //              lag (5.2 us/word) would overwrite tail words the previous
-  //              window still needs. Too far.
-  //   preload 4: entry target 23-24 -> deadline ~120-125 us, zero lag. Chosen.
-  //
-  // === Verification (MANDATORY after touching thresholds/enable order) ===
-  // Parent firmware T1+T3 overlay: entry_min/entry_max (words until TX enters
-  // the half being written, at callback entry) must read 23-24/<=24 and the
-  // race count must stay 0. entry_max >= 25 means the preload overshot (lag
-  // hazard above); entry_min well below 23 means it undershot (deadline
-  // shrinks back toward the bug).
-  //
-  // MUST BE EVEN: the buffer is interleaved L,R and the preload shifts which
-  // word lands on which slot. An even count shifts by whole frames (channel
-  // mapping preserved); an odd count would SWAP left and right permanently.
-  static constexpr uint32_t tx_fifo_preload_words = 4;
   static_assert(tx_fifo_preload_words % 2 == 0,
                 "odd preload would swap L/R channel mapping");
   static_assert(tx_fifo_preload_words <= 8, "SAI FIFO is 8 words deep");
@@ -238,9 +210,8 @@ struct AudioPcm3060 {
       rx_buf[i] = 0;
     }
 
-    // Issue #250: preload the TX FIFO with silence BEFORE the TX DMA starts
-    // (see tx_fifo_preload_words above). SAI_xDR writes load the FIFO
-    // regardless of SAIEN; the FIFO was flushed in initSai().
+    // Preload the TX FIFO with silence BEFORE the TX DMA starts (see the
+    // tx_fifo_preload_words template parameter). No-op when 0.
     for (uint32_t i = 0; i < tx_fifo_preload_words; ++i) {
       *reinterpret_cast<volatile uint32_t*>(sai.blockA.addr_DR) = 0u;
     }
