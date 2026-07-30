@@ -36,6 +36,17 @@ struct MuxIO<wait_tick, AddrPinList<addr_pin_types...>, IOConfigList<configs...>
   constexpr static std::size_t mux_size = (1 << addr_pins_size);
   constexpr static std::size_t configs_size = sizeof...(configs);
 
+  // Nominal time to visit every address once (one full scan). A given
+  // address's latched input is refreshed at most once per this period, so
+  // anything downstream that reasons about "how stale can a muxed input be"
+  // must derive its timing from this rather than hard-coding a number.
+  //
+  // NOMINAL only: process() steps at most one address per call, so the real
+  // scan period is max(step_tick, caller's call period). If the caller runs
+  // slower than step_tick, the caller becomes the limit.
+  constexpr static uint32_t step_tick = wait_tick;
+  constexpr static uint32_t scan_tick = wait_tick * (uint32_t)mux_size;
+
   static_assert(addr_pins_size > 0, "addr_pin_types is blank!");
   static_assert(configs_size > 0, "configs is blank!");
 
