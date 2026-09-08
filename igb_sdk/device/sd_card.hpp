@@ -4,7 +4,11 @@
 // data-phase completion).
 //
 // GPIO: PC8(D0), PC9(D1), PC10(D2), PC11(D3), PC12(CK), PD2(CMD) — AF12
-// Clock: PLL2R (200 MHz kernel), CLKDIV sets card clock
+// Clock: PLL2R (200 MHz kernel), CLKDIV sets card clock. init() brings the
+//        card up at 400 kHz and then switches to 200 MHz / (2 * fast_clk_div):
+//        the default 4 gives 25 MHz (Default Speed mode limit); 2 gives
+//        50 MHz without a CMD6 High Speed switch, which is what libDaisy's
+//        Speed::FAST did (SproutFX uses it).
 // Transfer: IDMA (Internal DMA) with non-cacheable AXI SRAM buffer
 //
 // IDMA transfers to/from a caller-provided 4 KB buffer in non-cacheable AXI
@@ -131,7 +135,7 @@ struct SdCard {
   }
 
   // ---- Card initialization ----
-  bool init() {
+  bool init(uint16_t fast_clk_div = 4) {
     sd.enableBusClock();
 
     // Clear residual SDMMC state (bootloader may have left it configured)
@@ -201,10 +205,10 @@ struct SdCard {
     if (!sendAppCommand(SdAcmd::SET_BUSWIDTH, 0x00000002, igb::stm32::SdmmcWaitResp::shortCrc))
       return false;
 
-    // Increase clock speed: 200MHz / (2*4) = 25 MHz
+    // Increase clock speed: 200 MHz / (2 * fast_clk_div), 4 -> 25 MHz, 2 -> 50 MHz
     initGpio(igb::stm32::GpioSpeedMode::veryHigh);
     sd.initClock({
-      .clkDiv   = 4,
+      .clkDiv   = fast_clk_div,
       .busWidth = igb::stm32::SdmmcBusWidth::_4bit,
       .hwFlowCtrl = true,
     });
