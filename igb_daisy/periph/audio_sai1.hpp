@@ -22,9 +22,16 @@
 // on the rising edge) whichever direction they run in.
 //
 // Clocking assumes the SAI kernel clock is PLL3P ~ 49.152 MHz (configured by
-// the application's sys_init). MCKDIV is computed from sample_rate so that
-// fs = PLL3P / (MCKDIV * 2 * 256). Verified for 48 kHz (MCKDIV=2) and 96 kHz
-// (MCKDIV=1).
+// the application's sys_init). On the H7 SAI (RM0433 51.4.7, NODIV = 0):
+//   MCLK = SAI_CK / MCKDIV,   FS = MCLK / (256 * (OSR + 1))
+// so the MCLK pin carries 256 x fs (OSR = 0) or 512 x fs (OSR = 1); FS and
+// SCK are the same either way. The ratio is the mclk_fs_ratio template
+// parameter. 512 is the value LilaCRepeater ships with (PCM3060 at 48 kHz,
+// MCLK 24.576 MHz; the codec auto-detects the ratio). 256 is what libDaisy's
+// HAL produced (MckOverSampling disabled, MCKDIV = SAI_CK / (fs * 256)) and
+// what a codec with a fixed ratio needs: the WM8731 (Daisy Seed 1.1) only
+// knows 256 / 384 x fs, and at 512 x fs its converters run at twice the
+// LRCLK rate, which shows up as a raised noise floor.
 //
 // DMA: one stream per SAI block (dma_a <-> SAI1_A, dma_b <-> SAI1_B), both
 // circular with HT+TC interrupts on a single buffer split in half; the RX
@@ -44,10 +51,10 @@ namespace igb::daisy {
 // PLL3P assumed for the SAI kernel clock (audio-friendly 49.152 MHz).
 inline constexpr uint32_t audio_sai1_kernel_hz = 49'152'000U;
 
-// MCK = PLL3P / (mckDiv * 2), fs = MCK / 256
-//   -> mckDiv = PLL3P / (sample_rate * 512)
-constexpr uint8_t audio_sai1_calc_mck_div(uint32_t sample_rate) {
-  return (uint8_t)(audio_sai1_kernel_hz / (sample_rate * 512U));
+// MCLK = PLL3P / mckDiv = mclk_fs_ratio * fs
+//   -> mckDiv = PLL3P / (sample_rate * mclk_fs_ratio)
+constexpr uint8_t audio_sai1_calc_mck_div(uint32_t sample_rate, uint16_t mclk_fs_ratio = 512) {
+  return (uint8_t)(audio_sai1_kernel_hz / (sample_rate * (uint32_t)mclk_fs_ratio));
 }
 
 enum class AudioSai1Direction : uint8_t {
@@ -86,13 +93,18 @@ template <
   // HAL's SAI_FillFifo() does the same; the FIFO is flushed in initSai()).
   uint32_t tx_fifo_preload_words = 0,
   // NVIC priority of both DMA stream interrupts.
-  uint8_t dma_irq_priority = 1
+  uint8_t dma_irq_priority = 1,
+  // MCLK pin frequency as a multiple of fs: 512 (OSR = 1) or 256 (OSR = 0).
+  // See the clocking note at the top of the file.
+  uint16_t mclk_fs_ratio = 512
 >
 struct AudioSai1 {
   static constexpr size_t channels = 2;
   static constexpr size_t dma_size = block_size * channels * 2;  // *2 for two halves
-  static constexpr uint8_t mck_div = audio_sai1_calc_mck_div(sample_rate);
+  static constexpr uint8_t mck_div = audio_sai1_calc_mck_div(sample_rate, mclk_fs_ratio);
 
+  static_assert(mclk_fs_ratio == 256 || mclk_fs_ratio == 512,
+                "mclk_fs_ratio must be 256 or 512 (SAI OSR bit)");
   static_assert(mck_div >= 1, "sample_rate too high for PLL3P=49.152MHz audio clock");
   static_assert(tx_fifo_preload_words % 2 == 0,
                 "odd preload would swap L/R channel mapping");
@@ -143,9 +155,9 @@ struct AudioSai1 {
       .outputDrive = false,
       .mckDiv     = mck_div,
       .mckEnable  = true,
-      .osr        = true,  // 512xfs oversampling: FFS = PLL3P/(MCKDIV*512).
-                           // Without it OSR=0 gives 256xfs -> FFS doubles
-                           // (mck_div is computed for the 512xfs relation).
+      .osr        = (mclk_fs_ratio == 512),  // FS = MCLK / (256 * (OSR + 1));
+                                             // mck_div is computed for the
+                                             // same ratio, so FS stays put.
     });
 
     // I2S Left-Justified (MSB Justified) frame:
