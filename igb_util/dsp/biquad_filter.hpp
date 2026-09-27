@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <tuple>
 #include <cmath>
+#include <igb_util/macro.hpp>
 #include <igb_util/algorithm.hpp>
 #include <igb_util/math.hpp>
 #include <igb_util/dsp/dsp_tbl_func.hpp>
@@ -230,7 +231,10 @@ struct BiQuadFilter {
     a2 = ((amp + 1.0f) - (amp - 1.0f) * cos_w0 - 2.0f * sqrt_amp * alpha) / a0;
   }
 
-  float process(Context& ctx, float input_value) {
+  // always inlined (SproutFX issue #30 Q12): the callers are Ofast
+  // (IGB_FAST_INLINE) per-sample loops, where a plain member function
+  // stayed a call per sample
+  IGB_FAST_INLINE float process(Context& ctx, float input_value) {
     const float x0 = input_value;
 
     float y0 = b0 * x0 + b1 * ctx.x1 + b2 * ctx.x2 - a1 * ctx.y1 - a2 * ctx.y2;
