@@ -44,6 +44,7 @@ add_executable(
   src/test_syncable_mod_clock.cpp
   src/test_soft_timer.cpp
   src/test_midi_parser.cpp
+  src/test_ini_reader.cpp
 )
 target_link_libraries(igb_sdk_test PRIVATE igb_sdk Catch2::Catch2WithMain)
 
