@@ -83,6 +83,11 @@ struct UsbOtgDevice {
     (USB_TYPE == UsbOtgType::otg1Hs) ? OTG_HS_IRQn : OTG_FS_IRQn;
   constexpr static uint32_t bus_enr_bit =
     (USB_TYPE == UsbOtgType::otg1Hs) ? RCC_AHB1ENR_USB1OTGHSEN : RCC_AHB1ENR_USB2OTGFSEN;
+  // CSleep (WFI) clock gates: the core's, and its ULPI PHY clock's
+  constexpr static uint32_t sleep_enr_bit =
+    (USB_TYPE == UsbOtgType::otg1Hs) ? RCC_AHB1LPENR_USB1OTGHSLPEN : RCC_AHB1LPENR_USB2OTGFSLPEN;
+  constexpr static uint32_t ulpi_sleep_enr_bit =
+    (USB_TYPE == UsbOtgType::otg1Hs) ? RCC_AHB1LPENR_USB1OTGHSULPILPEN : RCC_AHB1LPENR_USB2OTGFSULPILPEN;
   constexpr static uint8_t max_ep_count = 9;
 
   constexpr static auto addr_GOTGCTL = IGB_USB_OTG_REG_ADDR(GOTGCTL);
@@ -160,6 +165,16 @@ struct UsbOtgDevice {
   IGB_FAST_INLINE void enableBusClock() {
     RCC->AHB1ENR |= bus_enr_bit;
     __IO auto tmp IGB_UNUSED = RCC->AHB1ENR; // delay until clock enabled
+  }
+
+  // Keep the core clocked in CSleep but gate the ULPI clock. Both gates
+  // reset to on; the embedded FS PHY has no ULPI clock, so with its gate on
+  // the core stalls (bulk IN halts or the device drops off the bus) each
+  // time the CPU sleeps in WFI. HAL_PCD_MspInit clears the same bit
+  // (__HAL_RCC_USB2_OTG_FS_ULPI_CLK_SLEEP_DISABLE). An external ULPI PHY
+  // (not supported here) would need it on.
+  IGB_FAST_INLINE void configureSleepClock() {
+    RCC->AHB1LPENR = (RCC->AHB1LPENR | sleep_enr_bit) & ~ulpi_sleep_enr_bit;
   }
 
   IGB_FAST_INLINE void prepareGpio(GpioPinType pin_type, GpioAf af_idx) {
@@ -361,6 +376,7 @@ struct UsbOtgDevice {
     PWR->CR3 |= PWR_CR3_USB33DEN;
 
     enableBusClock();
+    configureSleepClock();
 
     if (conf.dm_pin_type) { prepareGpio(conf.dm_pin_type.value(), conf.pin_alternate_func); }
     if (conf.dp_pin_type) { prepareGpio(conf.dp_pin_type.value(), conf.pin_alternate_func); }
